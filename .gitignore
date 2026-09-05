@@ -1,0 +1,36 @@
+# Node
+node_modules/
+.pnp
+.pnp.js
+coverage/
+.next/
+out/
+build/
+dist/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+env/
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+
+# IDEs
+.vscode/
+.idea/

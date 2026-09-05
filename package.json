@@ -1,0 +1,13 @@
+{
+  "name": "borsa-takip-root",
+  "private": true,
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev:frontend": "pnpm --filter frontend dev",
+    "build:frontend": "pnpm --filter frontend build",
+    "test:frontend": "pnpm --filter frontend test:unit"
+  }
+}
