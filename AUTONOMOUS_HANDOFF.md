@@ -2154,52 +2154,34 @@ Bu bölüm **her checkpoint'te güncellenmelidir**.
 
 ```yaml
 resume:
-  current_phase: "00"
-  phase_status: "IN_PROGRESS"
-  current_task: "T11"
-  task_status: "IN_PROGRESS"
-  active_phase_plan: "phase_00_plan.md"
+  current_phase: "01"
+  phase_status: "NOT_STARTED"
+  current_task: "T00"
+  task_status: "NOT_STARTED"
+  active_phase_plan: "docs/phases/phase_01_plan.md (TO BE CREATED)"
   execution_hold: "NONE"
   start_condition: "NONE"
-  handoff_checkpoint: "S-20260905-02"
-  last_verified_commit: "823bbde"
-  last_known_good_commit: "823bbde"
+  handoff_checkpoint: "S-20260906-01"
+  last_verified_commit: "HEAD"
+  last_known_good_commit: "HEAD"
   last_pushed_commit: null
-  working_tree: "NOT_A_GIT_REPOSITORY"
-  remote_origin_local: null
+  working_tree: "CLEAN"
+  remote_origin_local: "EXISTS"
   canonical_remote: "git@github.com:Menesgumus/borsa-takip.git"
-  remote_sync_status: "LOCAL_GIT_ABSENT; REMOTE_EXISTS_EMPTY; default_branch=main"
-  related_phase_completion: null
+  remote_sync_status: "LOCAL_AHEAD"
+  related_phase_completion: "docs/phases/phase_00_completion.md"
 
   must_read:
     - "BORSA_TAKIP_MASTER_SPEC.md"
     - "ROADMAP.md"
-    - "phase_00_plan.md"
-    - "Relevant phase completion if it exists; none exists at this checkpoint."
+    - "docs/phases/phase_00_completion.md"
     - "AUTONOMOUS_HANDOFF.md"
-    - "GAP_ANALYSIS.md"
-    - "Actual repository code/test/migration/Git state; currently no implementation."
 
   verify_before_editing:
-    - "Master hash against section 19; if changed, read the complete new master."
-    - "git status --short --branch, git branch --show-current, git rev-parse HEAD, git remote -v; absence is not a clean working tree."
-    - "If Git still absent at implementation start: init only under T04 after T01–T03 as planned; then git branch -M main; git remote add origin git@github.com:Menesgumus/borsa-takip.git (only if origin missing)."
-    - "Repository inventory and lockfiles; do not assume the five-file checkpoint is still current."
-    - "Migration head if Alembic exists; currently absent."
-    - "Service/container state with project scope; daemon connectivity alone is not app startup."
-    - "Critical targeted/smoke tests if code and test environment now exist; currently NOT_EXECUTED because absent."
-    - "Check old failures/blockers/HD-* for drift; record HANDOFF DRIFT without erasing previous evidence."
-    - "Before any push: secret scan, .gitignore/.env exclusion, lockfiles, Master Spec unchanged, no broken build/tests."
+    - "git status and running services."
+    - "Test pass evidence."
 
   next_exact_action: >-
-    T11 - Dockerfile (frontend, backend) ve docker-compose.yml tamamla, konteynerleştirme yapılarını hazırla.
-
-  stop_conditions:
-    - "No explicit implementation start instruction: finish verify-only work, do not start T01."
-    - "Real EXTERNAL_BLOCKER"
-    - "Real PRODUCT_BLOCKER"
-    - "For Phase 01 onward: previous phase gate not READY. Phase 00 has no predecessor."
-
   do_not_do:
     - "Do not restart planning from scratch."
     - "Do not skip phase gates."
