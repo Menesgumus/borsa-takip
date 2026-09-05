@@ -2155,13 +2155,13 @@ Bu bölüm **her checkpoint'te güncellenmelidir**.
 ```yaml
 resume:
   current_phase: "01"
-  phase_status: "NOT_STARTED"
-  current_task: "T00"
+  phase_status: "IN_PROGRESS"
+  current_task: "T01"
   task_status: "NOT_STARTED"
-  active_phase_plan: "docs/phases/phase_01_plan.md (TO BE CREATED)"
+  active_phase_plan: "docs/phases/phase_01_plan.md"
   execution_hold: "NONE"
   start_condition: "NONE"
-  handoff_checkpoint: "S-20260906-01"
+  handoff_checkpoint: "S-20260906-02"
   last_verified_commit: "HEAD"
   last_known_good_commit: "HEAD"
   last_pushed_commit: null
@@ -2174,14 +2174,15 @@ resume:
   must_read:
     - "BORSA_TAKIP_MASTER_SPEC.md"
     - "ROADMAP.md"
-    - "docs/phases/phase_00_completion.md"
+    - "docs/phases/phase_01_plan.md"
     - "AUTONOMOUS_HANDOFF.md"
 
   verify_before_editing:
     - "git status and running services."
-    - "Test pass evidence."
+    - "Check previous commits."
 
   next_exact_action: >-
+    Phase 01 - T01: Database Schema & Alembic Migrations - Create users, user_profiles, sessions models and run migrations.
   do_not_do:
     - "Do not restart planning from scratch."
     - "Do not skip phase gates."
