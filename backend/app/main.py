@@ -8,7 +8,11 @@ from app.core.config import settings
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Placeholder for startup resource initialization (e.g. DB engine, Redis pool)
     yield
-    # Placeholder for shutdown resource cleanup
+    # Shutdown resource cleanup
+    from app.core.redis import redis_client
+    from app.db.session import engine
+    await redis_client.aclose()
+    await engine.dispose()
 
 app = FastAPI(
     title="Borsa Takip API",
