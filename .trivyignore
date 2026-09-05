@@ -1,7 +1,16 @@
-# Ignore vulnerabilities in the base python image tools that we do not use in the application
+# Backend Ignore Rationale:
+# CVE-2025-47273, GHSA-6v7p-g79w-8964: These vulnerabilities exist in setuptools and msgpack
+# inside the base python:3.13-alpine image at /usr/local/lib/python3.13/site-packages.
+# Our application runs from a completely isolated virtual environment (/app/.venv)
+# built by `uv` and we do not use the globally installed pip/setuptools in production.
 CVE-2025-47273
 GHSA-6v7p-g79w-8964
-# Ignore Next.js bundled dependencies vulnerabilities since pnpm audit is clean
+
+# Frontend Ignore Rationale:
+# The following vulnerabilities are reported by Trivy in `/usr/local/lib/node_modules/npm`
+# and within the Next.js standalone build which bundles its own package manager and tooling.
+# Our project dependencies (`pnpm audit --audit-level high`) are clean. 
+# These tools are not invoked or reachable at runtime by the Next.js production server.
 CVE-2026-13149
 CVE-2026-14257
 CVE-2026-14456
