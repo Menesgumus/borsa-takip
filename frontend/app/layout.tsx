@@ -1,8 +1,8 @@
-import "./globals.css";
+﻿import "./globals.css";
 
 export const metadata = {
   title: "Borsa Takip",
-  description: "Borsa Takip Uygulaması",
+  description: "Borsa Takip UygulamasÄ±",
 };
 
 export default function RootLayout({
