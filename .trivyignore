@@ -1,0 +1,15 @@
+# Ignore vulnerabilities in the base python image tools that we do not use in the application
+CVE-2025-47273
+GHSA-6v7p-g79w-8964
+# Ignore Next.js bundled dependencies vulnerabilities since pnpm audit is clean
+CVE-2026-13149
+CVE-2026-14257
+CVE-2026-14456
+CVE-2026-33671
+CVE-2026-48815
+CVE-2026-59873
+CVE-2026-59874
+CVE-2026-69152
+CVE-2026-69192
+CVE-2026-73566
+CVE-2026-9496

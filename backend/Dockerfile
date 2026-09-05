@@ -17,8 +17,10 @@ FROM python:3.13-alpine AS runner
 
 WORKDIR /app
 
-# Non-root user
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# Non-root user and OS upgrade
+RUN apk upgrade --no-cache && \
+    pip uninstall -y setuptools msgpack || true && \
+    addgroup -S appgroup && adduser -S appuser -G appgroup
 
 # Copy virtual environment from builder
 COPY --from=builder /app/.venv /app/.venv

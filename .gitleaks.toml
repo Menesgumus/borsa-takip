@@ -1,0 +1,8 @@
+[allowlist]
+paths = [
+    '''backend/\.venv/.*''',
+    '''frontend/\.next/.*''',
+    '''frontend/test-results/.*''',
+    '''node_modules/.*''',
+    '''frontend/node_modules/.*'''
+]
