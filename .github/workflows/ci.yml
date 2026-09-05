@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+    - name: Install uv
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+    - name: Install dependencies
+      working-directory: ./backend
+      run: uv sync
+    - name: Lint and Test
+      working-directory: ./backend
+      run: |
+        uv run ruff check .
+        uv run mypy .
+        uv run pytest
+
+  frontend-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+    - name: Install pnpm
+      run: npm install -g pnpm
+    - name: Install dependencies
+      run: pnpm install
+    - name: Lint and Typecheck
+      working-directory: ./frontend
+      run: |
+        pnpm lint
+        pnpm typecheck
+    - name: Unit Tests
+      working-directory: ./frontend
+      run: pnpm test:unit
+
+  security-scans:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run Gitleaks
+      uses: gitleaks/gitleaks-action@v2
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+    - name: Install uv
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+    - name: Install Backend Sec Dependencies
+      working-directory: ./backend
+      run: uv pip install bandit pip-audit
+    - name: Backend Bandit
+      working-directory: ./backend
+      run: uv run bandit -r app/
+    - name: Backend pip-audit
+      working-directory: ./backend
+      run: uv run pip-audit
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+    - name: Install pnpm
+      run: npm install -g pnpm
+    - name: Frontend Audit
+      working-directory: ./frontend
+      run: pnpm audit --audit-level high
