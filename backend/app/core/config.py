@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "fake_password"
     POSTGRES_DB: str = "borsa_takip_dev"
     POSTGRES_HOST: str = "localhost"
-    POSTGRES_PORT: int = 5432
+    POSTGRES_PORT: int = 5433
     
     REDIS_URL: str = "redis://localhost:6379/0"
 

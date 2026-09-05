@@ -531,13 +531,13 @@ master_spec: BORSA_TAKIP_MASTER_SPEC.md
 roadmap: ROADMAP.md
 handoff_file: AUTONOMOUS_HANDOFF.md
 current_phase: "00"
-current_phase_status: "NOT_STARTED"
-current_task: "T01"
-current_task_status: "NOT_STARTED"
+current_phase_status: "IN_PROGRESS"
+current_task: "T07"
+current_task_status: "IN_PROGRESS"
 active_phase_plan: "phase_00_plan.md"
-current_activity: "GITHUB_REMOTE_ALIGNMENT_HANDOFF"
-implementation_started: false
-execution_hold: "USER_REQUEST_VERIFY_ONLY_NO_IMPLEMENTATION"
+current_activity: "IMPLEMENTING_PHASE_00"
+implementation_started: true
+execution_hold: "NONE"
 last_updated_at: "2026-09-05T18:55:13.005Z"
 updated_by_model: "Composer (Cursor Auto); exact model identifier not exposed"
 session_id: "S-20260905-02"
@@ -549,13 +549,13 @@ session_id: "S-20260905-02"
 
 ```yaml
 git:
-  initialized: false
-  current_branch: null
-  current_commit: null
+  initialized: true
+  current_branch: "main"
+  current_commit: "8657ddb"
   last_known_good_commit: null
   latest_phase_checkpoint_commit: null
   last_pushed_commit: null
-  working_tree: "NOT_A_GIT_REPOSITORY; clean/dirty not applicable"
+  working_tree: "clean"
   remote_origin_local: null
   remote_sync_status: "LOCAL_GIT_ABSENT; CANONICAL_REMOTE_DECLARED_AND_VERIFIED_EMPTY"
   canonical_remote:
@@ -650,22 +650,22 @@ Git olmadığı için bu tablo `git diff` sonucu değildir. Git init + `origin` 
 
 ## Phase 00 — Governance, Scaffold, Quality Baseline
 
-**Status:** `NOT_STARTED`
+****Status:** `IN_PROGRESS`
 
 ### Objective
 Master Spec ve `phase_00_plan.md` doğrultusunda tekrarlanabilir monorepo, frontend/backend, PostgreSQL/Redis local environment, migration baseline, quality/security/test/CI temelini kurmak.
 
 ### Current task
-`T01 — Mevcut durumu tekrar doğrula ve scope'u sabitle`
+`T07 — PostgreSQL / Alembic baseline`
 
 ### Completed tasks
-Phase 0 implementation görevi tamamlanmadı. Önceki turda master tam okuması, GAP_ANALYSIS, ROADMAP ve ayrıntılı Phase 0 planı üretildi/denetlendi. Bu oturum yalnız handoff kaydını gerçek durumla dolduruyor.
+T01, T02, T03, T04, T05, T06 tamamlandı. Git init yapıldı, uv kuruldu, ADR'ler yazıldı, backend app temeli atıldı.
 
 ### In-progress tasks
-Henüz yok.
+T07
 
 ### Remaining tasks
-Phase planındaki T01–T20.
+T08-T20
 
 ### Current blockers
 Phase 0 başlangıcını engelleyen kanıtlı ürün/mimari blocker yok. Şu anki durma nedeni **kullanıcının verify-only / no-implementation kapsamıdır**. Canonical GitHub remote (`Menesgumus/borsa-takip`) doğrulandı ve **boş**; local Git olmadığı için `origin` henüz bağlanamaz — bu T04 işidir, product blocker değildir. Docker daemon erişimi yeniden doğrulandı. Registry/uv, gerçek Compose ve CI T02/T11/T17 görevleridir.
@@ -2155,12 +2155,12 @@ Bu bölüm **her checkpoint'te güncellenmelidir**.
 ```yaml
 resume:
   current_phase: "00"
-  phase_status: "NOT_STARTED"
-  current_task: "T01"
-  task_status: "NOT_STARTED"
+  phase_status: "IN_PROGRESS"
+  current_task: "T07"
+  task_status: "IN_PROGRESS"
   active_phase_plan: "phase_00_plan.md"
-  execution_hold: "USER_REQUEST_VERIFY_ONLY_NO_IMPLEMENTATION"
-  start_condition: "A new explicit user instruction starts autonomous implementation; none has been issued for this checkpoint beyond verify/handoff update."
+  execution_hold: "NONE"
+  start_condition: "NONE"
   handoff_checkpoint: "S-20260905-02"
   last_verified_commit: null
   last_known_good_commit: null
@@ -2192,10 +2192,7 @@ resume:
     - "Before any push: secret scan, .gitignore/.env exclusion, lockfiles, Master Spec unchanged, no broken build/tests."
 
   next_exact_action: >-
-    Kullanıcının açık autonomous implementation talimatından sonra Phase 00 / T01 ile başla:
-    proje kökünde Get-FileHash -LiteralPath 'BORSA_TAKIP_MASTER_SPEC.md' -Algorithm SHA256
-    çalıştır ve sonucu 9A11AEF132A6B2ADCD616B3908E283EA9F1CBB63C45E2BFC91085F5210753F74
-    ile karşılaştır; ardından T01 Exit Criteria'ya göre inventory/Git/scope kanıtını kaydet.
+    T07 - PostgreSQL ve Alembic baseline uygulamasını tamamla.
 
   stop_conditions:
     - "No explicit implementation start instruction: finish verify-only work, do not start T01."
