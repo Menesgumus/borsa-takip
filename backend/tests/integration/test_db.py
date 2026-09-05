@@ -1,6 +1,8 @@
 import pytest
 from sqlalchemy import text
-from app.db.session import engine, async_session_maker
+
+from app.db.session import async_session_maker, engine
+
 
 @pytest.mark.asyncio
 async def test_postgres_connection() -> None:
@@ -9,9 +11,10 @@ async def test_postgres_connection() -> None:
         row = result.scalar()
         assert row == 1
 
+
 @pytest.mark.asyncio
 async def test_session_rollback() -> None:
-    async with async_session_maker() as session:
+    async with async_session_maker() as _session:
         # Just creating a session to ensure it can open and rollback properly
         pass
     # Without errors, it commits and closes.

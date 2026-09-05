@@ -1,23 +1,28 @@
+import logging
+
 from fastapi import APIRouter, Response, status
 from pydantic import BaseModel
 from sqlalchemy import text
-from app.db.session import engine
+
 from app.core.redis import redis_client
-import logging
+from app.db.session import engine
 
 router = APIRouter()
 
+
 class HealthStatus(BaseModel):
     status: str
+
 
 @router.get("/live", response_model=HealthStatus)
 async def liveness() -> HealthStatus:
     return HealthStatus(status="ok")
 
+
 @router.get("/ready", response_model=HealthStatus)
 async def readiness(response: Response) -> HealthStatus:
     is_ready = True
-    
+
     # DB Check
     try:
         async with engine.begin() as conn:
@@ -37,5 +42,5 @@ async def readiness(response: Response) -> HealthStatus:
     if not is_ready:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return HealthStatus(status="error")
-        
+
     return HealthStatus(status="ok")
