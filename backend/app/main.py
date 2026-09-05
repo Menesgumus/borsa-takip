@@ -14,6 +14,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await redis_client.aclose()
     await engine.dispose()
 
+from app.core.logging import CorrelationIdMiddleware
+from app.core.errors import DomainException, domain_exception_handler, general_exception_handler
+from app.api import health
+
+# ... existing code ...
+
 app = FastAPI(
     title="Borsa Takip API",
     version="0.1.0",
@@ -23,6 +29,13 @@ app = FastAPI(
     openapi_url="/openapi.json" if settings.ENVIRONMENT != "production" else None,
 )
 
+app.add_middleware(CorrelationIdMiddleware)
+app.add_exception_handler(DomainException, domain_exception_handler)
+app.add_exception_handler(Exception, general_exception_handler)
+
+app.include_router(health.router, prefix="/health", tags=["health"])
+
 @app.get("/")
 async def root() -> dict[str, str]:
     return {"message": "Borsa Takip API is running"}
+
