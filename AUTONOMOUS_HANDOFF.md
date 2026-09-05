@@ -532,7 +532,7 @@ roadmap: ROADMAP.md
 handoff_file: AUTONOMOUS_HANDOFF.md
 current_phase: "00"
 current_phase_status: "IN_PROGRESS"
-current_task: "T09"
+current_task: "T11"
 current_task_status: "IN_PROGRESS"
 active_phase_plan: "phase_00_plan.md"
 current_activity: "IMPLEMENTING_PHASE_00"
@@ -551,8 +551,8 @@ session_id: "S-20260905-02"
 git:
   initialized: true
   current_branch: "main"
-  current_commit: "6d37959"
-  last_known_good_commit: "6d37959"
+  current_commit: "823bbde"
+  last_known_good_commit: "823bbde"
   latest_phase_checkpoint_commit: null
   last_pushed_commit: null
   working_tree: "clean"
@@ -656,16 +656,16 @@ Git olmadığı için bu tablo `git diff` sonucu değildir. Git init + `origin` 
 Master Spec ve `phase_00_plan.md` doğrultusunda tekrarlanabilir monorepo, frontend/backend, PostgreSQL/Redis local environment, migration baseline, quality/security/test/CI temelini kurmak.
 
 ### Current task
-`T09 — Health, hata envelope ve correlation logging`
+`T11 — Docker images ve Local Compose ayağa kalkışı`
 
 ### Completed tasks
-T01, T02, T03, T04, T05, T06, T07, T08 tamamlandı. DB/Alembic baseline, Redis lifecycle eklendi.
+T01-T10 tamamlandı. Backend logging, health endpoints ve frontend minimal Next.js framework hazır.
 
 ### In-progress tasks
-T09
+T11
 
 ### Remaining tasks
-T09-T20
+T11-T20
 
 ### Current blockers
 Phase 0 başlangıcını engelleyen kanıtlı ürün/mimari blocker yok. Şu anki durma nedeni **kullanıcının verify-only / no-implementation kapsamıdır**. Canonical GitHub remote (`Menesgumus/borsa-takip`) doğrulandı ve **boş**; local Git olmadığı için `origin` henüz bağlanamaz — bu T04 işidir, product blocker değildir. Docker daemon erişimi yeniden doğrulandı. Registry/uv, gerçek Compose ve CI T02/T11/T17 görevleridir.
@@ -2156,14 +2156,14 @@ Bu bölüm **her checkpoint'te güncellenmelidir**.
 resume:
   current_phase: "00"
   phase_status: "IN_PROGRESS"
-  current_task: "T09"
+  current_task: "T11"
   task_status: "IN_PROGRESS"
   active_phase_plan: "phase_00_plan.md"
   execution_hold: "NONE"
   start_condition: "NONE"
   handoff_checkpoint: "S-20260905-02"
-  last_verified_commit: "6d37959"
-  last_known_good_commit: "6d37959"
+  last_verified_commit: "823bbde"
+  last_known_good_commit: "823bbde"
   last_pushed_commit: null
   working_tree: "NOT_A_GIT_REPOSITORY"
   remote_origin_local: null
@@ -2192,7 +2192,7 @@ resume:
     - "Before any push: secret scan, .gitignore/.env exclusion, lockfiles, Master Spec unchanged, no broken build/tests."
 
   next_exact_action: >-
-    T09 - Health, hata envelope ve correlation logging uygulamasını tamamla.
+    T11 - Dockerfile (frontend, backend) ve docker-compose.yml tamamla, konteynerleştirme yapılarını hazırla.
 
   stop_conditions:
     - "No explicit implementation start instruction: finish verify-only work, do not start T01."
