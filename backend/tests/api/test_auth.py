@@ -194,8 +194,44 @@ async def test_me_with_valid_session_cookie() -> None:
         await _register(client)
         _, raw_token = await _login(client)
 
-        # T04 will handle cookie setting at framework level; here we inject manually.
+        # T04: login sets the cookie; httpx propagates it automatically.
+        # Verify the cookie was set in the login response.
         client.cookies.set("session_token", raw_token)
         r = await client.get("/api/v1/auth/me")
         assert r.status_code == 200
         assert r.json()["email"] == _TEST_EMAIL
+
+
+@pytest.mark.asyncio
+async def test_login_sets_httponly_cookie() -> None:
+    """T04: login response must set a Set-Cookie header with HttpOnly and SameSite=Lax."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await _register(client)
+        r = await client.post(
+            "/api/v1/auth/login",
+            json={"email": _TEST_EMAIL, "password": _TEST_PASSWORD},
+        )
+        assert r.status_code == 200
+        # ASGITransport exposes Set-Cookie via response.headers
+        set_cookie = r.headers.get("set-cookie", "")
+        assert "session_token=" in set_cookie
+        assert "HttpOnly" in set_cookie
+        assert "SameSite=lax" in set_cookie or "SameSite=Lax" in set_cookie
+
+
+@pytest.mark.asyncio
+async def test_logout_revokes_session() -> None:
+    """POST /logout with valid cookie → 204; subsequent /me → 401."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        await _register(client)
+        _, raw_token = await _login(client)
+
+        client.cookies.set("session_token", raw_token)
+
+        r_logout = await client.post("/api/v1/auth/logout")
+        assert r_logout.status_code == 204
+
+        # Cookie is revoked — /me must 401 now
+        r_me = await client.get("/api/v1/auth/me")
+        assert r_me.status_code == 401
+

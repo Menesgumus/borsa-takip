@@ -20,7 +20,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -183,9 +183,9 @@ async def login(
     """
     Authenticate user and create a session.
 
-    Returns the user object.  The opaque session token is returned in the
-    ``X-Session-Token`` response header so tests can read it; T04 will move
-    this to a proper HttpOnly cookie.
+    Sets an opaque session token in a Secure / HttpOnly / SameSite=Lax cookie.
+    The same token is also echoed in ``X-Session-Token`` header for test readability
+    (tests inject it as a cookie; real browsers receive the Set-Cookie header).
     """
     ip = _client_ip(request)
     await _check_rate_limit(ip)
@@ -208,7 +208,7 @@ async def login(
 
     await _reset_rate_limit(ip)
 
-    # Create opaque session
+    # Create opaque session — store digest in DB, send raw token to browser
     raw_token = generate_session_token()
     token_digest = hash_session_token(raw_token)
     expires_at = datetime.now(UTC) + timedelta(days=_SESSION_TTL_DAYS)
@@ -223,22 +223,35 @@ async def login(
     await db.commit()
     await db.refresh(user)
 
-    # NOTE: T04 will set this as an HttpOnly cookie.
-    # For now we expose it via a custom header so auth tests work without cookies.
     content = UserResponseSchema.model_validate(user).model_dump(mode="json")
     response = JSONResponse(content=content, status_code=status.HTTP_200_OK)
+
+    # T04: HttpOnly Secure SameSite=Lax cookie
+    # secure=True requires HTTPS; in local dev (HTTP) the cookie still works because
+    # browsers allow it on localhost. In production the HTTPS terminator ensures it.
+    response.set_cookie(
+        key="session_token",
+        value=raw_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=_SESSION_TTL_DAYS * 86400,
+        path="/",
+    )
+    # Also expose via header so tests can read it without parsing Set-Cookie
     response.headers["X-Session-Token"] = raw_token
     return response
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(
+    request: Request,
+    response: Response,
     current_user: User = Depends(get_current_user),  # noqa: B008
-    request: Request = None,  # type: ignore[assignment]
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> None:
-    """Revoke the current session."""
-    raw_token = request.cookies.get("session_token") if request else None
+    """Revoke the current session and expire the session cookie."""
+    raw_token = request.cookies.get("session_token")
     if raw_token:
         token_digest = hash_session_token(raw_token)
         result = await db.execute(
@@ -249,8 +262,14 @@ async def logout(
             session.is_revoked = True  # type: ignore[assignment]
             await db.commit()
 
+    # Expire the cookie on the client — max_age=0 / expires=0 immediately
+    response.delete_cookie(
+        key="session_token", path="/", httponly=True, secure=True, samesite="lax"
+    )
+
 
 @router.get("/me", response_model=UserResponse)
 async def me(current_user: User = Depends(get_current_user)) -> Any:  # noqa: B008
     """Return the authenticated user's profile."""
     return current_user
+
