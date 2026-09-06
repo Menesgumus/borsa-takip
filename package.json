@@ -10,12 +10,8 @@
     "build:frontend": "pnpm --filter frontend build",
     "test:frontend": "pnpm --filter frontend test:unit"
   },
-  "packageManager": "pnpm@9.12.0",
-  "pnpm": {
-    "overrides": {
-      "vite": ">=8.2.2",
-      "postcss": ">=8.5.28"
-    }
+  "packageManager": "pnpm@11.25.0",
+  "overrides": {
+    "postcss": "^8.5.18"
   }
 }
-
