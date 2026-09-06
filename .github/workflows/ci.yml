@@ -9,6 +9,29 @@ on:
 jobs:
   backend-test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fake_password
+          POSTGRES_DB: borsa_takip_dev
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python
@@ -19,7 +42,7 @@ jobs:
       run: curl -LsSf https://astral.sh/uv/install.sh | sh
     - name: Install dependencies
       working-directory: ./backend
-      run: uv sync
+      run: uv sync --frozen
     - name: Lint and Test
       working-directory: ./backend
       run: |
@@ -38,7 +61,7 @@ jobs:
     - name: Install pnpm
       run: npm install -g pnpm
     - name: Install dependencies
-      run: pnpm install
+      run: pnpm install --frozen-lockfile
     - name: Lint and Typecheck
       working-directory: ./frontend
       run: |
@@ -47,6 +70,9 @@ jobs:
     - name: Unit Tests
       working-directory: ./frontend
       run: pnpm test:unit
+    - name: Production Build
+      working-directory: ./frontend
+      run: pnpm build
 
   security-scans:
     runs-on: ubuntu-latest
@@ -62,12 +88,12 @@ jobs:
         python-version: '3.13'
     - name: Install uv
       run: curl -LsSf https://astral.sh/uv/install.sh | sh
-    - name: Install Backend Sec Dependencies
+    - name: Install Dependencies
       working-directory: ./backend
-      run: uv pip install bandit pip-audit
+      run: uv sync --frozen
     - name: Backend Bandit
       working-directory: ./backend
-      run: uv run bandit -r app/
+      run: uv run bandit -c pyproject.toml -r app/
     - name: Backend pip-audit
       working-directory: ./backend
       run: uv run pip-audit
