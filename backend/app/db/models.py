@@ -36,7 +36,7 @@ class UserProfile(Base):
     first_name = Column(String, nullable=True)
     last_name = Column(String, nullable=True)
     timezone = Column(String, default="Europe/Istanbul", nullable=False)
-    risk_tolerance = Column(Enum(RiskTolerance), nullable=True)
+    risk_tolerance = Column(Enum(RiskTolerance, name='risktolerance', create_constraint=False, create_type=False), nullable=True)
     onboarding_completed = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

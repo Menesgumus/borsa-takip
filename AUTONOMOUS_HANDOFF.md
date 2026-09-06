@@ -820,6 +820,7 @@ S-20260905-01 H14 sonucu korunur. Bu oturumda V00+V14 master/plan/GAP/prefix has
 | HD-005 | npm MODULE_NOT_FOUND (H13/E07) | Bu oturum `npm --version` → **11.6.1** | ACTIVE — HANDOFF DRIFT; historical E07 silinmedi |
 | HD-006 | powershell = 7.6.5 | Bu Cursor shell → **5.1.26100.9278** | ACTIVE — session shell farkı; ürün blocker değil |
 | HD-007 | git.remote = null; GitHub yok sayılmış | Kullanıcı canonical remote bildirdi; API+ls-remote: **Menesgumus/borsa-takip EXISTS_EMPTY**, default `main`. Local origin hâlâ yok | ACTIVE — declared remote verified; local bind deferred to T04 |
+| HD-008 | Phase 01 T01 migration started before Phase 00 READY | Phase 01 T01 auth migration executed, despite Phase 00 lacking T17 and T19 (protocol violation). | ACTIVE - Halted progression to T02. Commits kept. Status reset to Phase 00 BLOCKED_EXTERNAL. |
 
 Immutable §7 kısa bootstrap listesi completion/handoff sırasını §1'den farklı yazıyor. Bu editte değiştirilmedi; kullanıcının kesin okuma sırası geçerlidir.
 
@@ -2154,18 +2155,18 @@ Bu bölüm **her checkpoint'te güncellenmelidir**.
 
 ```yaml
 resume:
-  current_phase: "01"
-  phase_status: "IN_PROGRESS"
-  current_task: "T02"
-  task_status: "NOT_STARTED"
-  active_phase_plan: "docs/phases/phase_01_plan.md"
-  execution_hold: "NONE"
-  start_condition: "NONE"
+  current_phase: "00"
+  phase_status: "NOT READY / BLOCKED_EXTERNAL"
+  current_task: "T17"
+  task_status: "BLOCKED_EXTERNAL"
+  active_phase_plan: "phase_00_plan.md"
+  execution_hold: "EXTERNAL_BLOCKER"
+  start_condition: "USER_WAIVER_OR_CI_RESOLUTION"
   handoff_checkpoint: "S-20260906-03"
   last_verified_commit: "HEAD"
   last_known_good_commit: "HEAD"
   last_pushed_commit: null
-  working_tree: "CLEAN"
+  working_tree: "DIRTY"
   remote_origin_local: "EXISTS"
   canonical_remote: "git@github.com:Menesgumus/borsa-takip.git"
   remote_sync_status: "LOCAL_AHEAD"
@@ -2174,7 +2175,8 @@ resume:
   must_read:
     - "BORSA_TAKIP_MASTER_SPEC.md"
     - "ROADMAP.md"
-    - "docs/phases/phase_01_plan.md"
+    - "phase_00_plan.md"
+    - "docs/phases/phase_00_completion.md"
     - "AUTONOMOUS_HANDOFF.md"
 
   verify_before_editing:
@@ -2182,7 +2184,7 @@ resume:
     - "Check previous commits."
 
   next_exact_action: >-
-    Phase 01 - T02: Backend Auth & Password Hashing - Implement Argon2id hashing and JWT / Session ID infrastructure.
+    Phase 00 T17 and T19 are EXTERNAL BLOCKERs. T17 requires real GitHub Actions green run on remote repo (Menesgumus/borsa-takip). T19 requires human manual QA of the UI. Phase 01 must NOT proceed until these are resolved or explicitly waived by the user. Note: Phase 01 T01 was already executed (protocol violation), but we halt here.
   do_not_do:
     - "Do not restart planning from scratch."
     - "Do not skip phase gates."
