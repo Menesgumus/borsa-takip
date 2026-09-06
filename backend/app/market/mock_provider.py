@@ -64,5 +64,20 @@ class MockMarketDataProvider(MarketDataProvider):
         await self._simulate_latency_and_failure()
         return [self._generate_quote(s) for s in symbols]
 
+    async def get_historical_quotes(
+        self, symbol: str, start_date: datetime, end_date: datetime
+    ) -> list[QuoteDTO]:
+        from datetime import timedelta
+
+        await self._simulate_latency_and_failure()
+        quotes = []
+        current = start_date
+        while current <= end_date:
+            quote = self._generate_quote(symbol)
+            quote = quote.model_copy(update={"timestamp": current})
+            quotes.append(quote)
+            current = current + timedelta(days=1)
+        return quotes
+
     async def health_check(self) -> bool:
         return not self.always_fail

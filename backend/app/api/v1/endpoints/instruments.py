@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -8,13 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.v1.endpoints.auth import get_current_user
-from app.db.models import Instrument, User
+from app.db.models import Instrument, OHLCVDaily, User
 from app.db.session import get_db_session
 from app.market.dto import QuoteDTO
 from app.market.exceptions import ProviderUnavailableError
 from app.market.mock_provider import MockMarketDataProvider
 from app.market.registry import registry
-from app.schemas.instrument import InstrumentResponse, InstrumentsPaginated
+from app.schemas.instrument import InstrumentResponse, InstrumentsPaginated, OHLCVDailyResponse
 
 router = APIRouter()
 
@@ -120,3 +121,34 @@ async def get_instrument_quote(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(e),
         ) from e
+
+
+@router.get("/{symbol}/history", response_model=list[OHLCVDailyResponse])
+async def get_instrument_history(
+    symbol: str,
+    start_date: datetime | None = Query(None),  # noqa: B008
+    end_date: datetime | None = Query(None),  # noqa: B008
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
+) -> Any:
+    """Get historical OHLCV data from the database."""
+    result = await db.execute(
+        select(Instrument).where(Instrument.symbol == symbol, Instrument.is_active.is_(True))
+    )
+    instrument = result.scalar_one_or_none()
+    if not instrument:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Instrument not found",
+        )
+
+    stmt = select(OHLCVDaily).where(OHLCVDaily.instrument_id == instrument.id)
+    if start_date:
+        stmt = stmt.where(OHLCVDaily.timestamp >= start_date)
+    if end_date:
+        stmt = stmt.where(OHLCVDaily.timestamp <= end_date)
+
+    stmt = stmt.order_by(OHLCVDaily.timestamp.asc())
+
+    result = await db.execute(stmt)
+    return result.scalars().all()

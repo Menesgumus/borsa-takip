@@ -101,3 +101,10 @@ async def test_get_instrument_quote(setup_instruments):
         assert data["symbol"] == "GARAN.IS"
         assert data["source_name"] == "mock"
         assert "price" in data
+
+
+@pytest.mark.asyncio
+async def test_get_instrument_history_not_found(setup_instruments):
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/v1/instruments/INVALID/history")
+        assert response.status_code == 404

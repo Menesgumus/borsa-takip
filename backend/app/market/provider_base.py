@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 from app.market.dto import QuoteDTO
 
@@ -10,7 +11,7 @@ from app.market.dto import QuoteDTO
 class MarketDataProvider(ABC):
     """Provider contract.
 
-    Every concrete provider (mock, yahoo, alpha_vantage, â€¦) must implement
+    Every concrete provider (mock, yahoo, alpha_vantage, ...) must implement
     all abstract methods.  The registry/circuit-breaker layer calls these.
     """
 
@@ -21,7 +22,7 @@ class MarketDataProvider(ABC):
 
     @abstractmethod
     async def get_quote(self, symbol: str) -> QuoteDTO:
-        """Return a fresh quote for `symbol` (provider-specific symbol format).
+        """Return a fresh quote for symbol (provider-specific symbol format).
 
         Raises:
             ProviderUnavailableError: If the provider cannot be reached.
@@ -36,6 +37,12 @@ class MarketDataProvider(ABC):
         Symbols that fail individually are omitted (not raised) unless the
         entire batch fails, in which case ProviderUnavailableError is raised.
         """
+
+    @abstractmethod
+    async def get_historical_quotes(
+        self, symbol: str, start_date: datetime, end_date: datetime
+    ) -> list[QuoteDTO]:
+        """Fetch historical daily quotes for the given date range."""
 
     @abstractmethod
     async def health_check(self) -> bool:

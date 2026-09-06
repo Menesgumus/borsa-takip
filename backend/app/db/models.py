@@ -1,7 +1,18 @@
 import enum
 import typing
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Column,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -85,7 +96,7 @@ class AuditLog(Base):
 
 
 # ---------------------------------------------------------------------------
-# Phase 02 — Instrument Master + Provider Abstraction
+# Phase 02 â€” Instrument Master + Provider Abstraction
 # ---------------------------------------------------------------------------
 
 
@@ -118,6 +129,9 @@ class Instrument(Base):
     )
 
     provider_mappings = relationship("ProviderMapping", back_populates="instrument")
+    historical_daily = relationship(
+        "OHLCVDaily", back_populates="instrument", cascade="all, delete-orphan"
+    )
 
 
 class ProviderMapping(Base):
@@ -151,4 +165,40 @@ class ProviderHealth(Base):
     circuit_opened_at = Column(DateTime(timezone=True), nullable=True)
     updated_at = Column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+# ---------------------------------------------------------------------------
+# Phase 03 ?" Market Data Ingestion & History
+# ---------------------------------------------------------------------------
+
+
+class OHLCVDaily(Base):
+    """Historical daily Open, High, Low, Close, Volume data."""
+
+    __tablename__ = "ohlcv_daily"
+
+    id = Column(Integer, primary_key=True, index=True)
+    instrument_id = Column(
+        Integer, ForeignKey("instruments.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    timestamp = Column(DateTime(timezone=True), nullable=False, index=True)
+
+    open = Column(Numeric(precision=18, scale=6), nullable=False)
+    high = Column(Numeric(precision=18, scale=6), nullable=False)
+    low = Column(Numeric(precision=18, scale=6), nullable=False)
+    close = Column(Numeric(precision=18, scale=6), nullable=False)
+    volume = Column(BigInteger, nullable=True)
+
+    provider_name = Column(String, nullable=True)  # Source of this data point
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    instrument = relationship("Instrument", back_populates="historical_daily")
+
+    __table_args__ = (
+        UniqueConstraint("instrument_id", "timestamp", name="uq_ohlcv_daily_instrument_time"),
     )

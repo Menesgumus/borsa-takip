@@ -1,0 +1,13 @@
+﻿    async def get_historical_quotes(self, symbol: str, start_date: datetime, end_date: datetime) -> list[QuoteDTO]:
+        await self._simulate_latency_and_failure()
+        # Mock doesn't really store history, so just return one quote for each day
+        quotes = []
+        current = start_date
+        while current <= end_date:
+            quote = self._generate_quote(symbol)
+            # Override timestamp
+            # We must use Pydantic v2 model_copy if we want to change frozen field
+            quote = quote.model_copy(update={"timestamp": current})
+            quotes.append(quote)
+            current = current + timedelta(days=1)
+        return quotes

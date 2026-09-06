@@ -1,4 +1,4 @@
-﻿"""Provider registry, circuit breaker, and retry logic."""
+"""Provider registry, circuit breaker, and retry logic."""
 
 from __future__ import annotations
 
