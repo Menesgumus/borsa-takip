@@ -234,4 +234,3 @@ async def test_logout_revokes_session() -> None:
         # Cookie is revoked — /me must 401 now
         r_me = await client.get("/api/v1/auth/me")
         assert r_me.status_code == 401
-

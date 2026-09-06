@@ -259,9 +259,7 @@ async def logout(
     raw_token = request.cookies.get("session_token")
     if raw_token:
         token_digest = hash_session_token(raw_token)
-        result = await db.execute(
-            select(SessionModel).where(SessionModel.token == token_digest)
-        )
+        result = await db.execute(select(SessionModel).where(SessionModel.token == token_digest))
         session = result.scalar_one_or_none()
         if session:
             session.is_revoked = True  # type: ignore[assignment]
@@ -277,4 +275,3 @@ async def logout(
 async def me(current_user: User = Depends(get_current_user)) -> Any:  # noqa: B008
     """Return the authenticated user's profile."""
     return current_user
-

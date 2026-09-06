@@ -25,9 +25,7 @@ async def get_profile(
     Uses the authenticated session to infer user context, inherently preventing IDOR.
     If the profile doesn't exist, it creates a default one.
     """
-    result = await db.execute(
-        select(UserProfile).where(UserProfile.user_id == current_user.id)
-    )
+    result = await db.execute(select(UserProfile).where(UserProfile.user_id == current_user.id))
     profile = result.scalar_one_or_none()
 
     if not profile:
@@ -53,9 +51,7 @@ async def update_profile(
     Update current user's profile.
     Uses the authenticated session to infer user context.
     """
-    result = await db.execute(
-        select(UserProfile).where(UserProfile.user_id == current_user.id)
-    )
+    result = await db.execute(select(UserProfile).where(UserProfile.user_id == current_user.id))
     profile = result.scalar_one_or_none()
 
     if not profile:

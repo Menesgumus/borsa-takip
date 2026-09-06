@@ -10,6 +10,7 @@ _TEST_PASSWORD = "ProfileP@ss123!"  # noqa: S105
 _TEST_EMAIL2 = "hacker@example.com"
 _TEST_PASSWORD2 = "HackerP@ss123!"  # noqa: S105
 
+
 @pytest.fixture(autouse=True)
 async def cleanup_test_data():  # type: ignore[no-untyped-def]
     """Remove test users and their profiles."""
@@ -82,7 +83,7 @@ async def test_update_profile() -> None:
             "first_name": "John",
             "last_name": "Doe",
             "risk_tolerance": "HIGH",
-            "onboarding_completed": True
+            "onboarding_completed": True,
         }
 
         r = await client.put("/api/v1/users/profile", json=payload)
@@ -110,8 +111,7 @@ async def test_profile_idor_protection() -> None:
 
         # Victim sets profile
         r1 = await client.put(
-            "/api/v1/users/profile",
-            json={"first_name": "Victim", "risk_tolerance": "LOW"}
+            "/api/v1/users/profile", json={"first_name": "Victim", "risk_tolerance": "LOW"}
         )
         assert r1.status_code == 200
 
@@ -126,10 +126,7 @@ async def test_profile_idor_protection() -> None:
         assert r2.json()["first_name"] is None  # Getting attacker's own blank profile
 
         # Attacker tries to put
-        r3 = await client.put(
-            "/api/v1/users/profile",
-            json={"first_name": "Attacker"}
-        )
+        r3 = await client.put("/api/v1/users/profile", json={"first_name": "Attacker"})
         assert r3.status_code == 200
         assert r3.json()["first_name"] == "Attacker"
 
@@ -137,4 +134,3 @@ async def test_profile_idor_protection() -> None:
         client.cookies.set("session_token", token1)
         r4 = await client.get("/api/v1/users/profile")
         assert r4.json()["first_name"] == "Victim"
-
