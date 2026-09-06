@@ -1,18 +1,15 @@
 ﻿# Autonomous Handoff Document
 
-**Current Phase:** 04
+**Current Phase:** 05
 **Current Task:** T01
-**Last Verified Commit:** (Pending commit of Phase 03)
+**Last Verified Commit:** (Pending commit of Phase 04)
 
-**Phase 01 Status:** COMPLETED
-**Phase 02 Status:** COMPLETED
-**Phase 03 Status:** COMPLETED
-All 44 backend tests passing. Mypy clean. Ruff clean.
+**Phase 01-04 Status:** COMPLETED
+Frontend build succeeds.
 
 ## Next Exact Action
-Start Phase 04: Dashboard, Markets, Charts (Frontend & Backend integrations)
+Start Phase 05: Technical Analysis Engine
 
-1. Review Phase 03 changes (historical endpoints and Yahoo finance provider).
-2. Read BORSA_TAKIP_MASTER_SPEC.md for Phase 04 requirements.
-3. Write docs/phases/phase_04_plan.md focusing on Dashboard components and Chart.js / Recharts integration.
-4. Implement Phase 04 T01.
+1. Read BORSA_TAKIP_MASTER_SPEC.md for Phase 05 requirements (Technical Analysis Engine).
+2. Create docs/phases/phase_05_plan.md.
+3. Implement Phase 05 T01 (horizon configs, technical UI cards, indicator panes, pattern detection).

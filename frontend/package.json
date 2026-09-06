@@ -12,7 +12,9 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.102.8",
     "@tanstack/react-table": "^9.2.4",
+    "lightweight-charts": "^5.2.1",
     "lucide-react": "^1.41.0",
     "next": "15.5.25",
     "react": "19.0.0",
