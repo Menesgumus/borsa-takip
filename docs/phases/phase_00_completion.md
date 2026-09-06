@@ -20,13 +20,16 @@
 | **T14** Secret, static, dependency ve image security gates | ✅ PASS | `gitleaks`, `pip-audit`, `bandit` temiz. `pnpm audit` High/Critical temiz. `.trivyignore` içinde paket izole mantığı detaylı açıklandı, imaj bazlı Trivy taraması temiz (Exit code 0). |
 | **T15** Empty app bundle ve health latency baseline | ✅ PASS | Next.js standalone bundle size: 39.6 MB. FastAPI `/health/ready` yanıt süresi: 228 ms (curl.exe evidence). |
 | **T16** Local dev, migration ve recovery runbook'lar | ✅ PASS | `vercel.json` ve `render.yaml` deployment stubları eklendi. `docker compose up -d` ile orchestration belgelendi. |
-| **T17** Gerçek CI ve required aggregate gate | ⚠️ NOT EXECUTED | GitHub Actions için `.github/workflows/ci.yml` yazıldı fakat repo yetkim olmadığı için GH Actions sunucusunda remote run yapılamadı (EXTERNAL BLOCKER). Lokal testler CI adımlarını temsil eder. |
+| **T17** Gerçek CI ve required aggregate gate | ✅ DONE_VERIFIED | GitHub Actions CI Run #4 (`34029959969`) SUCCESS. Frontend/Backend testleri ve Security scans başarıyla remote ortamda geçti. |
 | **T18** Clean clone startup ve bağımlılık kesintisi doğrulaması | ✅ PASS | Yeni bir `git clone` klasöründe `.gitkeep` düzeltmesi ile sıfırdan `docker compose build` ve `up` çalıştırıldı. Hata vermedi. |
-| **T19** Gerçek manuel desktop/tablet/mobile ve a11y incelemesi | ⚠️ NOT EXECUTED | Automated E2E/A11y (Playwright) çalıştırıldı ancak gerçek *insan* QA'i yapılamadı (PENDING_MANUAL_QA / EXTERNAL BLOCKER). Arayüz SSR dom ve HTTP code doğrulaması ile limitli test edildi. |
-| **T20** Completion raporu ve bağımsız Phase 0 audit | ✅ PASS | Bu rapor üretildi, eksikler audit edildi ve mandatory quality gate evidence toplandı. |
+| **T19** Gerçek manuel desktop/tablet/mobile ve a11y incelemesi | ✅ DONE_VERIFIED — USER-PERFORMED MANUAL QA | Kullanıcı tarafından lokal Docker Compose ortamında Desktop (1366x768) ve Mobile (390x844) UI QA gerçekleştirildi. Layout, overflow ve konsol hatası bulunmadı; `DB_REDIS_OK` gözlemlendi. |
+| **T20** Completion raporu ve bağımsız Phase 0 audit | ✅ DONE_VERIFIED | Phase 00 mandatory requirements, CI/QA evidence ve documentation başarıyla kapatıldı. |
 
 ## 2. Dependencies
-- Next.js: `15.0.0`
+- Next.js: `15.5.25`
+- Vite: `7.3.6` (vitest), `8.2.2` (plugin-react)
+- Vitest: `3.2.7`
+- PostCSS: `8.5.28` (Workspace override)
 - FastAPI: `0.115.0`
 - SQLAlchemy: `2.0.35`
 - Postgres: `16-alpine`
@@ -41,8 +44,8 @@
 
 ## 4. Final Verdict
 
-T17 ve T19 maddeleri bir AI agent için remote execution/manuel interaction gerektirdiğinden `NOT EXECUTED / EXTERNAL BLOCKER` olarak markalanmıştır. Canonical plana (phase_00_plan.md §12) ve Roadmap kurallarına göre, Phase 00'ın tamamlanması için gerçek CI pipeline'ının yeşil olması (T17) ve gerçek manuel UI QA yapılması (T19) zorunludur.
+T17 Remote CI #4 başarılı bir biçimde geçmiştir ve T19 Kullanıcı manuel QA onayı sağlanmıştır. External blocker'lar ortadan kalkmış, toolchain compatibility (pnpm 11.x, uv vs.) kalıcı bir biçimde güvence altına alınmıştır.
 
-Bu gereksinimler sağlanmadığı için protokol gereği Phase 00 tamamlanmış sayılamaz. Kullanıcı bu engelleri aşana veya açıkça feragat edene kadar (waiver) proje bir sonraki Phase'e (Phase 01) GEÇEMEZ. 
+Protokol gereği, Phase 00'ın tüm completion evidence'ları, güvenlik kontrolleri, test sayıları ve remote CI yeşil durumu teyit edildiği için faz tamamlanmıştır.
 
-**STATUS:** `NOT READY / BLOCKED_EXTERNAL`
+**STATUS:** `PHASE 00 READY`

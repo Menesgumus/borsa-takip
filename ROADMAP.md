@@ -16,8 +16,8 @@ Her fazın giriş koşulu önceki fazın gerçek completion kanıtıyla kapanmas
 
 | Faz | Kısa ad | Implementation durumu | Plan / kabul durumu |
 |---|---|---|---|
-| 00 | Governance, scaffold, quality baseline | `NOT_IMPLEMENTED` | Ayrıntılı plan hazır; `PHASE 0 READY` henüz değil |
-| 01 | Auth, user profile, security | `NOT_IMPLEMENTED` | 00 çıkışını bekler |
+| 00 | Governance, scaffold, quality baseline | `COMPLETED` | Phase 00 READY, CI ve QA tamam |
+| 01 | Auth, user profile, security | `IN_PROGRESS` | T02 otonom devam ediyor |
 | 02 | Instrument master, provider abstraction | `NOT_IMPLEMENTED` | 01 çıkışını bekler |
 | 03 | Market ingestion, history | `NOT_IMPLEMENTED` | 02 çıkışını bekler |
 | 04 | Dashboard, markets, charts | `NOT_IMPLEMENTED` | 03 çıkışını bekler |
