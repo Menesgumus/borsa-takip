@@ -34,3 +34,4 @@ backend/.env
 # IDEs
 .vscode/
 .idea/
+gitleaks-report.json
