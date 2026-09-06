@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.api import health
+from app.api.v1.api import api_router
 from app.core.config import settings
 from app.core.errors import DomainError, domain_exception_handler, general_exception_handler
 from app.core.logging import CorrelationIdMiddleware
@@ -34,6 +35,7 @@ app.add_exception_handler(DomainError, domain_exception_handler)  # type: ignore
 app.add_exception_handler(Exception, general_exception_handler)
 
 app.include_router(health.router, prefix="/health", tags=["health"])
+app.include_router(api_router, prefix="/api/v1")
 
 
 @app.get("/")
