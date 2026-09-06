@@ -15,6 +15,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+import app.db.models  # noqa: F401 - Register models with Base.metadata
 from app.core.config import settings
 from app.db.base import Base
 

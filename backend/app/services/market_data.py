@@ -8,7 +8,7 @@ class MarketDataService:
     def __init__(self) -> None:
         self.symbols = ["AAPL", "GOOGL", "MSFT", "TSLA", "AMZN"]
 
-    async def stream_quotes(self) -> AsyncGenerator[dict, None]:
+    async def stream_quotes(self) -> AsyncGenerator[dict[str, str | float], None]:
         while True:
             await asyncio.sleep(1.0)
             symbol = self.symbols[secrets.randbelow(len(self.symbols))]

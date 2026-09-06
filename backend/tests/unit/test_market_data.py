@@ -4,7 +4,7 @@ from app.services.market_data import MarketDataService
 
 
 @pytest.mark.asyncio
-async def test_market_data_stream():
+async def test_market_data_stream() -> None:
     service = MarketDataService()
     stream = service.stream_quotes()
 

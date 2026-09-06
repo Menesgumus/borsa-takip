@@ -4,7 +4,7 @@ from app.core.config import Settings
 def test_config_defaults() -> None:
     # Explicitly clear environment for this test to rely purely on defaults
     # Pydantic Settings reads from environment variables, so we mock an empty one.
-    settings = Settings(_env_file=None, ENVIRONMENT="development")
+    settings = Settings(ENVIRONMENT="development")
     assert settings.ENVIRONMENT == "development"
     assert settings.POSTGRES_USER == "postgres"
 

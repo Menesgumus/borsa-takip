@@ -1,7 +1,9 @@
 import enum
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, Boolean, Enum
-from sqlalchemy.sql import func
+import typing
+
+from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 
 from app.db.base import Base
 
@@ -15,14 +17,16 @@ class User(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     is_verified = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     profile = relationship("UserProfile", back_populates="user", uselist=False)
     sessions = relationship("Session", back_populates="user")
     audit_logs = relationship("AuditLog", back_populates="user")
 
 
-class RiskTolerance(str, enum.Enum):
+class RiskTolerance(enum.StrEnum):
     LOW = "LOW"
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
@@ -32,14 +36,21 @@ class UserProfile(Base):
     __tablename__ = "user_profiles"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
     first_name = Column(String, nullable=True)
     last_name = Column(String, nullable=True)
     timezone = Column(String, default="Europe/Istanbul", nullable=False)
-    risk_tolerance = Column(Enum(RiskTolerance, name='risktolerance', create_constraint=False, create_type=False), nullable=True)
+    risk_tolerance: typing.Any = Column(
+        Enum(RiskTolerance, name="risktolerance", create_constraint=False, create_type=False),
+        nullable=True,
+    )
     onboarding_completed = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     user = relationship("User", back_populates="profile")
 
@@ -53,7 +64,7 @@ class Session(Base):
     expires_at = Column(DateTime(timezone=True), nullable=False)
     is_revoked = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    
+
     user = relationship("User", back_populates="sessions")
 
 
@@ -61,7 +72,9 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     action = Column(String, nullable=False, index=True)
     ip_address = Column(String, nullable=True)
     user_agent = Column(String, nullable=True)
