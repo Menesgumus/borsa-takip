@@ -2,6 +2,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import health
 from app.api.v1.api import api_router
@@ -20,8 +21,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await redis_client.aclose()
     await engine.dispose()
 
-
-from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title="Borsa Takip API",

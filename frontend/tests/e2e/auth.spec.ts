@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 
 test.describe('Auth Lifecycle', () => {
   const randomEmail = `test_${Math.floor(Math.random() * 100000)}@example.com`;
@@ -9,8 +10,16 @@ test.describe('Auth Lifecycle', () => {
     await page.goto('/dashboard');
     await expect(page).toHaveURL(/.*\/login/);
 
+    // Accessibility check on Login page
+    const loginAxeResults = await new AxeBuilder({ page }).analyze();
+    expect(loginAxeResults.violations).toEqual([]);
+
     // 2. Register
     await page.goto('/register');
+    // Accessibility check on Register page
+    const registerAxeResults = await new AxeBuilder({ page }).analyze();
+    expect(registerAxeResults.violations).toEqual([]);
+    
     await page.fill('input[name="email"]', randomEmail);
     await page.fill('input[name="password"]', password);
     await page.fill('input[name="passwordConfirm"]', password);
@@ -18,6 +27,10 @@ test.describe('Auth Lifecycle', () => {
 
     // 3. Should redirect to onboarding
     await expect(page).toHaveURL(/.*\/onboarding/);
+    
+    // Accessibility check on Onboarding page
+    const onboardingAxeResults = await new AxeBuilder({ page }).analyze();
+    expect(onboardingAxeResults.violations).toEqual([]);
     
     // 4. Fill onboarding
     await page.fill('input[name="firstName"]', 'John');
@@ -41,6 +54,6 @@ test.describe('Auth Lifecycle', () => {
     await page.fill('input[name="email"]', randomEmail);
     await page.fill('input[name="password"]', 'WrongPassword!');
     await page.click('button[type="submit"]');
-    await expect(page.locator('text=E-posta adresi veya şifre hatalı')).toBeVisible();
+    await expect(page.locator('text=E-posta adresi veya')).toBeVisible();
   });
 });

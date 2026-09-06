@@ -20,6 +20,7 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 FROM base AS builder
 WORKDIR /app
 ENV NEXT_STANDALONE=1
+ENV INTERNAL_API_URL=http://api:8000
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/frontend/node_modules ./frontend/node_modules
 COPY . .

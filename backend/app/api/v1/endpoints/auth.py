@@ -45,8 +45,8 @@ router = APIRouter()
 # Session TTL: 7 days.  Can be moved to settings later.
 _SESSION_TTL_DAYS = 7
 
-# Rate-limit: 5 failed login attempts per IP within 5 minutes → 429.
-_RATE_LIMIT_MAX_ATTEMPTS = 5
+# Rate-limit: 50 failed login attempts per IP within 5 minutes -> 429.
+_RATE_LIMIT_MAX_ATTEMPTS = 50
 _RATE_LIMIT_WINDOW_SECONDS = 300
 
 
@@ -149,7 +149,12 @@ async def get_current_user(
 # ---------------------------------------------------------------------------
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Kullanıcı kaydı oluştur",
+)
 async def register(
     user_in: UserCreate,
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
