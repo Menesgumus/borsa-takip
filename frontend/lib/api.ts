@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
+const API_BASE_URL = '';
 
 export class ApiError extends Error {
   constructor(public status: number, message: string, public code?: string) {
@@ -8,7 +8,11 @@ export class ApiError extends Error {
 }
 
 export async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
+  let baseUrl = '';
+  if (typeof window === 'undefined') {
+    baseUrl = process.env.INTERNAL_API_URL || 'http://127.0.0.1:8001';
+  }
+  const url = `${baseUrl}${endpoint}`;
   
   // Future: Add JWT token here
   const headers = new Headers(options.headers);
@@ -17,6 +21,7 @@ export async function fetchApi<T>(endpoint: string, options: RequestInit = {}): 
   const config: RequestInit = {
     ...options,
     headers,
+    credentials: 'include',
   };
 
   const response = await fetch(url, config);
@@ -25,7 +30,7 @@ export async function fetchApi<T>(endpoint: string, options: RequestInit = {}): 
   if (!response.ok) {
     throw new ApiError(
       response.status,
-      data?.error?.message || 'Bilinmeyen bir API hatası oluştu',
+      data?.error?.message || data?.detail || 'Bilinmeyen bir API hatası oluştu',
       data?.error?.code
     );
   }
