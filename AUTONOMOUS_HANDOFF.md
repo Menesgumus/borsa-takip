@@ -2352,3 +2352,7 @@ Cevap **hayır** ise handoff eksiktir.
 ---
 
 # END OF AUTONOMOUS HANDOFF PROTOCOL
+
+ -   H D - 0 0 9 :   I n   t h e   p r e v i o u s   l o c a l   r e p o r t ,   R u f f   l i n t i n g   w a s   m a r k e d   a s   P A S S .   H o w e v e r ,   i t   f a i l e d   i n   t h e   r e m o t e   C I   j o b   d u e   t o   a n   E 5 0 1   e r r o r   i n t r o d u c e d   b y   r e f a c t o r i n g   ' s e s s i o n m a k e r '   t o   ' a s y n c _ s e s s i o n m a k e r ' ,   w h i c h   h a d   p u s h e d   a   s i n g l e - l i n e   i m p o r t   o v e r   t h e   1 0 0 - c h a r a c t e r   l i m i t .   T h e   d i s c r e p a n c y   o c c u r r e d   b e c a u s e   t h e   l o c a l   R u f f   c h e c k   w a s   r u n   b e f o r e   t h e   r e f a c t o r   w a s   f u l l y   i m p l e m e n t e d / c o m m i t t e d .   F u t u r e   v e r i f i c a t i o n   m u s t   g u a r a n t e e   t h a t   t h e   e x e c u t e d   t e s t   m a t c h e s   t h e   e x a c t   c o m m i t t e d   S H A . 
+  
+ 
