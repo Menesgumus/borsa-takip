@@ -9,6 +9,13 @@
     "dev:frontend": "pnpm --filter frontend dev",
     "build:frontend": "pnpm --filter frontend build",
     "test:frontend": "pnpm --filter frontend test:unit"
+  },
+  "packageManager": "pnpm@9.12.0",
+  "pnpm": {
+    "overrides": {
+      "vite": ">=8.2.2",
+      "postcss": ">=8.5.28"
+    }
   }
 }
 
