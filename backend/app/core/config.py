@@ -16,9 +16,8 @@ class Settings(BaseSettings):
 
     REDIS_URL: str = "redis://localhost:6379/0"
 
-    # Auth Settings
-    SECRET_KEY: str = "this-is-a-placeholder-secret-key-change-it-in-production"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    # Session TTL (days) — used by auth endpoint; can be overridden in .env
+    SESSION_TTL_DAYS: int = 7
 
     @property
     def database_url(self) -> str:

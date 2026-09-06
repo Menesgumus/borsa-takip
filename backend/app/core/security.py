@@ -1,51 +1,69 @@
-from datetime import UTC, datetime, timedelta
-from typing import Any
+"""
+Security utilities for password hashing (Argon2id) and opaque session token generation.
 
-import jwt
+Opaque session token approach:
+- Raw token: generated with `secrets.token_urlsafe(32)` (256-bit entropy)
+- DB storage: SHA-256 digest of the raw token (not the raw token itself)
+- Browser: raw token stored in HttpOnly Secure SameSite cookie (set in T04)
+
+This prevents session fixation from DB leaks: an attacker with DB access
+gets only token digests, not usable session values.
+"""
+
+import hashlib
+import secrets
+
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
-from app.core.config import settings
+# ---------------------------------------------------------------------------
+# Password hashing (Argon2id)
+# ---------------------------------------------------------------------------
 
-# Argon2id Hasher
-# Using default parameters which are generally safe and fast enough.
-# We can tune time_cost, memory_cost, and parallelism if needed.
-pwd_hasher = PasswordHasher(
-    time_cost=2, # Number of iterations
-    memory_cost=65536, # 64MB memory cost
-    parallelism=2 # 2 threads
+# time_cost=2, memory_cost=64MB, parallelism=2 → ~85ms on dev hardware.
+# Well within the 300ms budget specified in Phase 01 plan.
+_pwd_hasher = PasswordHasher(
+    time_cost=2,
+    memory_cost=65536,  # 64 MiB
+    parallelism=2,
 )
 
+
+def get_password_hash(password: str) -> str:
+    """Return an Argon2id hash of *password*."""
+    return _pwd_hasher.hash(password)
+
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify *plain_password* against the stored Argon2id hash."""
     try:
-        return pwd_hasher.verify(hashed_password, plain_password)
+        return _pwd_hasher.verify(hashed_password, plain_password)
     except VerifyMismatchError:
         return False
 
-def get_password_hash(password: str) -> str:
-    return pwd_hasher.hash(password)
 
-def create_access_token(
-    subject: str | int, expires_delta: timedelta | None = None
-) -> str:
-    if expires_delta:
-        expire = datetime.now(UTC) + expires_delta
-    else:
-        # Default to 30 minutes if not provided (should be configured in settings)
-        expire = datetime.now(UTC) + timedelta(minutes=30)
+# ---------------------------------------------------------------------------
+# Opaque session token
+# ---------------------------------------------------------------------------
 
-    to_encode = {"exp": expire, "sub": str(subject)}
+_TOKEN_BYTES = 32  # 256 bits of entropy
 
-    # Use settings.SECRET_KEY, fallback to a dummy key if not set (for tests/dev)
-    secret = getattr(settings, "SECRET_KEY", "fallback-secret-for-dev-only")
 
-    encoded_jwt = jwt.encode(to_encode, secret, algorithm="HS256")
-    return encoded_jwt
+def generate_session_token() -> str:
+    """
+    Generate a cryptographically secure opaque session token.
 
-def verify_token(token: str) -> dict[str, Any] | None:
-    secret = getattr(settings, "SECRET_KEY", "fallback-secret-for-dev-only")
-    try:
-        decoded_token = jwt.decode(token, secret, algorithms=["HS256"])
-        return decoded_token
-    except jwt.PyJWTError:
-        return None
+    Returns the *raw* token that should be placed in the user's cookie.
+    Store only the *digest* in the database (see `hash_session_token`).
+    """
+    return secrets.token_urlsafe(_TOKEN_BYTES)
+
+
+def hash_session_token(raw_token: str) -> str:
+    """
+    Return the SHA-256 hex-digest of *raw_token*.
+
+    This digest is what gets stored in the ``sessions.token`` column.
+    The raw token never touches the database.
+    """
+    return hashlib.sha256(raw_token.encode()).hexdigest()
