@@ -371,3 +371,56 @@ class ChatMessage(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     thread = relationship("ChatThread", back_populates="messages")
+class EducationalModule(Base):
+    __tablename__ = "educational_modules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String, unique=True, index=True, nullable=False)
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    category = Column(String, nullable=False) # e.g. "TECHNICAL_ANALYSIS", "FUNDAMENTALS", "PORTFOLIO"
+    display_order = Column(Integer, default=0)
+    
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    lessons = relationship("EducationalLesson", back_populates="module", order_by="EducationalLesson.display_order")
+
+class EducationalLesson(Base):
+    __tablename__ = "educational_lessons"
+
+    id = Column(Integer, primary_key=True, index=True)
+    module_id = Column(Integer, ForeignKey("educational_modules.id"), nullable=False)
+    slug = Column(String, unique=True, index=True, nullable=False)
+    title = Column(String, nullable=False)
+    summary = Column(String, nullable=True)
+    
+    content_beginner = Column(Text, nullable=False) # Simple Explanation
+    content_detailed = Column(Text, nullable=False) # Market interpretation, risks, caveats
+    
+    key_points = Column(String, nullable=True) # JSON or comma separated
+    related_terms = Column(String, nullable=True)
+    
+    display_order = Column(Integer, default=0)
+    estimated_minutes = Column(Integer, default=5)
+    version = Column(Integer, default=1)
+    is_published = Column(Boolean, default=True)
+
+    module = relationship("EducationalModule", back_populates="lessons")
+    progresses = relationship("UserLessonProgress", back_populates="lesson", cascade="all, delete-orphan")
+
+class UserLessonProgress(Base):
+    __tablename__ = "user_lesson_progress"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    lesson_id = Column(Integer, ForeignKey("educational_lessons.id"), nullable=False, index=True)
+    
+    is_completed = Column(Boolean, default=False)
+    last_position = Column(String, nullable=True) # bookmark
+    
+    started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    lesson = relationship("EducationalLesson", back_populates="progresses")
