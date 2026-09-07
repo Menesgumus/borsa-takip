@@ -151,3 +151,66 @@ async def test_portfolio_journal():
             "setup": "Hacked"
         })
         assert res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_portfolio_risk_and_whatif():
+    async with async_session_maker() as db_session:
+        user = User(id=random.randint(100000, 999999), email=f"test_{uuid.uuid4()}@example.com", password_hash="pw", is_active=True)
+        db_session.add(user)
+        inst = Instrument(id=random.randint(100000, 999999), symbol=f"TEST_{uuid.uuid4().hex[:4]}", name="Test", exchange="BIST", instrument_type=InstrumentType.STOCK)
+        db_session.add(inst)
+        await db_session.commit()
+        await db_session.refresh(user)
+        await db_session.refresh(inst)
+        user_mock_data["user1_id"] = user.id
+        inst_id = inst.id
+    
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        app.dependency_overrides[get_current_user] = override_get_current_user
+        res = await client.post("/api/v1/portfolios/", json={"name": "Risk Test", "portfolio_type": "REAL"})
+        p_id = res.json()["id"]
+        
+        await client.post(f"/api/v1/portfolios/{p_id}/transactions", json={
+            "transaction_type": "DEPOSIT",
+            "quantity": "10000"
+        })
+        
+        await client.post(f"/api/v1/portfolios/{p_id}/transactions", json={
+            "transaction_type": "BUY",
+            "instrument_id": inst_id,
+            "quantity": "10",
+            "price": "100"
+        })
+        
+        # Risk Check
+        res = await client.get(f"/api/v1/portfolios/{p_id}/risk")
+        assert res.status_code == 200
+        risk = res.json()
+        assert risk["data_freshness"] == "STALE" # No prices seeded
+        assert float(risk["cash_exposure"]) == 9000.0
+        
+        # What-If causing insufficient cash
+        res = await client.post(f"/api/v1/portfolios/{p_id}/what-if", json={
+            "transaction_type": "BUY",
+            "instrument_id": inst_id,
+            "quantity": "100",
+            "price": "100"
+        })
+        assert res.status_code == 400
+        
+        # What-If valid buy
+        res = await client.post(f"/api/v1/portfolios/{p_id}/what-if", json={
+            "transaction_type": "BUY",
+            "instrument_id": inst_id,
+            "quantity": "10",
+            "price": "100"
+        })
+        assert res.status_code == 200
+        delta = res.json()
+        assert "before_risk" in delta
+        assert "after_risk" in delta
+        
+        # Verify What-If didn't mutate ledger
+        res = await client.get(f"/api/v1/portfolios/{p_id}/risk")
+        assert float(res.json()["cash_exposure"]) == 9000.0

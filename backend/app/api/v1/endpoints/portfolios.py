@@ -1,3 +1,4 @@
+from app.schemas.risk import PortfolioRiskMetrics, WhatIfRequest, WhatIfResponse
 from app.schemas.portfolio import TradeJournalCreate, TradeJournalRead
 from app.db.models import TradeJournal
 from datetime import UTC, datetime
@@ -227,3 +228,112 @@ async def list_trade_journals(
         
     result = await db.execute(select(TradeJournal).where(TradeJournal.portfolio_id == portfolio_id))
     return result.scalars().all()
+
+
+from app.services.portfolio_risk import calculate_portfolio_risk, simulate_what_if
+
+@router.get("/{portfolio_id}/risk", response_model=PortfolioRiskMetrics)
+async def get_portfolio_risk(
+    portfolio_id: int,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user)
+) -> Any:
+    result = await db.execute(select(Portfolio).where(Portfolio.id == portfolio_id, Portfolio.user_id == current_user.id))
+    if not result.scalars().first():
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+        
+    txs_result = await db.execute(select(PortfolioTransaction).where(PortfolioTransaction.portfolio_id == portfolio_id))
+    db_txs = txs_result.scalars().all()
+    
+    ledger_txs = [
+        TransactionData(
+            id=t.id,
+            transaction_type=t.transaction_type,
+            instrument_id=t.instrument_id,
+            quantity=t.quantity,
+            price=t.price,
+            fee=t.fee,
+            executed_at=t.executed_at
+        ) for t in db_txs
+    ]
+    
+    from app.services.portfolio_ledger import fold_transactions
+    state = fold_transactions(ledger_txs)
+    
+    inst_ids = list(state.positions.keys())
+    instruments = {}
+    if inst_ids:
+        inst_res = await db.execute(select(Instrument).where(Instrument.id.in_(inst_ids)))
+        for inst in inst_res.scalars().all():
+            instruments[inst.id] = inst
+            
+    # For Phase 09, we assume current prices are None to test partial coverage / stale handling
+    # Unless we fetch them from a mock provider
+    current_prices = {}
+    symbols = {i_id: i.symbol for i_id, i in instruments.items()}
+    
+    risk_metrics = calculate_portfolio_risk(state, current_prices, symbols)
+    risk_metrics.portfolio_id = portfolio_id
+    return risk_metrics
+
+@router.post("/{portfolio_id}/what-if", response_model=WhatIfResponse)
+async def portfolio_what_if(
+    portfolio_id: int,
+    request: WhatIfRequest,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user)
+) -> Any:
+    result = await db.execute(select(Portfolio).where(Portfolio.id == portfolio_id, Portfolio.user_id == current_user.id))
+    if not result.scalars().first():
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+        
+    txs_result = await db.execute(select(PortfolioTransaction).where(PortfolioTransaction.portfolio_id == portfolio_id))
+    db_txs = txs_result.scalars().all()
+    
+    ledger_txs = [
+        TransactionData(
+            id=t.id,
+            transaction_type=t.transaction_type,
+            instrument_id=t.instrument_id,
+            quantity=t.quantity,
+            price=t.price,
+            fee=t.fee,
+            executed_at=t.executed_at
+        ) for t in db_txs
+    ]
+    
+    from app.services.portfolio_ledger import fold_transactions
+    state = fold_transactions(ledger_txs)
+    inst_ids = list(state.positions.keys())
+    if request.instrument_id not in inst_ids:
+        inst_ids.append(request.instrument_id)
+        
+    instruments = {}
+    if inst_ids:
+        inst_res = await db.execute(select(Instrument).where(Instrument.id.in_(inst_ids)))
+        for inst in inst_res.scalars().all():
+            instruments[inst.id] = inst
+            
+    current_prices = {}
+    symbols = {i_id: i.symbol for i_id, i in instruments.items()}
+    
+    sim_tx = TransactionData(
+        id=999999,
+        transaction_type=request.transaction_type,
+        instrument_id=request.instrument_id,
+        quantity=request.quantity,
+        price=request.price,
+        fee=request.fee,
+        executed_at=datetime.now(UTC)
+    )
+    
+    # We catch Ledger errors (like Insufficient Cash in What-If)
+    from app.services.portfolio_ledger import InsufficientCashError, InsufficientPositionError, InvalidTransactionError
+    try:
+        resp = simulate_what_if(ledger_txs, sim_tx, current_prices, symbols)
+    except (InsufficientCashError, InsufficientPositionError, InvalidTransactionError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+        
+    resp.before_risk.portfolio_id = portfolio_id
+    resp.after_risk.portfolio_id = portfolio_id
+    return resp
