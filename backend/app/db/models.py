@@ -1,3 +1,6 @@
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, Text
 import enum
 import typing
 
@@ -14,7 +17,6 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.db.base import Base
@@ -304,3 +306,23 @@ class PortfolioTransaction(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     portfolio = relationship("Portfolio", back_populates="transactions")
+from sqlalchemy.sql import func
+
+
+class TradeJournal(Base):
+    __tablename__ = "trade_journals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    portfolio_id = Column(Integer, ForeignKey("portfolios.id"), nullable=False, index=True)
+    transaction_id = Column(Integer, ForeignKey("portfolio_transactions.id"), nullable=True, index=True)
+
+    setup = Column(String, nullable=True)
+    reason = Column(Text, nullable=True)
+    emotion = Column(String, nullable=True)
+    lessons_learned = Column(Text, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    portfolio = relationship("Portfolio", backref="journals")
+    transaction = relationship("PortfolioTransaction", backref="journal")

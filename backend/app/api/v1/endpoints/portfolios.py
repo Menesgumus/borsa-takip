@@ -1,3 +1,5 @@
+from app.schemas.portfolio import TradeJournalCreate, TradeJournalRead
+from app.db.models import TradeJournal
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -194,3 +196,34 @@ async def get_portfolio_summary(
         market_data_freshness="STALE" if not all_prices_live else "LIVE",
         positions=pos_dtos
     )
+
+
+@router.post("/{portfolio_id}/journals", response_model=TradeJournalRead)
+async def create_trade_journal(
+    portfolio_id: int,
+    journal_in: TradeJournalCreate,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user)
+) -> Any:
+    result = await db.execute(select(Portfolio).where(Portfolio.id == portfolio_id, Portfolio.user_id == current_user.id))
+    if not result.scalars().first():
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+        
+    journal = TradeJournal(**journal_in.model_dump(), portfolio_id=portfolio_id)
+    db.add(journal)
+    await db.commit()
+    await db.refresh(journal)
+    return journal
+
+@router.get("/{portfolio_id}/journals", response_model=list[TradeJournalRead])
+async def list_trade_journals(
+    portfolio_id: int,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user)
+) -> Any:
+    result = await db.execute(select(Portfolio).where(Portfolio.id == portfolio_id, Portfolio.user_id == current_user.id))
+    if not result.scalars().first():
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+        
+    result = await db.execute(select(TradeJournal).where(TradeJournal.portfolio_id == portfolio_id))
+    return result.scalars().all()
