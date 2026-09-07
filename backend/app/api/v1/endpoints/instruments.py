@@ -16,6 +16,8 @@ from app.market.exceptions import ProviderUnavailableError
 from app.market.mock_provider import MockMarketDataProvider
 from app.market.registry import registry
 from app.schemas.instrument import InstrumentResponse, InstrumentsPaginated, OHLCVDailyResponse
+from app.schemas.technical import TechnicalAnalysisResponse
+from app.services.technical_data import get_technical_analysis
 
 router = APIRouter()
 
@@ -152,3 +154,21 @@ async def get_instrument_history(
 
     result = await db.execute(stmt)
     return result.scalars().all()
+
+
+@router.get("/{symbol}/technical", response_model=TechnicalAnalysisResponse)
+async def get_instrument_technical(
+    symbol: str,
+    start_date: datetime | None = Query(None),  # noqa: B008
+    end_date: datetime | None = Query(None),  # noqa: B008
+    current_user: User = Depends(get_current_user),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
+) -> Any:
+    """Get technical analysis indicators for an instrument."""
+    try:
+        return await get_technical_analysis(db, symbol, start_date, end_date)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        ) from e

@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import React, { useEffect, useRef } from "react";
-import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickSeries, HistogramSeries } from "lightweight-charts";
+import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickSeries, HistogramSeries, LineSeries } from "lightweight-charts";
 
 export interface OHLCVData {
   time: string; // 'YYYY-MM-DD'
@@ -12,19 +12,26 @@ export interface OHLCVData {
   value?: number; // For volume
 }
 
+export interface LineData {
+  time: string;
+  value: number;
+}
+
 interface CandlestickChartProps {
   data: OHLCVData[];
+  sma?: LineData[];
+  ema?: LineData[];
   colors?: {
     backgroundColor?: string;
     lineColor?: string;
     textColor?: string;
-    areaTopColor?: string;
-    areaBottomColor?: string;
   };
 }
 
 export const CandlestickChart: React.FC<CandlestickChartProps> = ({
   data,
+  sma = [],
+  ema = [],
   colors: {
     backgroundColor = "transparent",
     textColor = "#333",
@@ -34,6 +41,8 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = ({
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
+  const smaSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const emaSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -67,6 +76,20 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = ({
       wickDownColor: "#ef5350",
     });
     candleSeriesRef.current = candleSeries as any;
+
+    // Add SMA Series
+    const smaSeries = chart.addSeries(LineSeries, {
+      color: "#2962FF",
+      lineWidth: 2,
+    });
+    smaSeriesRef.current = smaSeries as any;
+
+    // Add EMA Series
+    const emaSeries = chart.addSeries(LineSeries, {
+      color: "#FF6D00",
+      lineWidth: 2,
+    });
+    emaSeriesRef.current = emaSeries as any;
 
     // Add Volume Series
     const volumeSeries = chart.addSeries(HistogramSeries, {
@@ -120,7 +143,16 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = ({
       candleSeriesRef.current.setData(candleData as any);
       volumeSeriesRef.current.setData(volumeData as any);
     }
-  }, [data]);
+
+    if (smaSeriesRef.current && sma.length > 0) {
+      smaSeriesRef.current.setData(sma as any);
+    }
+    
+    if (emaSeriesRef.current && ema.length > 0) {
+      emaSeriesRef.current.setData(ema as any);
+    }
+
+  }, [data, sma, ema]);
 
   return <div ref={chartContainerRef} style={{ width: "100%", position: "relative" }} />;
 };

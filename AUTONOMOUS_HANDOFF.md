@@ -1,15 +1,14 @@
 ﻿# Autonomous Handoff Document
 
-**Current Phase:** 05
+**Current Phase:** 06
 **Current Task:** T01
-**Last Verified Commit:** (Pending commit of Phase 04)
+**Last Verified Commit:** (Pending commit of Phase 05)
 
-**Phase 01-04 Status:** COMPLETED
-Frontend build succeeds.
+**Phase 01-05 Status:** COMPLETED
 
 ## Next Exact Action
-Start Phase 05: Technical Analysis Engine
+Start Phase 06: Pattern + SUPPORT/RESISTANCE ENGINE
 
-1. Read BORSA_TAKIP_MASTER_SPEC.md for Phase 05 requirements (Technical Analysis Engine).
-2. Create docs/phases/phase_05_plan.md.
-3. Implement Phase 05 T01 (horizon configs, technical UI cards, indicator panes, pattern detection).
+1. Read BORSA_TAKIP_MASTER_SPEC.md for Phase 06 requirements.
+2. Create docs/phases/phase_06_plan.md.
+3. Implement Phase 06 tasks focusing on deterministic chart patterns (Double Top, Head & Shoulders, Support/Resistance).

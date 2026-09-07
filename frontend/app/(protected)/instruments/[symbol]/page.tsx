@@ -24,6 +24,12 @@ async function fetchHistory(symbol: string) {
   return res.json();
 }
 
+async function fetchTechnical(symbol: string) {
+  const res = await fetch(`/api/v1/instruments/${symbol}/technical`);
+  if (!res.ok) throw new Error("Failed to fetch technical indicators");
+  return res.json();
+}
+
 export default function InstrumentDetail() {
   const params = useParams();
   const symbol = decodeURIComponent(params.symbol as string);
@@ -43,13 +49,18 @@ export default function InstrumentDetail() {
     queryKey: ["history", symbol],
     queryFn: () => fetchHistory(symbol),
   });
+  
+  const { data: technical } = useQuery({
+    queryKey: ["technical", symbol],
+    queryFn: () => fetchTechnical(symbol),
+    retry: false, // Don't retry if failing (e.g. no DB)
+  });
 
   const chartData = useMemo(() => {
     if (!history) return [];
     
     // Map history to Lightweight Charts format
     const formatted = history.map((h: any) => {
-      // time must be a string like 'YYYY-MM-DD' for daily data in lightweight-charts
       const dateStr = new Date(h.timestamp).toISOString().split('T')[0];
       return {
         time: dateStr,
@@ -61,7 +72,6 @@ export default function InstrumentDetail() {
       };
     });
     
-    // If we have a live quote, append or update the last candle
     if (quote && formatted.length > 0) {
       const today = new Date().toISOString().split('T')[0];
       const lastCandle = formatted[formatted.length - 1];
@@ -84,6 +94,20 @@ export default function InstrumentDetail() {
     
     return formatted;
   }, [history, quote]);
+
+  // Combine technical indicators with chartData if available
+  const indicatorsData = useMemo(() => {
+     if (!technical || !technical.indicators) return { sma: [], ema: [] };
+     const sma: any[] = [];
+     const ema: any[] = [];
+     
+     technical.indicators.forEach((ind: any) => {
+        const dateStr = new Date(ind.timestamp).toISOString().split('T')[0];
+        if (ind.sma_20 !== null && ind.sma_20 !== undefined) sma.push({ time: dateStr, value: ind.sma_20 });
+        if (ind.ema_20 !== null && ind.ema_20 !== undefined) ema.push({ time: dateStr, value: ind.ema_20 });
+     });
+     return { sma, ema };
+  }, [technical]);
 
   if (loadingInst) return <div className="p-4">Yükleniyor...</div>;
   if (!instrument) return <div className="p-4 text-red-500">Enstrüman bulunamadı.</div>;
@@ -137,7 +161,7 @@ export default function InstrumentDetail() {
             Grafik verisi yükleniyor...
           </div>
         ) : chartData.length > 0 ? (
-          <CandlestickChart data={chartData} />
+          <CandlestickChart data={chartData} sma={indicatorsData.sma} ema={indicatorsData.ema} />
         ) : (
           <div className="flex justify-center items-center h-[400px] text-gray-500">
             Grafik verisi bulunamadı.
