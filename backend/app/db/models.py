@@ -349,3 +349,25 @@ class DecisionSnapshot(Base):
     calculated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     instrument = relationship("Instrument", backref="decisions")
+class ChatThread(Base):
+    __tablename__ = "chat_threads"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    title = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    messages = relationship("ChatMessage", back_populates="thread", cascade="all, delete-orphan")
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    thread_id = Column(Integer, ForeignKey("chat_threads.id"), nullable=False, index=True)
+    role = Column(String, nullable=False) # "user", "assistant", "system"
+    content = Column(Text, nullable=False)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    thread = relationship("ChatThread", back_populates="messages")
