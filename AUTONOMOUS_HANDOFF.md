@@ -1,14 +1,12 @@
 ﻿# Autonomous Handoff Document
 
-**Current Phase:** 15
-**Current Task:** BLOCKED (Real-Data Validation)
-**Last Verified Commit:** (Pending - Remediation)
+**Current Phase:** 18 (Pending Start)
+**Current Task:** T01 - PWA Setup
+**Last Verified Commit:** 61f6fe3
 
-**Phase 01-14 Status:** COMPLETED
-**Phase 15 Status:** NOT READY (Implementation: DONE_VERIFIED, Bias Validation: BLOCKED)
-
-## Exact Blocker
-Engine-level point-in-time protections are complete and tested. However, real-world data completeness for BIST (historical universe, delisted instruments, reliable corporate actions) is unavailable for free.
+**Phase 01-17 Status:** COMPLETED
+*(Note: Phase 15 runs on a Development Waiver. Real-world validation remains LIMITED. Phase 16 Champion/Challenger runs purely in Shadow Mode without auto-promotion).*
 
 ## Next Exact Action
-Phase 16 implementation remains ON HOLD. Awaiting data provision or explicit user waiver.
+Start Phase 18: PWA, Mobile Polish, Offline/Degraded Experience.
+Implement Next.js PWA manifest, service workers, and stale/offline UI labels.
