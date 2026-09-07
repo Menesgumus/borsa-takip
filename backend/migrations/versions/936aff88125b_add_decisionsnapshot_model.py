@@ -5,17 +5,16 @@ Revises: f6b73d7d3ab3
 Create Date: 2026-09-07 14:01:38.704477
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '936aff88125b'
-down_revision: Union[str, Sequence[str], None] = 'f6b73d7d3ab3'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = 'f6b73d7d3ab3'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -43,4 +42,5 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_decision_snapshots_instrument_id'), table_name='decision_snapshots')
     op.drop_index(op.f('ix_decision_snapshots_id'), table_name='decision_snapshots')
     op.drop_table('decision_snapshots')
+    op.execute("DROP TYPE IF EXISTS decisionaction")
     # ### end Alembic commands ###

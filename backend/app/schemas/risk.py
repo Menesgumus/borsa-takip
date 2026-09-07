@@ -1,7 +1,8 @@
-﻿from pydantic import BaseModel
-from typing import List, Optional, Dict
+﻿from datetime import datetime
 from decimal import Decimal
-from datetime import datetime
+
+from pydantic import BaseModel
+
 
 class PositionExposure(BaseModel):
     instrument_id: int
@@ -23,15 +24,15 @@ class PortfolioRiskMetrics(BaseModel):
     cash_exposure: Decimal
     cash_weight_percentage: Decimal
     invested_weight_percentage: Decimal
-    
+
     # Advanced metrics
-    historical_var_95_1d: Optional[Decimal] = None
-    annualized_volatility: Optional[Decimal] = None
-    max_drawdown: Optional[Decimal] = None
-    
-    positions_exposure: List[PositionExposure]
-    limit_violations: List[LimitViolation]
-    
+    historical_var_95_1d: Decimal | None = None
+    annualized_volatility: Decimal | None = None
+    max_drawdown: Decimal | None = None
+
+    positions_exposure: list[PositionExposure]
+    limit_violations: list[LimitViolation]
+
     # Metadata
     calculated_at: datetime
     data_freshness: str  # LIVE, STALE, UNAVAILABLE
@@ -47,7 +48,7 @@ class WhatIfRequest(BaseModel):
 class WhatIfResponse(BaseModel):
     before_risk: PortfolioRiskMetrics
     after_risk: PortfolioRiskMetrics
-    delta_var_95_1d: Optional[Decimal] = None
+    delta_var_95_1d: Decimal | None = None
     delta_invested_exposure: Decimal
-    newly_triggered_limits: List[LimitViolation]
-    resolved_limits: List[LimitViolation]
+    newly_triggered_limits: list[LimitViolation]
+    resolved_limits: list[LimitViolation]

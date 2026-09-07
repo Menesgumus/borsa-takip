@@ -2,7 +2,6 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import text
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.db.models import Instrument, InstrumentType, OHLCVDaily, User
@@ -22,13 +21,12 @@ def override_dependencies():
 @pytest.mark.asyncio
 async def test_get_technical_analysis():
     async with async_session_maker() as db_session:
-        # 1. Cleanup & Create instrument
-        await db_session.execute(text("DELETE FROM ohlcv_daily"))
-        await db_session.execute(text("DELETE FROM instruments"))
-        await db_session.commit()
+        # 1. Create instrument
+        import uuid
 
+        sym = f"TECH_{uuid.uuid4().hex[:4]}"
         instrument = Instrument(
-            symbol="TECH",
+            symbol=sym,
             name="Tech Analysis Corp",
             exchange="BIST",
             instrument_type=InstrumentType.STOCK,
@@ -54,12 +52,12 @@ async def test_get_technical_analysis():
 
     # 3. Call endpoint
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/api/v1/instruments/TECH/technical")
+        response = await client.get(f"/api/v1/instruments/{sym}/technical")
 
     assert response.status_code == 200
     data = response.json()
 
-    assert data["symbol"] == "TECH"
+    assert data["symbol"] == sym
     assert data["freshness"] == "LIVE"
     assert len(data["indicators"]) == 50
 

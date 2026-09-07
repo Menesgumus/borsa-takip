@@ -1,21 +1,20 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+﻿
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from typing import List
 
-from app.db.session import get_db_session
 from app.api.v1.endpoints.auth import get_current_user
-from app.db.models import User, BacktestJob, BacktestResult
+from app.db.models import BacktestJob, BacktestResult, User
+from app.db.session import get_db_session
 from app.schemas.backtest import BacktestJobCreate, BacktestJobRead, BacktestResultRead
-from app.services.backtest import run_backtest_job
 
 router = APIRouter()
 
 @router.post("/", response_model=BacktestJobRead)
 async def create_backtest(
-    data: BacktestJobCreate, 
+    data: BacktestJobCreate,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db_session), 
+    db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ):
     job = BacktestJob(
@@ -31,14 +30,14 @@ async def create_backtest(
     db.add(job)
     await db.commit()
     await db.refresh(job)
-    
+
     # In a real system we'd push to Celery/Redis. Here we use BackgroundTasks for V1
-    # Note: run_backtest_job requires its own DB session so we can't pass the request db directly 
+    # Note: run_backtest_job requires its own DB session so we can't pass the request db directly
     # to a background task safely in all async frameworks, but we will mock its execution here.
-    
+
     return job
 
-@router.get("/", response_model=List[BacktestJobRead])
+@router.get("/", response_model=list[BacktestJobRead])
 async def get_backtests(db: AsyncSession = Depends(get_db_session), current_user: User = Depends(get_current_user)):
     res = await db.execute(select(BacktestJob).where(BacktestJob.user_id == current_user.id).order_by(BacktestJob.created_at.desc()))
     return res.scalars().all()
@@ -57,7 +56,7 @@ async def get_backtest_result(job_id: int, db: AsyncSession = Depends(get_db_ses
     job_res = await db.execute(select(BacktestJob).where(BacktestJob.id == job_id, BacktestJob.user_id == current_user.id))
     if not job_res.scalars().first():
         raise HTTPException(status_code=404, detail="Backtest not found")
-        
+
     res = await db.execute(select(BacktestResult).where(BacktestResult.job_id == job_id))
     result = res.scalars().first()
     if not result:

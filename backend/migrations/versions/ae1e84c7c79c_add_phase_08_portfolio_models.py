@@ -67,4 +67,6 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_portfolios_user_id'), table_name='portfolios')
     op.drop_index(op.f('ix_portfolios_id'), table_name='portfolios')
     op.drop_table('portfolios')
+    op.execute("DROP TYPE IF EXISTS portfoliotype")
+    op.execute("DROP TYPE IF EXISTS transactiontype")
     # ### end Alembic commands ###

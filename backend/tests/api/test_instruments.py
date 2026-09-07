@@ -23,8 +23,7 @@ def override_dependencies():
 async def setup_instruments():
     async with async_session_maker() as db_session:
         # cleanup first
-        await db_session.execute(text("DELETE FROM provider_mappings"))
-        await db_session.execute(text("DELETE FROM instruments"))
+        await db_session.execute(text("TRUNCATE TABLE instruments CASCADE"))
         await db_session.commit()
 
         inst1 = Instrument(
@@ -54,8 +53,7 @@ async def setup_instruments():
     yield
 
     async with async_session_maker() as db_session:
-        await db_session.execute(text("DELETE FROM provider_mappings"))
-        await db_session.execute(text("DELETE FROM instruments"))
+        await db_session.execute(text("TRUNCATE TABLE instruments CASCADE"))
         await db_session.commit()
 
 

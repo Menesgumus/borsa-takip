@@ -60,22 +60,23 @@ class PortfolioSummaryDTO(BaseModel):
     total_market_value: Decimal | None = None
     market_data_freshness: str = "LIVE"
     positions: list[PositionDTO]
-from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime
 
+from pydantic import BaseModel
+
+
 class TradeJournalCreate(BaseModel):
-    transaction_id: Optional[int] = None
-    setup: Optional[str] = None
-    reason: Optional[str] = None
-    emotion: Optional[str] = None
-    lessons_learned: Optional[str] = None
+    transaction_id: int | None = None
+    setup: str | None = None
+    reason: str | None = None
+    emotion: str | None = None
+    lessons_learned: str | None = None
 
 class TradeJournalRead(TradeJournalCreate):
     id: int
     portfolio_id: int
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True

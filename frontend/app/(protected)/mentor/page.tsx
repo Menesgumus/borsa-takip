@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { Send, BrainCircuit, ShieldAlert, WifiOff } from "lucide-react";
@@ -36,19 +36,18 @@ export default function MentorPage() {
       </div>
 
       {!isOnline && (
-        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-4 flex gap-3">
-          <WifiOff className="shrink-0" />
-          <div>
-            <strong>AI_MENTOR_OFFLINE</strong>
-            <p className="text-sm">Yapay zeka asistanı internet bağlantısı olmadan yeni yanıtlar üretemez. Yalnızca geçmiş sohbetlerinizi görüntüleyebilirsiniz.</p>
-          </div>
+        <div className="bg-gray-800 border-l-4 border-yellow-500 text-yellow-100 p-4 mb-6 shadow-sm relative z-0">
+          <h3 className="font-bold mb-1">Cihazınız Çevrimdışı (STALE DATA)</h3>
+          <p className="text-sm">
+            AI Mentor canlı bağlantı gerektirir. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.
+          </p>
         </div>
       )}
 
       <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 overflow-y-auto p-4 space-y-4 mb-4">
         {messages.length === 0 && (
           <div className="text-center text-gray-500 mt-20">
-            AI Mentor'e bir soru sorarak başlayın.
+            AI Mentor&apos;e bir soru sorarak başlayın.
           </div>
         )}
         {messages.map((m, i) => (

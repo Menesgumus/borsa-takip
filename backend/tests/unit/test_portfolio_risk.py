@@ -1,9 +1,17 @@
-﻿import pytest
+﻿from datetime import UTC, datetime
 from decimal import Decimal
-from datetime import datetime, timezone
-from app.services.portfolio_ledger import TransactionData, TransactionType, PortfolioState, PositionState
-from app.services.portfolio_risk import calculate_portfolio_risk, calculate_historical_var, simulate_what_if
-from app.schemas.risk import WhatIfRequest
+
+from app.services.portfolio_ledger import (
+    PortfolioState,
+    PositionState,
+    TransactionData,
+)
+from app.services.portfolio_risk import (
+    calculate_historical_var,
+    calculate_portfolio_risk,
+    simulate_what_if,
+)
+
 
 def create_state(cash, positions) -> PortfolioState:
     pos_dict = {}
@@ -84,15 +92,15 @@ def test_insufficient_var_history():
     assert var is None
 
 def test_what_if_buy_causing_breach():
-    dt = datetime(2026,1,1,tzinfo=timezone.utc)
+    dt = datetime(2026,1,1,tzinfo=UTC)
     ledger = [
         TransactionData(1, "DEPOSIT", None, Decimal("10000"), Decimal("0"), Decimal("0"), dt),
         TransactionData(2, "BUY", 1, Decimal("10"), Decimal("100"), Decimal("0"), dt) # A = 1000. Cash = 9000
     ]
     sim_tx = TransactionData(3, "BUY", 1, Decimal("30"), Decimal("100"), Decimal("0"), dt) # Buy 3000 more -> Total A = 4000. Cash 6000. Total = 10000. Weight = 40% -> Breach!
-    
+
     resp = simulate_what_if(ledger, sim_tx, {1: Decimal("100")}, {1: "A"}, None)
-    
+
     assert len(resp.before_risk.limit_violations) == 0
     assert len(resp.after_risk.limit_violations) == 1
     assert len(resp.newly_triggered_limits) == 1

@@ -1,10 +1,11 @@
-﻿from pydantic import BaseModel
-from typing import List, Optional
-from datetime import datetime
+﻿from datetime import datetime
+
+from pydantic import BaseModel
+
 
 class ChatMessageCreate(BaseModel):
     content: str
-    instrument_symbol: Optional[str] = None
+    instrument_symbol: str | None = None
     explanation_level: str = "PRO" # BEGINNER, INTERMEDIATE, PRO
 
 class ChatMessageResponse(BaseModel):
@@ -15,6 +16,6 @@ class ChatMessageResponse(BaseModel):
 
 class ChatThreadResponse(BaseModel):
     id: int
-    title: Optional[str]
+    title: str | None
     created_at: datetime
-    messages: List[ChatMessageResponse] = []
+    messages: list[ChatMessageResponse] = []

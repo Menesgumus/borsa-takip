@@ -1,8 +1,7 @@
 from __future__ import annotations
-from typing import Optional
-from decimal import Decimal
 
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -232,7 +231,7 @@ async def get_instrument_context(
 async def get_instrument_decision(
     symbol: str,
     horizon: Horizon = Horizon.MEDIUM,
-    portfolio_id: Optional[int] = None,
+    portfolio_id: int | None = None,
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ) -> Any:

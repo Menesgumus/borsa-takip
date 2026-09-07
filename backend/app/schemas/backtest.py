@@ -1,7 +1,8 @@
-﻿from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
-from datetime import datetime
+﻿from datetime import datetime
 from decimal import Decimal
+
+from pydantic import BaseModel
+
 
 class BacktestJobCreate(BaseModel):
     strategy_name: str
@@ -16,10 +17,10 @@ class BacktestJobRead(BacktestJobCreate):
     id: int
     user_id: int
     status: str
-    failure_reason: Optional[str] = None
+    failure_reason: str | None = None
     created_at: datetime
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
 
 class BacktestTradeRead(BaseModel):
     id: int
@@ -34,14 +35,14 @@ class BacktestTradeRead(BaseModel):
 class BacktestResultRead(BaseModel):
     id: int
     job_id: int
-    total_return_pct: Optional[Decimal] = None
-    cagr_pct: Optional[Decimal] = None
-    max_drawdown_pct: Optional[Decimal] = None
-    win_rate_pct: Optional[Decimal] = None
-    total_trades: Optional[int] = None
-    fees_paid: Optional[Decimal] = None
-    benchmark_return_pct: Optional[Decimal] = None
-    equity_curve: Optional[str] = None
-    bias_audit: Optional[str] = None
-    limitations: Optional[str] = None
-    validation_state: Optional[str] = None
+    total_return_pct: Decimal | None = None
+    cagr_pct: Decimal | None = None
+    max_drawdown_pct: Decimal | None = None
+    win_rate_pct: Decimal | None = None
+    total_trades: int | None = None
+    fees_paid: Decimal | None = None
+    benchmark_return_pct: Decimal | None = None
+    equity_curve: str | None = None
+    bias_audit: str | None = None
+    limitations: str | None = None
+    validation_state: str | None = None

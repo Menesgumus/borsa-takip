@@ -1,9 +1,14 @@
 ﻿import os
-from app.db.models import DecisionAction
+
 from app.services.ai_mentor import (
-    BaseMentorProvider, MockMentorProvider, OpenAIMentorProvider, 
-    MentorContext, MentorExplanation, logger
+    BaseMentorProvider,
+    MentorContext,
+    MentorExplanation,
+    MockMentorProvider,
+    OpenAIMentorProvider,
+    logger,
 )
+
 
 def get_mentor_provider() -> BaseMentorProvider:
     if os.getenv("OPENAI_API_KEY") and os.getenv("USE_MOCK_MENTOR", "true").lower() == "false":
@@ -19,9 +24,9 @@ async def generate_mentor_response(
     context: MentorContext,
     explanation_level: str
 ) -> MentorExplanation:
-    
+
     provider = get_mentor_provider()
-    
+
     try:
         explanation = await provider.generate_explanation(user_prompt, context, explanation_level)
     except Exception as e:
@@ -46,5 +51,5 @@ async def generate_mentor_response(
         explanation.action = context.deterministic_action.value
         explanation.summary = f"[DÜZELTME]: {explanation.summary}"
         explanation.action_explanation += f"\n\n(Not: AI farklı bir aksiyon önermiştir ancak deterministik kural motorumuz gereği nihai karar {context.deterministic_action.value} olarak sabitlenmiştir.)"
-        
+
     return explanation

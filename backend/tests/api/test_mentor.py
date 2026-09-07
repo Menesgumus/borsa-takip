@@ -1,15 +1,16 @@
-﻿import pytest
-from httpx import AsyncClient, ASGITransport
-import uuid
+﻿import json
 import random
-import json
+import uuid
 from decimal import Decimal
 
-from app.main import app
-from app.db.session import async_session_maker
-from app.db.models import User, ChatThread, ChatMessage, DecisionAction
+import pytest
+from httpx import ASGITransport, AsyncClient
+
 from app.api.v1.endpoints.auth import get_current_user
-from app.services.ai_orchestrator import generate_mentor_response, MentorContext
+from app.db.models import ChatThread, DecisionAction, User
+from app.db.session import async_session_maker
+from app.main import app
+from app.services.ai_orchestrator import MentorContext, generate_mentor_response
 
 user_mock_data = {}
 async def override_get_current_user():
@@ -49,32 +50,32 @@ async def test_mentor_chat_api_and_idor():
         await db_session.commit()
         await db_session.refresh(user_a)
         await db_session.refresh(user_b)
-        
+
         thread_b = ChatThread(user_id=user_b.id, title="B's Thread")
         db_session.add(thread_b)
         await db_session.commit()
         await db_session.refresh(thread_b)
         thread_b_id = thread_b.id
-        
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         app.dependency_overrides[get_current_user] = override_get_current_user
-        
+
         # User A logic
         user_mock_data["user_id"] = user_a.id
-        
+
         # 1. Thread IDOR check (User A reading B's thread)
         r_idor_read = await client.get(f"/api/v1/chat/threads/{thread_b_id}")
         assert r_idor_read.status_code == 404
-        
+
         # 2. Thread IDOR check (User A writing to B's thread)
         r_idor_write = await client.post(f"/api/v1/chat/threads/{thread_b_id}/messages", json={"content":"hi", "explanation_level": "PRO"})
         assert r_idor_write.status_code == 404
-        
+
         # 3. Normal Flow
         r_thread = await client.post("/api/v1/chat/threads")
         assert r_thread.status_code == 200
         t_id = r_thread.json()["id"]
-        
+
         # Send message
         r_msg = await client.post(f"/api/v1/chat/threads/{t_id}/messages", json={
             "content": "Bu hisse alınır mı?",

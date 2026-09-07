@@ -1,17 +1,22 @@
-﻿import pytest
-from decimal import Decimal
+﻿from decimal import Decimal
+
+from app.db.models import DecisionAction
 from app.schemas.decision import (
-    TechnicalInputs, FundamentalInputs, NewsInputs, PortfolioFitInputs, Horizon
+    FundamentalInputs,
+    Horizon,
+    NewsInputs,
+    PortfolioFitInputs,
+    TechnicalInputs,
 )
 from app.services.decision_engine import evaluate_decision
-from app.db.models import DecisionAction
+
 
 def test_strong_favorable_al():
     tech = TechnicalInputs(current_price=Decimal("150"), rsi_14=Decimal("25"), macd_line=Decimal("2"), macd_signal=Decimal("1"), sma_50=Decimal("140"), sma_200=Decimal("120"))
     fund = FundamentalInputs(pe_ratio=Decimal("10"), pb_ratio=Decimal("1.5"))
     news = NewsInputs(sentiment_score=Decimal("90"))
     res = evaluate_decision(1, Horizon.SHORT, tech, fund, news)
-    # tech: 50 + 20 + 15 + 15 = 100. fund: 50 + 25 + 25 = 100. news: 90. 
+    # tech: 50 + 20 + 15 + 15 = 100. fund: 50 + 25 + 25 = 100. news: 90.
     # score = 100*0.4 + 100*0.4 + 90*0.2 = 40 + 40 + 18 = 98 >= 80 -> STRONG_BUY
     assert res.market_view == DecisionAction.STRONG_BUY
     assert res.overall_market_score == Decimal("98")
@@ -77,7 +82,7 @@ def test_positive_market_view_concentration_limit_personal_bekle():
     news = NewsInputs(sentiment_score=Decimal("90"))
     pf = PortfolioFitInputs(current_weight=Decimal("35"), max_weight_limit=Decimal("30"))
     res = evaluate_decision(1, Horizon.SHORT, tech, fund, news, pf)
-    
+
     assert res.market_view == DecisionAction.STRONG_BUY
     assert res.personal_action == DecisionAction.HOLD
     assert "PORTFOLIO_CONCENTRATION_LIMIT" in res.warnings
@@ -115,7 +120,7 @@ def test_market_only_vs_personalized():
     tech = TechnicalInputs(current_price=Decimal("150"), rsi_14=Decimal("25"), macd_line=Decimal("2"), macd_signal=Decimal("1"), sma_50=Decimal("140"), sma_200=Decimal("120"))
     res_market = evaluate_decision(1, Horizon.SHORT, tech, FundamentalInputs(), NewsInputs())
     assert res_market.personal_action is None
-    
+
     pf = PortfolioFitInputs()
     res_personal = evaluate_decision(1, Horizon.SHORT, tech, FundamentalInputs(), NewsInputs(), pf)
     assert res_personal.personal_action is not None

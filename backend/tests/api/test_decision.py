@@ -1,13 +1,13 @@
-﻿import pytest
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import AsyncSession
+﻿import random
 import uuid
 
-from app.main import app
-from app.db.session import async_session_maker
-from app.db.models import User, Instrument, InstrumentType
+import pytest
+from httpx import ASGITransport, AsyncClient
+
 from app.api.v1.endpoints.auth import get_current_user
-import random
+from app.db.models import Instrument, InstrumentType, User
+from app.db.session import async_session_maker
+from app.main import app
 
 user_mock_data = {}
 async def override_get_current_user():
@@ -27,10 +27,10 @@ async def test_get_instrument_decision():
         await db_session.refresh(inst)
         user_mock_data["user_id"] = user.id
         symbol = inst.symbol
-    
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         app.dependency_overrides[get_current_user] = override_get_current_user
-        
+
         # Market only
         res = await client.get(f"/api/v1/instruments/{symbol}/decision")
         assert res.status_code == 200
@@ -38,11 +38,11 @@ async def test_get_instrument_decision():
         assert "overall_market_score" in data
         assert data["market_view"] in ["STRONG_BUY", "BUY", "HOLD", "SELL", "STRONG_SELL"]
         assert data["personal_action"] is None
-        
-        # Try with a mocked portfolio_id 
+
+        # Try with a mocked portfolio_id
         res2 = await client.post("/api/v1/portfolios/", json={"name": "P1", "portfolio_type": "REAL"})
         p_id = res2.json()["id"]
-        
+
         res_pers = await client.get(f"/api/v1/instruments/{symbol}/decision?portfolio_id={p_id}")
         assert res_pers.status_code == 200
         p_data = res_pers.json()

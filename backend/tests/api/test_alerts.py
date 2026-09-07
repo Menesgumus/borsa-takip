@@ -1,13 +1,14 @@
-﻿import pytest
-from httpx import AsyncClient, ASGITransport
+﻿import random
 import uuid
-import random
 from decimal import Decimal
 
-from app.main import app
-from app.db.session import async_session_maker
-from app.db.models import User, AlertRule, AlertType, Instrument, InstrumentType
+import pytest
+from httpx import ASGITransport, AsyncClient
+
 from app.api.v1.endpoints.auth import get_current_user
+from app.db.models import AlertRule, AlertType, Instrument, InstrumentType, User
+from app.db.session import async_session_maker
+from app.main import app
 from app.services.alerts import evaluate_alert
 
 user_mock_data = {}
@@ -26,16 +27,16 @@ async def test_alerts_service_cooldown():
         await db_session.commit()
         await db_session.refresh(user)
         await db_session.refresh(inst)
-        
+
         rule = AlertRule(user_id=user.id, alert_type=AlertType.PRICE, instrument_id=inst.id, operator=">", threshold=Decimal("100"), cooldown_minutes=60)
         db_session.add(rule)
         await db_session.commit()
         await db_session.refresh(rule)
-        
+
         # 1. Trigger initially
         triggered1 = await evaluate_alert(db_session, rule, current_value=150.0, context_data={"message": "Fiyat 100'ü aştı"})
         assert triggered1 is True
-        
+
         # 2. Trigger again immediately (should fail due to cooldown)
         await db_session.refresh(rule)
         triggered2 = await evaluate_alert(db_session, rule, current_value=160.0, context_data={"message": "Fiyat 100'ü aştı"})
@@ -50,12 +51,12 @@ async def test_alerts_api():
         await db_session.commit()
         await db_session.refresh(user_a)
         await db_session.refresh(user_b)
-        
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         app.dependency_overrides[get_current_user] = override_get_current_user
-        
+
         user_mock_data["user_id"] = user_a.id
-        
+
         # Create rule
         r_create = await client.post("/api/v1/alerts/rules", json={
             "alert_type": "PRICE",
@@ -66,11 +67,11 @@ async def test_alerts_api():
         assert r_create.status_code == 200
         data = r_create.json()
         assert data["alert_type"] == "PRICE"
-        
+
         # List rules
         r_list = await client.get("/api/v1/alerts/rules")
         assert len(r_list.json()) == 1
-        
+
         # IDOR check
         user_mock_data["user_id"] = user_b.id
         r_list_b = await client.get("/api/v1/alerts/rules")

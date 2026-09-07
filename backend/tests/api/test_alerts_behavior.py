@@ -1,12 +1,14 @@
-import random
-import pytest
-from decimal import Decimal
-import uuid
 import datetime
+import random
+import uuid
+from decimal import Decimal
 
-from app.services.alerts import evaluate_alert
-from app.db.models import AlertRule, AlertType, UserNotification, User
+import pytest
+
+from app.db.models import AlertRule, AlertType, User
 from app.db.session import async_session_maker
+from app.services.alerts import evaluate_alert
+
 
 @pytest.mark.asyncio
 async def test_alert_price_threshold():
@@ -20,13 +22,13 @@ async def test_alert_price_threshold():
         db.add(rule)
         await db.commit()
         await db.refresh(rule)
-        
+
         # 90 is not > 100
         assert await evaluate_alert(db, rule, 90.0, {}) is False
-        
+
         # 110 is > 100 -> True
         assert await evaluate_alert(db, rule, 110.0, {}) is True
-        
+
         # 120 is > 100 but cooldown
         await db.refresh(rule)
         assert await evaluate_alert(db, rule, 120.0, {}) is False
@@ -46,11 +48,11 @@ async def test_alert_cooldown_expiry():
         await db.refresh(user)
 
         # Triggered 2 hours ago
-        past_time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=2)
+        past_time = datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=2)
         rule = AlertRule(user_id=user.id, alert_type=AlertType.RSI, operator="<", threshold=Decimal("30"), cooldown_minutes=60, is_enabled=True, last_triggered_at=past_time)
         db.add(rule)
         await db.commit()
         await db.refresh(rule)
-        
+
         # Should trigger because 120 mins > 60 mins cooldown
         assert await evaluate_alert(db, rule, 25.0, {}) is True

@@ -1,27 +1,28 @@
-﻿from pydantic import BaseModel
-from typing import Optional, Any, Dict
+﻿from datetime import datetime
 from decimal import Decimal
-from datetime import datetime
+
+from pydantic import BaseModel
+
 
 class AlertRuleCreate(BaseModel):
     alert_type: str
-    instrument_id: Optional[int] = None
-    portfolio_id: Optional[int] = None
-    operator: Optional[str] = None
-    threshold: Optional[Decimal] = None
-    config_data: Optional[str] = None
+    instrument_id: int | None = None
+    portfolio_id: int | None = None
+    operator: str | None = None
+    threshold: Decimal | None = None
+    config_data: str | None = None
     is_enabled: bool = True
     cooldown_minutes: int = 60
 
 class AlertRuleRead(AlertRuleCreate):
     id: int
-    last_triggered_at: Optional[datetime] = None
+    last_triggered_at: datetime | None = None
 
 class NotificationRead(BaseModel):
     id: int
     alert_type: str
     title: str
     message: str
-    trigger_data: Optional[str] = None
+    trigger_data: str | None = None
     is_read: bool
     created_at: datetime

@@ -1,8 +1,6 @@
 import enum
-from sqlalchemy.sql import func
 import typing
 
-from sqlalchemy import Numeric
 from sqlalchemy import (
     BigInteger,
     Boolean,
@@ -371,7 +369,7 @@ class ChatMessage(Base):
     thread_id = Column(Integer, ForeignKey("chat_threads.id"), nullable=False, index=True)
     role = Column(String, nullable=False) # "user", "assistant", "system"
     content = Column(Text, nullable=False)
-    
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     thread = relationship("ChatThread", back_populates="messages")
@@ -384,7 +382,7 @@ class EducationalModule(Base):
     description = Column(String, nullable=True)
     category = Column(String, nullable=False) # e.g. "TECHNICAL_ANALYSIS", "FUNDAMENTALS", "PORTFOLIO"
     display_order = Column(Integer, default=0)
-    
+
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
@@ -398,13 +396,13 @@ class EducationalLesson(Base):
     slug = Column(String, unique=True, index=True, nullable=False)
     title = Column(String, nullable=False)
     summary = Column(String, nullable=True)
-    
+
     content_beginner = Column(Text, nullable=False) # Simple Explanation
     content_detailed = Column(Text, nullable=False) # Market interpretation, risks, caveats
-    
+
     key_points = Column(String, nullable=True) # JSON or comma separated
     related_terms = Column(String, nullable=True)
-    
+
     display_order = Column(Integer, default=0)
     estimated_minutes = Column(Integer, default=5)
     version = Column(Integer, default=1)
@@ -419,16 +417,17 @@ class UserLessonProgress(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     lesson_id = Column(Integer, ForeignKey("educational_lessons.id"), nullable=False, index=True)
-    
+
     is_completed = Column(Boolean, default=False)
     last_position = Column(String, nullable=True) # bookmark
-    
+
     started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     completed_at = Column(DateTime(timezone=True), nullable=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     lesson = relationship("EducationalLesson", back_populates="progresses")
 import enum
+
 
 class AlertType(enum.Enum):
     PRICE = "PRICE"
@@ -444,18 +443,18 @@ class AlertRule(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    
+
     alert_type = Column(Enum(AlertType), nullable=False)
     instrument_id = Column(Integer, ForeignKey("instruments.id"), nullable=True) # None for portfolio-wide alerts
     portfolio_id = Column(Integer, ForeignKey("portfolios.id"), nullable=True)
-    
+
     operator = Column(String, nullable=True) # e.g. ">", "<", "=="
     threshold = Column(Numeric(precision=24, scale=6), nullable=True)
     config_data = Column(String, nullable=True) # JSON payload for extra config
-    
+
     is_enabled = Column(Boolean, default=True)
     cooldown_minutes = Column(Integer, default=60) # Default 1h
-    
+
     last_triggered_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
@@ -467,12 +466,12 @@ class UserNotification(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     rule_id = Column(Integer, ForeignKey("alert_rules.id", ondelete="SET NULL"), nullable=True)
-    
+
     alert_type = Column(Enum(AlertType), nullable=False)
     title = Column(String, nullable=False)
     message = Column(String, nullable=False)
     trigger_data = Column(String, nullable=True) # JSON
-    
+
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
@@ -482,24 +481,24 @@ class BacktestJob(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    
+
     # Configuration
     strategy_name = Column(String, nullable=False)
     strategy_version = Column(String, nullable=False)
-    
+
     start_date = Column(DateTime(timezone=True), nullable=False)
     end_date = Column(DateTime(timezone=True), nullable=False)
-    
+
     initial_capital = Column(Numeric(precision=24, scale=6), nullable=False)
-    
+
     # Costs
     commission_pct = Column(Numeric(precision=10, scale=6), nullable=False, default=0.001) # 0.1%
     slippage_pct = Column(Numeric(precision=10, scale=6), nullable=False, default=0.0005)  # 0.05%
-    
+
     # Status tracking
     status = Column(String, nullable=False, default="PENDING") # PENDING, RUNNING, COMPLETED, FAILED
     failure_reason = Column(String, nullable=True)
-    
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     started_at = Column(DateTime(timezone=True), nullable=True)
@@ -512,19 +511,19 @@ class BacktestResult(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     job_id = Column(Integer, ForeignKey("backtest_jobs.id"), nullable=False, unique=True)
-    
+
     # Final Metrics
     total_return_pct = Column(Numeric(precision=10, scale=6), nullable=True)
     cagr_pct = Column(Numeric(precision=10, scale=6), nullable=True)
     max_drawdown_pct = Column(Numeric(precision=10, scale=6), nullable=True)
-    
+
     win_rate_pct = Column(Numeric(precision=10, scale=6), nullable=True)
     total_trades = Column(Integer, nullable=True)
     fees_paid = Column(Numeric(precision=24, scale=6), nullable=True)
-    
+
     # Benchmark
     benchmark_return_pct = Column(Numeric(precision=10, scale=6), nullable=True)
-    
+
     # JSON Data Series
     equity_curve = Column(Text, nullable=True) # e.g. [{"date": "...", "equity": ...}]
     bias_audit = Column(Text, nullable=True) # e.g. {"LOOK_AHEAD": "PASS", "SURVIVORSHIP": "UNVERIFIED"}
@@ -539,17 +538,17 @@ class BacktestTrade(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     result_id = Column(Integer, ForeignKey("backtest_results.id"), nullable=False, index=True)
-    
+
     instrument_symbol = Column(String, nullable=False)
     direction = Column(String, nullable=False) # BUY, SELL
-    
+
     executed_at = Column(DateTime(timezone=True), nullable=False)
     quantity = Column(Numeric(precision=18, scale=6), nullable=False)
     price = Column(Numeric(precision=18, scale=6), nullable=False)
-    
+
     fees = Column(Numeric(precision=18, scale=6), nullable=False)
     slippage = Column(Numeric(precision=18, scale=6), nullable=False)
-    
+
     result = relationship("BacktestResult", back_populates="trades")
 class StrategyVersion(Base):
     __tablename__ = "strategy_versions"
@@ -559,7 +558,7 @@ class StrategyVersion(Base):
     version = Column(String, nullable=False, unique=True)
     status = Column(String, nullable=False) # CHAMPION, CHALLENGER, DEPRECATED
     config_json = Column(Text, nullable=False) # Weights, params
-    
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     promoted_at = Column(DateTime(timezone=True), nullable=True)
     promotion_reason = Column(String, nullable=True) # E.g., "BLOCKED_BY_DATA_VALIDATION" if attempted
@@ -569,13 +568,13 @@ class DecisionOutcome(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     decision_id = Column(Integer, ForeignKey("decision_snapshots.id", ondelete="CASCADE"), nullable=False, unique=True)
-    
+
     # Forward Returns (in percentage)
     return_t1 = Column(Numeric(precision=10, scale=6), nullable=True)
     return_t5 = Column(Numeric(precision=10, scale=6), nullable=True)
     return_t20 = Column(Numeric(precision=10, scale=6), nullable=True)
     return_t60 = Column(Numeric(precision=10, scale=6), nullable=True)
-    
+
     # Benchmark Returns (in percentage)
     benchmark_t1 = Column(Numeric(precision=10, scale=6), nullable=True)
     benchmark_t5 = Column(Numeric(precision=10, scale=6), nullable=True)
@@ -583,28 +582,28 @@ class DecisionOutcome(Base):
     benchmark_t60 = Column(Numeric(precision=10, scale=6), nullable=True)
 
     evaluated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    
+
     decision = relationship("DecisionSnapshot", backref="outcome")
 class BehaviorProfile(Base):
     __tablename__ = "behavior_profiles"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
-    
+
     fomo_tendency_score = Column(Numeric(5, 2), default=0) # 0 to 100
     patience_score = Column(Numeric(5, 2), default=0) # 0 to 100
     concentration_risk = Column(Numeric(5, 2), default=0) # 0 to 100
-    
+
     last_analyzed_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class TradeInsight(Base):
     __tablename__ = "trade_insights"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     transaction_id = Column(Integer, ForeignKey("portfolio_transactions.id", ondelete="CASCADE"), nullable=False, unique=True)
-    
+
     insight_type = Column(String, nullable=False) # e.g. "FOMO_ENTRY", "EARLY_EXIT", "CONCENTRATION_WARNING"
     description = Column(String, nullable=False)
-    
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -1,14 +1,15 @@
 ﻿import asyncio
-import sys
 import os
+import sys
 
 # Add backend directory to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+
+from app.db.models import EducationalLesson, EducationalModule
 from app.db.session import async_session_maker
-from app.db.models import EducationalModule, EducationalLesson
+
 
 async def seed_education():
     async with async_session_maker() as db:
@@ -39,7 +40,7 @@ async def seed_education():
             key_points="Momentum,Aşırı Alım,Aşırı Satım,False Signal", related_terms="MACD,Momentum",
             display_order=1, estimated_minutes=3
         )
-        
+
         l_macd = EducationalLesson(
             module_id=m_tech.id, slug="macd-nedir", title="MACD İndikatörü",
             summary="Trend dönüşlerini yakalamak için kullanılan osilatör.",

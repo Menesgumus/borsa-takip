@@ -1,9 +1,10 @@
-﻿from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+﻿import logging
 from decimal import Decimal
-import logging
 
-from app.db.models import BehaviorProfile, TradeInsight, PortfolioTransaction
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+
+from app.db.models import BehaviorProfile, PortfolioTransaction, TradeInsight
 
 logger = logging.getLogger(__name__)
 
@@ -17,19 +18,19 @@ async def analyze_trade_behavior(db: AsyncSession, transaction_id: int):
     """
     tx_res = await db.execute(select(PortfolioTransaction).where(PortfolioTransaction.id == transaction_id))
     tx = tx_res.scalars().first()
-    
+
     if not tx:
         return
-        
+
     user_id = tx.portfolio.user_id
-    
+
     # 1. Update or create profile
     prof_res = await db.execute(select(BehaviorProfile).where(BehaviorProfile.user_id == user_id))
     profile = prof_res.scalars().first()
     if not profile:
         profile = BehaviorProfile(user_id=user_id)
         db.add(profile)
-    
+
     # Simple Mock Heuristic
     if tx.transaction_type == "BUY":
         # Simulate FOMO logic

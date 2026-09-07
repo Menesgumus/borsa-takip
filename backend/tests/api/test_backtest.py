@@ -1,14 +1,14 @@
-from app.db.models import BacktestResult
-import pytest
-from httpx import AsyncClient, ASGITransport
-import uuid
-import random
 import datetime
+import random
+import uuid
 
-from app.main import app
-from app.db.session import async_session_maker
-from app.db.models import User, BacktestJob
+import pytest
+from httpx import ASGITransport, AsyncClient
+
 from app.api.v1.endpoints.auth import get_current_user
+from app.db.models import BacktestJob, BacktestResult, User
+from app.db.session import async_session_maker
+from app.main import app
 from app.services.backtest import run_backtest_job
 
 user_mock_data = {}
@@ -24,30 +24,30 @@ async def test_backtest_service_engine():
         db_session.add(user)
         await db_session.commit()
         await db_session.refresh(user)
-        
+
         job = BacktestJob(
             user_id=user.id,
             strategy_name="DecisionEngineV1",
             strategy_version="1.0.0",
-            start_date=datetime.datetime(2023, 1, 1, tzinfo=datetime.timezone.utc),
-            end_date=datetime.datetime(2023, 1, 31, tzinfo=datetime.timezone.utc),
+            start_date=datetime.datetime(2023, 1, 1, tzinfo=datetime.UTC),
+            end_date=datetime.datetime(2023, 1, 31, tzinfo=datetime.UTC),
             initial_capital=100000.0,
             commission_pct=0.001,
             slippage_pct=0.0005
         )
         db_session.add(job)
         await db_session.commit()
-        from sqlalchemy.orm import selectinload
         from sqlalchemy.future import select
+        from sqlalchemy.orm import selectinload
         res_job = await db_session.execute(select(BacktestJob).options(selectinload(BacktestJob.result)).where(BacktestJob.id == job.id))
         job = res_job.scalars().first()
-        
+
         # Run worker
         await run_backtest_job(db_session, job.id)
-        
+
         # Check result
-        from sqlalchemy.orm import selectinload
         from sqlalchemy.future import select
+        from sqlalchemy.orm import selectinload
         res_job = await db_session.execute(select(BacktestJob).options(selectinload(BacktestJob.result)).where(BacktestJob.id == job.id))
         job = res_job.scalars().first()
         assert job.status == "COMPLETED"
@@ -67,12 +67,12 @@ async def test_backtest_api_idor():
         await db_session.commit()
         await db_session.refresh(user_a)
         await db_session.refresh(user_b)
-        
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         app.dependency_overrides[get_current_user] = override_get_current_user
-        
+
         user_mock_data["user_id"] = user_a.id
-        
+
         # Create
         r_create = await client.post("/api/v1/backtests/", json={
             "strategy_name": "TestStrat",
@@ -83,11 +83,11 @@ async def test_backtest_api_idor():
         })
         assert r_create.status_code == 200
         job_id = r_create.json()["id"]
-        
+
         # IDOR switch
         user_mock_data["user_id"] = user_b.id
         r_get = await client.get(f"/api/v1/backtests/{job_id}")
         assert r_get.status_code == 404
-        
+
         r_get_res = await client.get(f"/api/v1/backtests/{job_id}/result")
         assert r_get_res.status_code == 404

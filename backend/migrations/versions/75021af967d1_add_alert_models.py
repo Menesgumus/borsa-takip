@@ -5,17 +5,16 @@ Revises: 5f12388559ec
 Create Date: 2026-09-07 16:02:33.896515
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '75021af967d1'
-down_revision: Union[str, Sequence[str], None] = '5f12388559ec'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = '5f12388559ec'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -69,4 +68,5 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_alert_rules_user_id'), table_name='alert_rules')
     op.drop_index(op.f('ix_alert_rules_id'), table_name='alert_rules')
     op.drop_table('alert_rules')
+    op.execute("DROP TYPE IF EXISTS alerttype")
     # ### end Alembic commands ###

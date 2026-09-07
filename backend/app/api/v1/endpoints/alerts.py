@@ -1,16 +1,16 @@
-﻿from fastapi import APIRouter, Depends, HTTPException
+﻿
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from typing import List
 
-from app.db.session import get_db_session
 from app.api.v1.endpoints.auth import get_current_user
-from app.db.models import User, AlertRule, UserNotification, AlertType
+from app.db.models import AlertRule, AlertType, User, UserNotification
+from app.db.session import get_db_session
 from app.schemas.alerts import AlertRuleCreate, AlertRuleRead, NotificationRead
 
 router = APIRouter()
 
-@router.get("/rules", response_model=List[AlertRuleRead])
+@router.get("/rules", response_model=list[AlertRuleRead])
 async def get_rules(db: AsyncSession = Depends(get_db_session), current_user: User = Depends(get_current_user)):
     res = await db.execute(select(AlertRule).where(AlertRule.user_id == current_user.id))
     return res.scalars().all()
@@ -21,7 +21,7 @@ async def create_rule(data: AlertRuleCreate, db: AsyncSession = Depends(get_db_s
         atype = AlertType(data.alert_type)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid alert_type")
-        
+
     rule = AlertRule(
         user_id=current_user.id,
         alert_type=atype,
@@ -38,7 +38,7 @@ async def create_rule(data: AlertRuleCreate, db: AsyncSession = Depends(get_db_s
     await db.refresh(rule)
     return rule
 
-@router.get("/notifications", response_model=List[NotificationRead])
+@router.get("/notifications", response_model=list[NotificationRead])
 async def get_notifications(db: AsyncSession = Depends(get_db_session), current_user: User = Depends(get_current_user)):
     res = await db.execute(select(UserNotification).where(UserNotification.user_id == current_user.id).order_by(UserNotification.created_at.desc()))
     return res.scalars().all()

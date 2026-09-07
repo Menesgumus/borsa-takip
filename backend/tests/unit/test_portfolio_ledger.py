@@ -1,14 +1,21 @@
-﻿import pytest
+﻿from datetime import UTC, datetime
 from decimal import Decimal
-from datetime import datetime, timezone
+
+import pytest
+
 from app.services.portfolio_ledger import (
-    fold_transactions, TransactionData, TransactionType, 
-    InsufficientCashError, InsufficientPositionError, InvalidTransactionError
+    InsufficientCashError,
+    InsufficientPositionError,
+    InvalidTransactionError,
+    TransactionData,
+    TransactionType,
+    fold_transactions,
 )
+
 
 def create_tx(id: int, type: str, qty: str, price: str = "0", fee: str = "0", inst: int = 1, dt=None):
     if dt is None:
-        dt = datetime(2026, 1, 1, 12, id, tzinfo=timezone.utc)
+        dt = datetime(2026, 1, 1, 12, id, tzinfo=UTC)
     return TransactionData(
         id=id,
         transaction_type=type,
@@ -24,7 +31,7 @@ def test_deposit():
     state = fold_transactions(txs)
     assert state.cash_balance == Decimal("10000")
     assert state.total_deposits == Decimal("10000")
-    
+
 def test_deposit_and_buy():
     txs = [
         create_tx(1, TransactionType.DEPOSIT, "10000"),
@@ -141,7 +148,7 @@ def test_withdrawal_over_balance_reject():
         fold_transactions(txs)
 
 def test_deterministic_ordering_same_timestamp():
-    dt = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    dt = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
     txs = [
         create_tx(2, TransactionType.BUY, "10", "100", dt=dt), # executed 2nd
         create_tx(1, TransactionType.DEPOSIT, "10000", dt=dt), # executed 1st

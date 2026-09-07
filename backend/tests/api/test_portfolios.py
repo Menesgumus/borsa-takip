@@ -126,12 +126,12 @@ async def test_portfolio_journal():
         await db_session.commit()
         await db_session.refresh(user)
         user_mock_data["user1_id"] = user.id
-    
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         app.dependency_overrides[get_current_user] = override_get_current_user
         res = await client.post("/api/v1/portfolios/", json={"name": "Journal Test", "portfolio_type": "REAL"})
         p_id = res.json()["id"]
-        
+
         # Add Journal
         res = await client.post(f"/api/v1/portfolios/{p_id}/journals", json={
             "setup": "Breakout",
@@ -139,12 +139,12 @@ async def test_portfolio_journal():
             "emotion": "Confident"
         })
         assert res.status_code == 200
-        
+
         # Verify it didn't mutate financial ledger
         res = await client.get(f"/api/v1/portfolios/{p_id}/summary")
         assert res.status_code == 200
         assert float(res.json()["cash_balance"]) == 0.0
-        
+
         # IDOR check
         app.dependency_overrides[get_current_user] = override_get_current_user2
         res = await client.post(f"/api/v1/portfolios/{p_id}/journals", json={
@@ -165,31 +165,31 @@ async def test_portfolio_risk_and_whatif():
         await db_session.refresh(inst)
         user_mock_data["user1_id"] = user.id
         inst_id = inst.id
-    
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         app.dependency_overrides[get_current_user] = override_get_current_user
         res = await client.post("/api/v1/portfolios/", json={"name": "Risk Test", "portfolio_type": "REAL"})
         p_id = res.json()["id"]
-        
+
         await client.post(f"/api/v1/portfolios/{p_id}/transactions", json={
             "transaction_type": "DEPOSIT",
             "quantity": "10000"
         })
-        
+
         await client.post(f"/api/v1/portfolios/{p_id}/transactions", json={
             "transaction_type": "BUY",
             "instrument_id": inst_id,
             "quantity": "10",
             "price": "100"
         })
-        
+
         # Risk Check
         res = await client.get(f"/api/v1/portfolios/{p_id}/risk")
         assert res.status_code == 200
         risk = res.json()
         assert risk["data_freshness"] == "STALE" # No prices seeded
         assert float(risk["cash_exposure"]) == 9000.0
-        
+
         # What-If causing insufficient cash
         res = await client.post(f"/api/v1/portfolios/{p_id}/what-if", json={
             "transaction_type": "BUY",
@@ -198,7 +198,7 @@ async def test_portfolio_risk_and_whatif():
             "price": "100"
         })
         assert res.status_code == 400
-        
+
         # What-If valid buy
         res = await client.post(f"/api/v1/portfolios/{p_id}/what-if", json={
             "transaction_type": "BUY",
@@ -210,7 +210,7 @@ async def test_portfolio_risk_and_whatif():
         delta = res.json()
         assert "before_risk" in delta
         assert "after_risk" in delta
-        
+
         # Verify What-If didn't mutate ledger
         res = await client.get(f"/api/v1/portfolios/{p_id}/risk")
         assert float(res.json()["cash_exposure"]) == 9000.0
