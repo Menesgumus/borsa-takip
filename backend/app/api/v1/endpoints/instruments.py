@@ -172,3 +172,44 @@ async def get_instrument_technical(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         ) from e
+
+from app.schemas.context import ContextResponse
+from app.market.context_providers.mock_news_provider import MockNewsProvider
+from app.market.context_providers.kap_provider import KAPProvider
+from app.market.context_providers.evds_provider import EVDSProvider
+from datetime import timezone
+
+@router.get("/{symbol}/context", response_model=ContextResponse)
+async def get_instrument_context(
+    symbol: str,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Get Fundamentals, KAP, News, and Macro context."""
+    news_provider = MockNewsProvider()
+    kap_provider = KAPProvider()
+    evds_provider = EVDSProvider()
+    
+    news = await news_provider.get_latest_news(symbol)
+    kap = await kap_provider.get_latest_disclosures(symbol)
+    
+    # Example macro: USD/TRY
+    macro = await evds_provider.get_macro_series(["TP.DK.USD.S.YTL"])
+    
+    availability = {
+        "news": await news_provider.is_available(),
+        "kap": await kap_provider.is_available(),
+        "evds": await evds_provider.is_available(),
+        "fundamentals": False
+    }
+    
+    return ContextResponse(
+        symbol=symbol,
+        fetched_at=datetime.now(timezone.utc),
+        freshness="LIVE" if any(availability.values()) else "STALE",
+        availability=availability,
+        fundamentals=[],
+        disclosures=kap,
+        news=news,
+        macro=macro
+    )

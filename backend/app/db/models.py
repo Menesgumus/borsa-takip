@@ -213,7 +213,7 @@ class KAPDisclosure(Base):
     title = Column(String, nullable=False)
     content_text = Column(Text, nullable=False) # Sanitized factual content
     published_at = Column(DateTime(timezone=True), nullable=False, index=True)
-    
+
     # Metadata / extraction
     category = Column(String, nullable=True) # e.g. "Finansal Rapor", "Özel Durum Açıklaması"
     provider_sentiment = Column(String, nullable=True) # "POSITIVE", "NEGATIVE", "NEUTRAL"
@@ -231,7 +231,7 @@ class NewsArticle(Base):
     summary = Column(Text, nullable=False) # Sanitized
     url = Column(String, nullable=True)
     published_at = Column(DateTime(timezone=True), nullable=False, index=True)
-    
+
     # Tier / Trust Level
     source_tier = Column(Integer, default=3) # 1=Official/Top, 2=Reputable, 3=Aggregator
     provider_sentiment = Column(String, nullable=True)
@@ -244,14 +244,14 @@ class FundamentalData(Base):
     id = Column(Integer, primary_key=True, index=True)
     instrument_id = Column(Integer, ForeignKey("instruments.id"), nullable=False, index=True)
     period = Column(String, nullable=False) # e.g. "2024Q1", "2023FY"
-    
+
     # Key metrics
     pe_ratio = Column(Numeric(precision=18, scale=6), nullable=True)
     pb_ratio = Column(Numeric(precision=18, scale=6), nullable=True)
     market_cap = Column(Numeric(precision=24, scale=6), nullable=True)
     net_income = Column(Numeric(precision=24, scale=6), nullable=True)
     revenue = Column(Numeric(precision=24, scale=6), nullable=True)
-    
+
     published_at = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 

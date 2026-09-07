@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { CandlestickChart } from "@/components/CandlestickChart";
-import { AlertCircle, Clock } from "lucide-react";
+import { AlertCircle, Clock, ExternalLink, Activity } from "lucide-react";
 import React, { useMemo } from "react";
 
 async function fetchInstrument(symbol: string) {
@@ -30,6 +30,12 @@ async function fetchTechnical(symbol: string) {
   return res.json();
 }
 
+async function fetchContext(symbol: string) {
+  const res = await fetch(`/api/v1/instruments/${symbol}/context`);
+  if (!res.ok) throw new Error("Failed to fetch context");
+  return res.json();
+}
+
 export default function InstrumentDetail() {
   const params = useParams();
   const symbol = decodeURIComponent(params.symbol as string);
@@ -53,13 +59,18 @@ export default function InstrumentDetail() {
   const { data: technical } = useQuery({
     queryKey: ["technical", symbol],
     queryFn: () => fetchTechnical(symbol),
-    retry: false, // Don't retry if failing
+    retry: false,
+  });
+
+  const { data: context } = useQuery({
+    queryKey: ["context", symbol],
+    queryFn: () => fetchContext(symbol),
+    retry: false,
   });
 
   const chartData = useMemo(() => {
     if (!history) return [];
     
-    // Map history to Lightweight Charts format
     const formatted = history.map((h: any) => {
       const dateStr = new Date(h.timestamp).toISOString().split('T')[0];
       return {
@@ -95,7 +106,6 @@ export default function InstrumentDetail() {
     return formatted;
   }, [history, quote]);
 
-  // Combine technical indicators with chartData if available
   const technicalData = useMemo(() => {
      const res: any = { sma: [], ema: [], srLevels: [], patterns: [] };
      if (!technical) return res;
@@ -196,6 +206,73 @@ export default function InstrumentDetail() {
             Grafik verisi bulunamadı.
           </div>
         )}
+      </div>
+      
+      {/* Context / News Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <Activity size={20} /> Haber Akışı
+            {context?.availability?.news === false && (
+                <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">UNAVAILABLE</span>
+            )}
+          </h2>
+          {context?.news && context.news.length > 0 ? (
+            <ul className="space-y-4">
+              {context.news.map((item: any, idx: number) => (
+                <li key={idx} className="border-b border-gray-100 pb-3 last:border-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-semibold text-blue-600">{item.provider_name}</span>
+                    {item.is_synthetic && <span className="text-[10px] bg-gray-100 text-gray-500 px-1 rounded">MOCK</span>}
+                    <span className="text-xs text-gray-400">{new Date(item.published_at).toLocaleDateString()}</span>
+                  </div>
+                  <h3 className="font-medium text-gray-800 leading-tight">
+                    {item.url ? <a href={item.url} target="_blank" rel="noreferrer" className="hover:underline flex items-center gap-1">{item.title} <ExternalLink size={12}/></a> : item.title}
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">{item.summary}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-500 text-sm">Haber bulunamadı.</p>
+          )}
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+            KAP Bildirimleri
+            {context?.availability?.kap === false && (
+                <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">UNAVAILABLE</span>
+            )}
+          </h2>
+          {context?.disclosures && context.disclosures.length > 0 ? (
+            <ul className="space-y-4">
+              {context.disclosures.map((item: any, idx: number) => (
+                <li key={idx} className="border-b border-gray-100 pb-3 last:border-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs text-gray-400">{new Date(item.published_at).toLocaleDateString()}</span>
+                  </div>
+                  <h3 className="font-medium text-gray-800 leading-tight">{item.title}</h3>
+                  <p className="text-sm text-gray-600 mt-1 line-clamp-2">{item.content}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-500 text-sm">KAP bildirimi bulunamadı.</p>
+          )}
+          
+          {context?.macro && context.macro.length > 0 && (
+              <div className="mt-6 pt-4 border-t border-gray-100">
+                  <h3 className="font-bold text-gray-800 mb-2">Makro Göstergeler</h3>
+                  {context.macro.map((m: any, i: number) => (
+                      <div key={i} className="flex justify-between items-center text-sm">
+                          <span className="text-gray-600">{m.description}</span>
+                          <span className="font-medium">{m.value}</span>
+                      </div>
+                  ))}
+              </div>
+          )}
+        </div>
       </div>
     </div>
   );

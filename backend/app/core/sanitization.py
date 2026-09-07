@@ -1,6 +1,7 @@
 ﻿import html
 import re
 
+
 def strip_malicious_html(text: str) -> str:
     """
     Very basic HTML stripper. For robust sanitization, bleach should be used.
@@ -32,5 +33,5 @@ def sanitize_for_prompt_injection(text: str) -> str:
     for marker in bad_markers:
         # Case insensitive replace
         sanitized = re.sub(re.escape(marker), "", sanitized, flags=re.IGNORECASE)
-    
+
     return sanitized.strip()
