@@ -12,3 +12,9 @@
 - **T03 & T04 - API and UI**: Provided clear, non-exaggerated UI highlighting bias-audit limitations exactly as requested. No brute-force weight optimization or auto-promotion allowed.
 
 Phase 15 is DONE and READY.
+# Phase 15 Status Correction
+- IMPLEMENTATION: DONE_VERIFIED
+- REAL-DATA BIAS VALIDATION: LIMITED / UNVERIFIED / BLOCKED
+- CANONICAL PHASE STATUS: NOT READY
+- BLOCKERS: Missing historical universe datasets, delisting data, publication timestamps for fundamentals, and corporate action data to satisfy the Bias Audit.
+
