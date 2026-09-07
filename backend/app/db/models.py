@@ -424,3 +424,52 @@ class UserLessonProgress(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     lesson = relationship("EducationalLesson", back_populates="progresses")
+import enum
+
+class AlertType(enum.Enum):
+    PRICE = "PRICE"
+    RSI = "RSI"
+    KAP = "KAP"
+    NEWS = "NEWS"
+    DECISION = "DECISION"
+    CONCENTRATION = "CONCENTRATION"
+    DAILY_LOSS = "DAILY_LOSS"
+
+class AlertRule(Base):
+    __tablename__ = "alert_rules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    
+    alert_type = Column(Enum(AlertType), nullable=False)
+    instrument_id = Column(Integer, ForeignKey("instruments.id"), nullable=True) # None for portfolio-wide alerts
+    portfolio_id = Column(Integer, ForeignKey("portfolios.id"), nullable=True)
+    
+    operator = Column(String, nullable=True) # e.g. ">", "<", "=="
+    threshold = Column(Numeric(precision=24, scale=6), nullable=True)
+    config_data = Column(String, nullable=True) # JSON payload for extra config
+    
+    is_enabled = Column(Boolean, default=True)
+    cooldown_minutes = Column(Integer, default=60) # Default 1h
+    
+    last_triggered_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    user = relationship("User", backref="alert_rules")
+
+class UserNotification(Base):
+    __tablename__ = "user_notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    rule_id = Column(Integer, ForeignKey("alert_rules.id", ondelete="SET NULL"), nullable=True)
+    
+    alert_type = Column(Enum(AlertType), nullable=False)
+    title = Column(String, nullable=False)
+    message = Column(String, nullable=False)
+    trigger_data = Column(String, nullable=True) # JSON
+    
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    user = relationship("User", backref="notifications")
