@@ -12,7 +12,20 @@ class IndicatorValue(BaseModel):
     macd_signal: float | None = None
     macd_hist: float | None = None
 
+class SRLevelDTO(BaseModel):
+    price: float
+    type: str
+    strength: int
+
+class PatternResultDTO(BaseModel):
+    pattern_name: str
+    timestamp: datetime
+    confidence: float
+    evidence: str
+
 class TechnicalAnalysisResponse(BaseModel):
     symbol: str
     freshness: str
     indicators: list[IndicatorValue]
+    support_resistance: list[SRLevelDTO] = []
+    patterns: list[PatternResultDTO] = []

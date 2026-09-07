@@ -53,7 +53,7 @@ export default function InstrumentDetail() {
   const { data: technical } = useQuery({
     queryKey: ["technical", symbol],
     queryFn: () => fetchTechnical(symbol),
-    retry: false, // Don't retry if failing (e.g. no DB)
+    retry: false, // Don't retry if failing
   });
 
   const chartData = useMemo(() => {
@@ -96,17 +96,40 @@ export default function InstrumentDetail() {
   }, [history, quote]);
 
   // Combine technical indicators with chartData if available
-  const indicatorsData = useMemo(() => {
-     if (!technical || !technical.indicators) return { sma: [], ema: [] };
-     const sma: any[] = [];
-     const ema: any[] = [];
+  const technicalData = useMemo(() => {
+     const res: any = { sma: [], ema: [], srLevels: [], patterns: [] };
+     if (!technical) return res;
      
-     technical.indicators.forEach((ind: any) => {
-        const dateStr = new Date(ind.timestamp).toISOString().split('T')[0];
-        if (ind.sma_20 !== null && ind.sma_20 !== undefined) sma.push({ time: dateStr, value: ind.sma_20 });
-        if (ind.ema_20 !== null && ind.ema_20 !== undefined) ema.push({ time: dateStr, value: ind.ema_20 });
-     });
-     return { sma, ema };
+     if (technical.indicators) {
+         technical.indicators.forEach((ind: any) => {
+            const dateStr = new Date(ind.timestamp).toISOString().split('T')[0];
+            if (ind.sma_20 !== null && ind.sma_20 !== undefined) res.sma.push({ time: dateStr, value: ind.sma_20 });
+            if (ind.ema_20 !== null && ind.ema_20 !== undefined) res.ema.push({ time: dateStr, value: ind.ema_20 });
+         });
+     }
+     
+     if (technical.support_resistance) {
+         res.srLevels = technical.support_resistance;
+     }
+     
+     if (technical.patterns) {
+         res.patterns = technical.patterns.map((p: any) => {
+             const dateStr = new Date(p.timestamp).toISOString().split('T')[0];
+             let type = "neutral";
+             if (p.pattern_name.toLowerCase().includes("bullish") || p.pattern_name.toLowerCase().includes("bottom")) {
+                 type = "up";
+             } else if (p.pattern_name.toLowerCase().includes("bearish") || p.pattern_name.toLowerCase().includes("top")) {
+                 type = "down";
+             }
+             return {
+                 time: dateStr,
+                 name: p.pattern_name,
+                 type
+             };
+         });
+     }
+     
+     return res;
   }, [technical]);
 
   if (loadingInst) return <div className="p-4">Yükleniyor...</div>;
@@ -161,7 +184,13 @@ export default function InstrumentDetail() {
             Grafik verisi yükleniyor...
           </div>
         ) : chartData.length > 0 ? (
-          <CandlestickChart data={chartData} sma={indicatorsData.sma} ema={indicatorsData.ema} />
+          <CandlestickChart 
+            data={chartData} 
+            sma={technicalData.sma} 
+            ema={technicalData.ema}
+            srLevels={technicalData.srLevels}
+            patterns={technicalData.patterns} 
+          />
         ) : (
           <div className="flex justify-center items-center h-[400px] text-gray-500">
             Grafik verisi bulunamadı.
