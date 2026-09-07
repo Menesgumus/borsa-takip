@@ -551,3 +551,60 @@ class BacktestTrade(Base):
     slippage = Column(Numeric(precision=18, scale=6), nullable=False)
     
     result = relationship("BacktestResult", back_populates="trades")
+class StrategyVersion(Base):
+    __tablename__ = "strategy_versions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False, index=True)
+    version = Column(String, nullable=False, unique=True)
+    status = Column(String, nullable=False) # CHAMPION, CHALLENGER, DEPRECATED
+    config_json = Column(Text, nullable=False) # Weights, params
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    promoted_at = Column(DateTime(timezone=True), nullable=True)
+    promotion_reason = Column(String, nullable=True) # E.g., "BLOCKED_BY_DATA_VALIDATION" if attempted
+
+class DecisionOutcome(Base):
+    __tablename__ = "decision_outcomes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    decision_id = Column(Integer, ForeignKey("decision_snapshots.id", ondelete="CASCADE"), nullable=False, unique=True)
+    
+    # Forward Returns (in percentage)
+    return_t1 = Column(Numeric(precision=10, scale=6), nullable=True)
+    return_t5 = Column(Numeric(precision=10, scale=6), nullable=True)
+    return_t20 = Column(Numeric(precision=10, scale=6), nullable=True)
+    return_t60 = Column(Numeric(precision=10, scale=6), nullable=True)
+    
+    # Benchmark Returns (in percentage)
+    benchmark_t1 = Column(Numeric(precision=10, scale=6), nullable=True)
+    benchmark_t5 = Column(Numeric(precision=10, scale=6), nullable=True)
+    benchmark_t20 = Column(Numeric(precision=10, scale=6), nullable=True)
+    benchmark_t60 = Column(Numeric(precision=10, scale=6), nullable=True)
+
+    evaluated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    
+    decision = relationship("DecisionSnapshot", backref="outcome")
+class BehaviorProfile(Base):
+    __tablename__ = "behavior_profiles"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
+    
+    fomo_tendency_score = Column(Numeric(5, 2), default=0) # 0 to 100
+    patience_score = Column(Numeric(5, 2), default=0) # 0 to 100
+    concentration_risk = Column(Numeric(5, 2), default=0) # 0 to 100
+    
+    last_analyzed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class TradeInsight(Base):
+    __tablename__ = "trade_insights"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    transaction_id = Column(Integer, ForeignKey("portfolio_transactions.id", ondelete="CASCADE"), nullable=False, unique=True)
+    
+    insight_type = Column(String, nullable=False) # e.g. "FOMO_ENTRY", "EARLY_EXIT", "CONCENTRATION_WARNING"
+    description = Column(String, nullable=False)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

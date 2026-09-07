@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, instruments, users, portfolios, chat, education, opportunities, alerts, backtests
+from app.api.v1.endpoints import auth, instruments, users, portfolios, chat, education, opportunities, alerts, backtests, outcomes, behavior
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
@@ -14,3 +14,5 @@ api_router.include_router(education.router, prefix="/education", tags=["educatio
 api_router.include_router(opportunities.router, prefix="/opportunities", tags=["opportunities"])
 api_router.include_router(alerts.router, prefix="/alerts", tags=["alerts"])
 api_router.include_router(backtests.router, prefix="/backtests", tags=["backtests"])
+api_router.include_router(outcomes.router, prefix="/outcomes", tags=["outcomes"])
+api_router.include_router(behavior.router, prefix="/behavior", tags=["behavior"])
