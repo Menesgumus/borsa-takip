@@ -1,0 +1,1 @@
+These icons are placeholders for development/PWA installability tests only. Not production ready.

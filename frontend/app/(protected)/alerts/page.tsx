@@ -1,10 +1,32 @@
-﻿"use client";
+"use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Bell, BellOff, Info } from "lucide-react";
-import { useState } from "react";
+import { Bell, BellOff, Info, Settings, Smartphone } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useNetwork } from "@/components/NetworkProvider";
 
 export default function AlertsPage() {
+  const { isOnline } = useNetwork();
+  const [pushStatus, setPushStatus] = useState<string>("default");
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setPushStatus(Notification.permission);
+    } else {
+      setPushStatus("unsupported");
+    }
+  }, []);
+
+  const requestPushPermission = async () => {
+    if (pushStatus === "unsupported") return;
+    try {
+      const permission = await Notification.requestPermission();
+      setPushStatus(permission);
+    } catch (e) {
+      console.error("Push permission request failed", e);
+    }
+  };
+
   const { data: rules, isLoading: loadingRules } = useQuery({
     queryKey: ["alert-rules"],
     queryFn: async () => {
@@ -27,16 +49,44 @@ export default function AlertsPage() {
     <div className="max-w-4xl mx-auto p-4 space-y-8">
       <div>
         <h1 className="text-3xl font-bold flex items-center gap-2 mb-2">
-          <Bell className="text-blue-600" /> Alarm ve Bildirim Merkezi
+          <Bell className="text-blue-600" /> Alarm Merkezi
         </h1>
-        <p className="text-gray-600">Fiyat, RSI, Haber ve Karar Motoru kurallarınızı yönetin.</p>
+        <p className="text-gray-600">Fiyat, RSI ve Karar Motoru kurallarınızı yönetin.</p>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="flex items-center gap-3">
+          <Smartphone className="text-gray-400" size={24} />
+          <div>
+            <h3 className="font-bold text-gray-800">Cihaz Bildirimleri (Web Push)</h3>
+            <p className="text-xs text-gray-500">Alarmları uygulama kapalıyken bile alın.</p>
+          </div>
+        </div>
+        <div>
+          {pushStatus === "granted" ? (
+            <span className="text-green-600 text-sm font-bold flex items-center gap-1"><Bell size={16}/> İzin Verildi</span>
+          ) : pushStatus === "denied" ? (
+            <span className="text-red-600 text-sm font-bold">Reddedildi</span>
+          ) : pushStatus === "unsupported" ? (
+            <span className="text-gray-400 text-sm">Tarayıcı desteklemiyor</span>
+          ) : (
+            <button onClick={requestPushPermission} className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-lg text-sm font-bold min-h-[44px]">
+              Bildirimlere İzin Ver
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-lg">
-          <h2 className="font-bold text-lg text-gray-800">Alarm Kurallarınız</h2>
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
-            Yeni Kural Ekle
+          <h2 className="font-bold text-lg text-gray-800">Kurallar</h2>
+          <button 
+            disabled={!isOnline}
+            className={`px-4 py-2 rounded-lg text-sm font-medium min-h-[44px] ${
+              isOnline ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            Yeni Kural
           </button>
         </div>
         
@@ -56,17 +106,17 @@ export default function AlertsPage() {
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
                     Cooldown: {rule.cooldown_minutes} dk | 
-                    Son Tetiklenme: {rule.last_triggered_at ? new Date(rule.last_triggered_at).toLocaleString() : "Hiç"}
+                    Son: {rule.last_triggered_at ? new Date(rule.last_triggered_at).toLocaleString() : "Yok"}
                   </div>
                 </div>
                 <div>
                   {rule.is_enabled ? (
                     <span className="text-green-600 flex items-center gap-1 text-sm font-semibold">
-                      <Bell size={16} /> Aktif
+                      <Bell size={16} /> <span className="hidden md:inline">Aktif</span>
                     </span>
                   ) : (
                     <span className="text-gray-400 flex items-center gap-1 text-sm font-semibold">
-                      <BellOff size={16} /> Pasif
+                      <BellOff size={16} /> <span className="hidden md:inline">Pasif</span>
                     </span>
                   )}
                 </div>
@@ -78,7 +128,7 @@ export default function AlertsPage() {
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="p-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
-          <h2 className="font-bold text-lg text-gray-800">Geçmiş Bildirimler (Notification History)</h2>
+          <h2 className="font-bold text-lg text-gray-800">Geçmiş Bildirimler</h2>
         </div>
         
         {loadingNotifs ? (

@@ -1,119 +1,71 @@
 ﻿"use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { TrendingUp, AlertTriangle, Filter } from "lucide-react";
-import { useState } from "react";
+import { TrendingUp, ShieldAlert, WifiOff } from "lucide-react";
+import { useNetwork } from "@/components/NetworkProvider";
 
 export default function OpportunitiesPage() {
-  const [portfolioId, setPortfolioId] = useState("");
-  
-  const { data: portfolios } = useQuery({
-    queryKey: ["portfolios"],
+  const { isOnline } = useNetwork();
+  const { data: opportunities, isLoading, dataUpdatedAt } = useQuery({
+    queryKey: ["opportunities"],
     queryFn: async () => {
-      const res = await fetch("/api/v1/portfolios");
-      if (!res.ok) return [];
+      const res = await fetch("/api/v1/opportunities/scan");
+      if (!res.ok) throw new Error("Failed to load");
       return res.json();
     }
   });
 
-  const { data: opportunities, isLoading } = useQuery({
-    queryKey: ["opportunities", portfolioId],
-    queryFn: async () => {
-      const url = portfolioId ? `/api/v1/opportunities/?portfolio_id=${portfolioId}` : "/api/v1/opportunities/";
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to load opportunities");
-      return res.json();
-    }
-  });
+  const staleTime = new Date(dataUpdatedAt).toLocaleTimeString();
 
   return (
-    <div className="max-w-6xl mx-auto p-4">
-      <div className="flex justify-between items-center mb-6">
+    <div className="max-w-6xl mx-auto p-4 space-y-8">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
-            <TrendingUp className="text-blue-600" /> Fırsat Tarayıcı
+            <TrendingUp className="text-indigo-600" /> Fırsat Tarayıcı
           </h1>
-          <p className="text-gray-600">
-            Piyasa Görünümü (Raw Opportunity) ve Portföy Uyumu (User Fit) ayrımına dayalı deterministik sıralama.
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-2 bg-white p-2 rounded-lg border border-gray-200 shadow-sm">
-          <Filter size={16} className="text-gray-400" />
-          <select 
-            className="border-none focus:ring-0 text-sm bg-transparent"
-            value={portfolioId}
-            onChange={(e) => setPortfolioId(e.target.value)}
-          >
-            <option value="">Tüm Piyasa (Portföy Filtresi Yok)</option>
-            {portfolios?.map((p: any) => (
-              <option key={p.id} value={p.id}>{p.name} (Risk Profili)</option>
-            ))}
-          </select>
+          <p className="text-gray-600">Decision Engine ve risk profilinize uygun fırsatlar.</p>
         </div>
       </div>
 
+      {!isOnline && opportunities && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-lg flex gap-3 shadow-sm">
+          <WifiOff className="shrink-0" />
+          <div>
+            <strong>STALE / LAST KNOWN DATA</strong>
+            <p className="text-sm">İnternet bağlantınız koptu. Gördüğünüz liste canlı piyasa verisi değildir (Son güncellenme: {staleTime}). Lütfen işlem yapmadan önce bağlantınızı kontrol edin.</p>
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
-        <div>Taranıyor...</div>
+        <div className="p-6 text-gray-500">Hesaplanıyor...</div>
       ) : (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200 text-sm text-gray-500 uppercase">
-                <th className="p-4 font-semibold">Sembol</th>
-                <th className="p-4 font-semibold">Piyasa Görünümü</th>
-                <th className="p-4 font-semibold text-center">Ham Skor</th>
-                {portfolioId && <th className="p-4 font-semibold text-center text-blue-600">User Fit Skor</th>}
-                {portfolioId && <th className="p-4 font-semibold">Kişisel Aksiyon</th>}
-                <th className="p-4 font-semibold">Uyarılar / Etkenler</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {opportunities?.map((opp: any, idx: number) => (
-                <tr key={idx} className={`hover:bg-gray-50 ${opp.missing_data ? 'opacity-60' : ''}`}>
-                  <td className="p-4">
-                    <div className="font-bold text-gray-800">{opp.instrument_symbol}</div>
-                    <div className="text-xs text-gray-500">{opp.instrument_name}</div>
-                  </td>
-                  <td className="p-4 font-semibold">{opp.market_view}</td>
-                  <td className="p-4 text-center">
-                    <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm">{Number(opp.raw_score).toFixed(1)}</span>
-                  </td>
-                  
-                  {portfolioId && (
-                    <td className="p-4 text-center">
-                      {opp.user_fit_score ? (
-                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-bold">{Number(opp.user_fit_score).toFixed(1)}</span>
-                      ) : '-'}
-                    </td>
-                  )}
-                  {portfolioId && (
-                    <td className="p-4 font-semibold text-blue-700">{opp.personal_action || '-'}</td>
-                  )}
-                  
-                  <td className="p-4">
-                    <div className="flex flex-wrap gap-1">
-                      {opp.missing_data && (
-                        <span className="bg-yellow-100 text-yellow-800 text-[10px] px-2 py-1 rounded flex items-center gap-1">
-                          <AlertTriangle size={10} /> Eksik Veri
-                        </span>
-                      )}
-                      {opp.warnings?.map((w: string, i: number) => (
-                        <span key={i} className="bg-red-50 text-red-700 text-[10px] px-2 py-1 rounded border border-red-100">
-                          {w}
-                        </span>
-                      ))}
-                      {opp.reasons?.map((r: string, i: number) => (
-                        <span key={`r-${i}`} className="bg-gray-100 text-gray-600 text-[10px] px-2 py-1 rounded">
-                          {r}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {opportunities?.map((opp: any) => (
+            <div key={opp.symbol} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 relative">
+              {!isOnline && (
+                <span className="absolute top-2 right-2 bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-1 rounded">STALE</span>
+              )}
+              <h3 className="font-bold text-lg mb-1">{opp.symbol}</h3>
+              <p className="text-sm text-gray-500 mb-4">{opp.instrument_name}</p>
+              
+              <div className="flex justify-between items-center mb-2 text-sm">
+                <span className="text-gray-600">Ham Skor:</span>
+                <span className="font-mono">{opp.raw_score.toFixed(2)}</span>
+              </div>
+              
+              <div className="flex justify-between items-center mb-2 text-sm">
+                <span className="text-gray-600">Kullanıcı Uyumu:</span>
+                <span className="font-mono">{opp.user_fit_score.toFixed(2)}</span>
+              </div>
+              
+              <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
+                <span className="font-bold text-indigo-600">{opp.canonical_action}</span>
+                <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">{opp.engine_version}</span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

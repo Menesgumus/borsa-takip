@@ -1,8 +1,9 @@
-﻿"use client";
+"use client";
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { Activity, AlertCircle, Clock } from "lucide-react";
+import { Activity, AlertCircle, Clock, WifiOff } from "lucide-react";
+import { useNetwork } from "@/components/NetworkProvider";
 
 async function fetchInstruments() {
   const res = await fetch("/api/v1/instruments?size=4");
@@ -17,23 +18,27 @@ async function fetchQuote(symbol: string) {
 }
 
 function MarketCard({ symbol, name }: { symbol: string; name: string }) {
+  const { isOnline } = useNetwork();
   const { data: quote, isLoading, isError } = useQuery({
     queryKey: ["quote", symbol],
     queryFn: () => fetchQuote(symbol),
-    refetchInterval: 10000, // refresh every 10s
+    refetchInterval: isOnline ? 10000 : false, // pause refresh when offline
   });
 
   return (
     <Link
       href={`/instruments/${symbol}`}
-      className="block p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+      className="block p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow relative"
     >
+      {!isOnline && quote && (
+        <span className="absolute top-2 right-2 bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-1 rounded z-10">OFFLINE</span>
+      )}
       <div className="flex justify-between items-start mb-2">
         <div>
           <h3 className="font-bold text-gray-900">{symbol}</h3>
           <p className="text-sm text-gray-500 truncate max-w-[150px]">{name}</p>
         </div>
-        {quote && (
+        {quote && isOnline && (
           <span
             className={`px-2 py-1 text-xs font-semibold rounded-full ${
               quote.is_stale ? "bg-yellow-100 text-yellow-800" : "bg-green-100 text-green-800"
@@ -48,7 +53,7 @@ function MarketCard({ symbol, name }: { symbol: string; name: string }) {
         <div className="h-10 flex items-center text-gray-400 text-sm">Yükleniyor...</div>
       ) : isError ? (
         <div className="h-10 flex items-center text-red-500 text-sm gap-1">
-          <AlertCircle size={14} /> Veri alınamadı
+          <AlertCircle size={14} /> {isOnline ? "Veri alınamadı" : "Çevrimdışı"}
         </div>
       ) : quote ? (
         <div>
@@ -64,7 +69,7 @@ function MarketCard({ symbol, name }: { symbol: string; name: string }) {
             {Number(quote.change_pct).toFixed(2)}%
           </div>
           <div className="text-xs text-gray-400 mt-2 flex items-center gap-1">
-            <Clock size={12} /> {new Date(quote.timestamp).toLocaleTimeString()}
+            <Clock size={12} /> Son: {new Date(quote.timestamp).toLocaleTimeString()}
           </div>
         </div>
       ) : null}
@@ -73,6 +78,7 @@ function MarketCard({ symbol, name }: { symbol: string; name: string }) {
 }
 
 export default function Dashboard() {
+  const { isOnline } = useNetwork();
   const { data, isLoading } = useQuery({
     queryKey: ["instruments", "dashboard"],
     queryFn: fetchInstruments,
@@ -88,6 +94,16 @@ export default function Dashboard() {
           Tüm Piyasalar &rarr;
         </Link>
       </div>
+
+      {!isOnline && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-lg flex gap-3 shadow-sm">
+          <WifiOff className="shrink-0" />
+          <div>
+            <strong>STALE / LAST KNOWN DATA</strong>
+            <p className="text-sm">İnternet bağlantınız koptu. Fiyatlar otomatik güncellenmiyor.</p>
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <div>Yükleniyor...</div>
