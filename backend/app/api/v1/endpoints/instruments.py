@@ -1,4 +1,6 @@
 from __future__ import annotations
+from typing import Optional
+from decimal import Decimal
 
 from datetime import datetime
 from typing import Any
@@ -15,8 +17,17 @@ from app.market.dto import QuoteDTO
 from app.market.exceptions import ProviderUnavailableError
 from app.market.mock_provider import MockMarketDataProvider
 from app.market.registry import registry
+from app.schemas.decision import (
+    DecisionResult,
+    FundamentalInputs,
+    Horizon,
+    NewsInputs,
+    PortfolioFitInputs,
+    TechnicalInputs,
+)
 from app.schemas.instrument import InstrumentResponse, InstrumentsPaginated, OHLCVDailyResponse
 from app.schemas.technical import TechnicalAnalysisResponse
+from app.services.decision_engine import evaluate_decision
 from app.services.technical_data import get_technical_analysis
 
 router = APIRouter()
@@ -215,3 +226,80 @@ async def get_instrument_context(
         news=news,
         macro=macro
     )
+
+
+@router.get("/{symbol}/decision", response_model=DecisionResult)
+async def get_instrument_decision(
+    symbol: str,
+    horizon: Horizon = Horizon.MEDIUM,
+    portfolio_id: Optional[int] = None,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user)
+) -> Any:
+    # Get instrument
+    result = await db.execute(select(Instrument).where(Instrument.symbol == symbol))
+    instrument = result.scalars().first()
+    if not instrument:
+        raise HTTPException(status_code=404, detail="Instrument not found")
+
+    # Get Context/Data
+    from app.api.v1.endpoints.instruments import get_instrument_context
+    context = await get_instrument_context(symbol, db, current_user)
+
+    # 1. Technical Inputs
+    # For Phase 10 we mock technical signals if DB doesn't have them, since Phase 05 Technical Engine exists but
+    # we need its output here.
+    tech = TechnicalInputs(
+        current_price=Decimal("150"), # Mocked for now, integration with Phase 05 required for real
+        rsi_14=Decimal("50"),
+        macd_line=Decimal("0"),
+        macd_signal=Decimal("0"),
+        sma_50=Decimal("140"),
+        sma_200=Decimal("130")
+    )
+
+    # 2. Fundamental Inputs
+    fund = FundamentalInputs(instrument_type=instrument.instrument_type.value)
+    if hasattr(context, 'fundamentals') and context.fundamentals:
+        # F/K and PD/DD might be in metrics JSON
+        metrics = context.fundamentals.metrics or {}
+        fk = metrics.get('f_k') or metrics.get('pe_ratio')
+        pddd = metrics.get('pd_dd') or metrics.get('pb_ratio')
+        if fk:
+            fund.pe_ratio = Decimal(str(fk))
+        if pddd:
+            fund.pb_ratio = Decimal(str(pddd))
+
+    # 3. News Inputs
+    news_input = NewsInputs(is_mock=True) # default mock
+    if hasattr(context, 'news') and context.news:
+        news_input.news_count = len(context.news)
+        news_input.sentiment_score = Decimal("60") # Simplified
+        news_input.is_mock = any('mock' in getattr(n, 'source', '').lower() for n in context.news)
+
+    # 4. Portfolio Fit
+    pf = None
+    if portfolio_id:
+        from app.db.models import Portfolio
+        p_res = await db.execute(select(Portfolio).where(Portfolio.id == portfolio_id, Portfolio.user_id == current_user.id))
+        p = p_res.scalars().first()
+        if p:
+            # We would calculate current weight from Ledger.
+            pf = PortfolioFitInputs(current_weight=Decimal("10"), max_weight_limit=Decimal("30"))
+
+    # Evaluate
+    decision = evaluate_decision(instrument.id, horizon, tech, fund, news_input, pf)
+
+    # Snapshot (Immutability)
+    from app.db.models import DecisionSnapshot
+    snap = DecisionSnapshot(
+        instrument_id=instrument.id,
+        action=decision.market_view,
+        score=decision.overall_market_score,
+        engine_version=decision.engine_version,
+        reason_codes=",".join(decision.reason_codes)
+    )
+    db.add(snap)
+    await db.commit()
+
+    return decision
