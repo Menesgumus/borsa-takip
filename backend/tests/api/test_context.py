@@ -1,8 +1,10 @@
 ﻿import pytest
-from httpx import AsyncClient, ASGITransport
-from app.main import app
+from httpx import ASGITransport, AsyncClient
+
 from app.api.v1.endpoints.auth import get_current_user
 from app.db.models import User
+from app.main import app
+
 
 async def override_get_current_user():
     return User(id=1, email="test@example.com")

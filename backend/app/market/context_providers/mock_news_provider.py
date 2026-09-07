@@ -1,13 +1,12 @@
-﻿from typing import List
-from datetime import datetime, timezone
-import uuid
+﻿from datetime import UTC, datetime
 
-from .base import NewsProviderBase, NewsDTO
+from .base import NewsDTO, NewsProviderBase
+
 
 class MockNewsProvider(NewsProviderBase):
-    async def get_latest_news(self, symbol: str, limit: int = 5) -> List[NewsDTO]:
+    async def get_latest_news(self, symbol: str, limit: int = 5) -> list[NewsDTO]:
         # Provide deterministic mock news
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return [
             NewsDTO(
                 source_id=f"mock-{symbol}-1",

@@ -258,3 +258,49 @@ class FundamentalData(Base):
     __table_args__ = (
         UniqueConstraint("instrument_id", "period", name="uq_fundamental_instrument_period"),
     )
+
+class PortfolioType(enum.StrEnum):
+    REAL = "REAL"
+    PAPER = "PAPER"
+
+class TransactionType(enum.StrEnum):
+    BUY = "BUY"
+    SELL = "SELL"
+    DEPOSIT = "DEPOSIT"
+    WITHDRAWAL = "WITHDRAWAL"
+
+class Portfolio(Base):
+    __tablename__ = "portfolios"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    portfolio_type = Column(Enum(PortfolioType), nullable=False, default=PortfolioType.PAPER)
+    currency = Column(String, default="TRY", nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    transactions = relationship("PortfolioTransaction", back_populates="portfolio", cascade="all, delete-orphan")
+
+class PortfolioTransaction(Base):
+    __tablename__ = "portfolio_transactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    portfolio_id = Column(Integer, ForeignKey("portfolios.id"), nullable=False, index=True)
+    instrument_id = Column(Integer, ForeignKey("instruments.id"), nullable=True, index=True) # None for cash movements
+
+    transaction_type = Column(Enum(TransactionType), nullable=False)
+    quantity = Column(Numeric(precision=24, scale=8), nullable=False, default=0)
+    price = Column(Numeric(precision=18, scale=6), nullable=False, default=0)
+    fee = Column(Numeric(precision=18, scale=6), nullable=False, default=0)
+
+    executed_at = Column(DateTime(timezone=True), nullable=False, index=True)
+
+    # Journaling
+    notes = Column(Text, nullable=True)
+    strategy = Column(String, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    portfolio = relationship("Portfolio", back_populates="transactions")

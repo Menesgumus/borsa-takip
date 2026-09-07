@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int = 5433
 
     REDIS_URL: str = "redis://localhost:6379/0"
-    
+
     EVDS_API_KEY: str | None = None
 
     # Session TTL (days) — used by auth endpoint; can be overridden in .env
