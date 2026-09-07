@@ -11,6 +11,7 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
@@ -201,4 +202,59 @@ class OHLCVDaily(Base):
 
     __table_args__ = (
         UniqueConstraint("instrument_id", "timestamp", name="uq_ohlcv_daily_instrument_time"),
+    )
+
+class KAPDisclosure(Base):
+    __tablename__ = "kap_disclosures"
+
+    id = Column(Integer, primary_key=True, index=True)
+    instrument_id = Column(Integer, ForeignKey("instruments.id"), nullable=True, index=True)
+    disclosure_index = Column(String, unique=True, index=True, nullable=False) # e.g. KAP specific ID
+    title = Column(String, nullable=False)
+    content_text = Column(Text, nullable=False) # Sanitized factual content
+    published_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    
+    # Metadata / extraction
+    category = Column(String, nullable=True) # e.g. "Finansal Rapor", "Özel Durum Açıklaması"
+    provider_sentiment = Column(String, nullable=True) # "POSITIVE", "NEGATIVE", "NEUTRAL"
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+class NewsArticle(Base):
+    __tablename__ = "news_articles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    instrument_id = Column(Integer, ForeignKey("instruments.id"), nullable=True, index=True)
+    source_id = Column(String, unique=True, index=True, nullable=False) # dedup key
+    provider_name = Column(String, nullable=False) # e.g. Bloomberg, Reuters
+    title = Column(String, nullable=False)
+    summary = Column(Text, nullable=False) # Sanitized
+    url = Column(String, nullable=True)
+    published_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    
+    # Tier / Trust Level
+    source_tier = Column(Integer, default=3) # 1=Official/Top, 2=Reputable, 3=Aggregator
+    provider_sentiment = Column(String, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+class FundamentalData(Base):
+    __tablename__ = "fundamental_data"
+
+    id = Column(Integer, primary_key=True, index=True)
+    instrument_id = Column(Integer, ForeignKey("instruments.id"), nullable=False, index=True)
+    period = Column(String, nullable=False) # e.g. "2024Q1", "2023FY"
+    
+    # Key metrics
+    pe_ratio = Column(Numeric(precision=18, scale=6), nullable=True)
+    pb_ratio = Column(Numeric(precision=18, scale=6), nullable=True)
+    market_cap = Column(Numeric(precision=24, scale=6), nullable=True)
+    net_income = Column(Numeric(precision=24, scale=6), nullable=True)
+    revenue = Column(Numeric(precision=24, scale=6), nullable=True)
+    
+    published_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("instrument_id", "period", name="uq_fundamental_instrument_period"),
     )
