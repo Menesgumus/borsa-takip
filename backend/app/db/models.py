@@ -246,6 +246,10 @@ class FundamentalData(Base):
     id = Column(Integer, primary_key=True, index=True)
     instrument_id = Column(Integer, ForeignKey("instruments.id"), nullable=False, index=True)
     period = Column(String, nullable=False) # e.g. "2024Q1", "2023FY"
+    period_end = Column(DateTime(timezone=True), nullable=True)
+    published_at = Column(DateTime(timezone=True), nullable=True)
+    available_at = Column(DateTime(timezone=True), nullable=True)
+    source = Column(String, nullable=True)
 
     # Key metrics
     pe_ratio = Column(Numeric(precision=18, scale=6), nullable=True)
