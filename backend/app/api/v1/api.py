@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, instruments, users, portfolios, chat, education
+from app.api.v1.endpoints import auth, instruments, users, portfolios, chat, education, opportunities
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
@@ -11,3 +11,4 @@ api_router.include_router(portfolios.router, prefix="/portfolios", tags=["portfo
 
 api_router.include_router(chat.router, prefix="/chat", tags=["chat"])
 api_router.include_router(education.router, prefix="/education", tags=["education"])
+api_router.include_router(opportunities.router, prefix="/opportunities", tags=["opportunities"])
