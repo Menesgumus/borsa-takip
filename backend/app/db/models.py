@@ -1,9 +1,8 @@
-from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, Text
 import enum
+from sqlalchemy.sql import func
 import typing
 
+from sqlalchemy import Numeric
 from sqlalchemy import (
     BigInteger,
     Boolean,
@@ -17,6 +16,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.db.base import Base
@@ -326,3 +326,26 @@ class TradeJournal(Base):
 
     portfolio = relationship("Portfolio", backref="journals")
     transaction = relationship("PortfolioTransaction", backref="journal")
+
+
+class DecisionAction(enum.StrEnum):
+    STRONG_BUY = "STRONG_BUY"
+    BUY = "BUY"
+    HOLD = "HOLD"
+    SELL = "SELL"
+    STRONG_SELL = "STRONG_SELL"
+
+class DecisionSnapshot(Base):
+    __tablename__ = "decision_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    instrument_id = Column(Integer, ForeignKey("instruments.id"), nullable=False, index=True)
+    action = Column(Enum(DecisionAction), nullable=False)
+
+    score = Column(Numeric(10, 4), nullable=False) # Normalized score -1.0 to 1.0
+    engine_version = Column(String, nullable=False) # e.g. "v1.0"
+    reason_codes = Column(String, nullable=False) # e.g. "RSI_OVERSOLD,MACD_BULLISH"
+
+    calculated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    instrument = relationship("Instrument", backref="decisions")
