@@ -38,11 +38,13 @@ export default function PortfoliosPage() {
           </div>
         ) : (
           portfolios?.map((p: any) => (
-            <Link href={/portfolios/} key={p.id}>
+            <Link href={`/portfolios/${p.id}`} key={p.id}>
               <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:border-blue-300 hover:shadow-md transition cursor-pointer">
                 <div className="flex justify-between items-start mb-4">
                   <h2 className="text-xl font-bold text-gray-900">{p.name}</h2>
-                  <span className={px-2 py-1 text-xs font-semibold rounded }>
+                  <span className={`px-2 py-1 text-xs font-semibold rounded ${
+                    p.portfolio_type === "REAL" ? "bg-purple-100 text-purple-800" : "bg-gray-100 text-gray-800"
+                  }`}>
                     {p.portfolio_type}
                   </span>
                 </div>
