@@ -473,3 +473,77 @@ class UserNotification(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     user = relationship("User", backref="notifications")
+class BacktestJob(Base):
+    __tablename__ = "backtest_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    
+    # Configuration
+    strategy_name = Column(String, nullable=False)
+    strategy_version = Column(String, nullable=False)
+    
+    start_date = Column(DateTime(timezone=True), nullable=False)
+    end_date = Column(DateTime(timezone=True), nullable=False)
+    
+    initial_capital = Column(Numeric(precision=24, scale=6), nullable=False)
+    
+    # Costs
+    commission_pct = Column(Numeric(precision=10, scale=6), nullable=False, default=0.001) # 0.1%
+    slippage_pct = Column(Numeric(precision=10, scale=6), nullable=False, default=0.0005)  # 0.05%
+    
+    # Status tracking
+    status = Column(String, nullable=False, default="PENDING") # PENDING, RUNNING, COMPLETED, FAILED
+    failure_reason = Column(String, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    result = relationship("BacktestResult", back_populates="job", uselist=False)
+
+class BacktestResult(Base):
+    __tablename__ = "backtest_results"
+
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(Integer, ForeignKey("backtest_jobs.id"), nullable=False, unique=True)
+    
+    # Final Metrics
+    total_return_pct = Column(Numeric(precision=10, scale=6), nullable=True)
+    cagr_pct = Column(Numeric(precision=10, scale=6), nullable=True)
+    max_drawdown_pct = Column(Numeric(precision=10, scale=6), nullable=True)
+    
+    win_rate_pct = Column(Numeric(precision=10, scale=6), nullable=True)
+    total_trades = Column(Integer, nullable=True)
+    fees_paid = Column(Numeric(precision=24, scale=6), nullable=True)
+    
+    # Benchmark
+    benchmark_return_pct = Column(Numeric(precision=10, scale=6), nullable=True)
+    
+    # JSON Data Series
+    equity_curve = Column(Text, nullable=True) # e.g. [{"date": "...", "equity": ...}]
+    bias_audit = Column(Text, nullable=True) # e.g. {"LOOK_AHEAD": "PASS", "SURVIVORSHIP": "UNVERIFIED"}
+    limitations = Column(Text, nullable=True) # e.g. ["HISTORICAL_UNIVERSE_UNAVAILABLE"]
+    validation_state = Column(String, nullable=True) # VALIDATED, LIMITED, UNVERIFIED
+
+    job = relationship("BacktestJob", back_populates="result")
+    trades = relationship("BacktestTrade", back_populates="result")
+
+class BacktestTrade(Base):
+    __tablename__ = "backtest_trades"
+
+    id = Column(Integer, primary_key=True, index=True)
+    result_id = Column(Integer, ForeignKey("backtest_results.id"), nullable=False, index=True)
+    
+    instrument_symbol = Column(String, nullable=False)
+    direction = Column(String, nullable=False) # BUY, SELL
+    
+    executed_at = Column(DateTime(timezone=True), nullable=False)
+    quantity = Column(Numeric(precision=18, scale=6), nullable=False)
+    price = Column(Numeric(precision=18, scale=6), nullable=False)
+    
+    fees = Column(Numeric(precision=18, scale=6), nullable=False)
+    slippage = Column(Numeric(precision=18, scale=6), nullable=False)
+    
+    result = relationship("BacktestResult", back_populates="trades")
