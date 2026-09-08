@@ -1,125 +1,153 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { fetchApi } from '@/lib/api';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { fetchApi } from "@/lib/api";
+import { Check, ShieldCheck } from "lucide-react";
 
 export default function OnboardingPage() {
-  const router = useRouter();
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [riskTolerance, setRiskTolerance] = useState('');
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [riskTolerance, setRiskTolerance] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const router = useRouter();
 
   const handleComplete = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!riskTolerance) {
-      setError('Lütfen risk toleransınızı seçin.');
-      return;
-    }
-
+    if (!riskTolerance) return; // Form validation guards this anyway
     setLoading(true);
-    setError('');
 
     try {
-      await fetchApi('/api/v1/users/profile', {
-        method: 'PUT',
+      await fetchApi("/api/v1/users/me", {
+        method: "PUT",
         body: JSON.stringify({
           first_name: firstName,
           last_name: lastName,
           risk_tolerance: riskTolerance,
-          onboarding_completed: true,
         }),
       });
-      // Redirect to dashboard
-      window.location.href = '/dashboard';
+      router.push("/dashboard");
     } catch (err: any) {
-      setError(err.message || 'Profil güncellenirken bir hata oluştu.');
+      console.error(err);
+      alert("Hata oluştu.");
     } finally {
       setLoading(false);
     }
   };
 
+  const riskOptions = [
+    {
+      value: "LOW",
+      label: "DÜŞÜK",
+      desc: "Dalgalanmayı mümkün olduğunca sınırlamak istiyorum."
+    },
+    {
+      value: "MEDIUM",
+      label: "ORTA",
+      desc: "Getiri ve risk arasında dengeli yaklaşım istiyorum."
+    },
+    {
+      value: "HIGH",
+      label: "YÜKSEK",
+      desc: "Daha yüksek dalgalanmayı kabul edebilirim."
+    }
+  ];
+
   return (
-    <div className="max-w-xl mx-auto mt-10 p-6 bg-white shadow-md rounded-lg">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">Hoş Geldiniz</h2>
-      <p className="text-gray-600 mb-8">Uygulamayı kullanmaya başlamadan önce lütfen profilinizi tamamlayın.</p>
-      
-      <form onSubmit={handleComplete} className="space-y-6">
-        <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
-              Ad (İsteğe bağlı)
-            </label>
-            <div className="mt-1">
-              <input
-                type="text"
-                name="firstName"
-                id="firstName"
-                className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
-              Soyad (İsteğe bağlı)
-            </label>
-            <div className="mt-1">
-              <input
-                type="text"
-                name="lastName"
-                id="lastName"
-                className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md p-2 border"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-              />
-            </div>
-          </div>
+    <div className="max-w-2xl mx-auto py-12 animate-in fade-in duration-500">
+      <div className="mb-8 text-center">
+        <div className="w-16 h-16 bg-primary-100 text-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <ShieldCheck size={32} />
         </div>
+        <h1 className="text-3xl font-bold text-navy-900 tracking-tight">Profilinizi Tamamlayın</h1>
+        <p className="text-navy-700 mt-2 text-lg">Yapay zeka asistanının size uygun kararlar alabilmesi için birkaç bilgiye ihtiyacımız var.</p>
+      </div>
 
-        <div>
-          <label htmlFor="riskTolerance" className="block text-sm font-medium text-gray-700">
-            Risk Toleransı (Zorunlu)
-          </label>
-          <div className="mt-1">
-            <select
-              id="riskTolerance"
-              name="riskTolerance"
+      <form onSubmit={handleComplete} className="bg-surface rounded-2xl shadow-sm border border-navy-800/10 p-8 space-y-8">
+        
+        {/* Ad Soyad */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-semibold text-navy-900 mb-2" htmlFor="firstName">
+              Adınız
+            </label>
+            <input
+              id="firstName"
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="Ahmet"
+              className="w-full px-4 py-3 bg-white text-navy-900 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-medium placeholder:text-slate-400"
               required
-              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border"
-              value={riskTolerance}
-              onChange={(e) => setRiskTolerance(e.target.value)}
-            >
-              <option value="" disabled>Seçiniz</option>
-              <option value="LOW">Düşük Risk</option>
-              <option value="MEDIUM">Orta Risk</option>
-              <option value="HIGH">Yüksek Risk</option>
-            </select>
+            />
           </div>
-          <p className="mt-2 text-sm text-gray-500">
-            Yatırım stratejinizi belirlememize yardımcı olması için lütfen risk toleransınızı seçin.
-          </p>
+          <div>
+            <label className="block text-sm font-semibold text-navy-900 mb-2" htmlFor="lastName">
+              Soyadınız
+            </label>
+            <input
+              id="lastName"
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="Yılmaz"
+              className="w-full px-4 py-3 bg-white text-navy-900 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-medium placeholder:text-slate-400"
+              required
+            />
+          </div>
         </div>
 
-        {error && (
-          <div className="text-red-500 text-sm font-medium">
-            {error}
+        {/* Risk Profile */}
+        <div>
+          <label className="block text-sm font-semibold text-navy-900 mb-4">
+            Risk Toleransınız
+          </label>
+          <div className="space-y-3">
+            {riskOptions.map((opt) => {
+              const isSelected = riskTolerance === opt.value;
+              return (
+                <label 
+                  key={opt.value}
+                  className={`relative flex cursor-pointer rounded-xl border p-4 transition-all hover:bg-slate-50 focus-within:ring-2 focus-within:ring-primary-500 ${
+                    isSelected 
+                      ? 'border-primary-500 bg-primary-50/50' 
+                      : 'border-slate-200 bg-white'
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="risk_tolerance" 
+                    value={opt.value} 
+                    className="sr-only" 
+                    onChange={() => setRiskTolerance(opt.value)}
+                    required
+                  />
+                  <div className="flex flex-1">
+                    <div className="flex flex-col">
+                      <span className={`block text-sm font-bold ${isSelected ? 'text-primary-900' : 'text-navy-900'}`}>
+                        {opt.label}
+                      </span>
+                      <span className={`mt-1 flex items-center text-sm ${isSelected ? 'text-primary-700' : 'text-navy-700/80'}`}>
+                        {opt.desc}
+                      </span>
+                    </div>
+                  </div>
+                  <Check 
+                    className={`h-5 w-5 shrink-0 transition-opacity ${isSelected ? 'text-primary-600 opacity-100' : 'opacity-0'}`} 
+                  />
+                </label>
+              );
+            })}
           </div>
-        )}
-
-        <div className="pt-4 flex justify-end">
-          <button
-            type="submit"
-            disabled={loading}
-            className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-          >
-            {loading ? 'Kaydediliyor...' : 'Tamamla ve Başla'}
-          </button>
         </div>
+
+        <button
+          type="submit"
+          disabled={loading || !riskTolerance}
+          className="w-full py-4 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold text-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? "Kaydediliyor..." : "Başla"}
+        </button>
       </form>
     </div>
   );

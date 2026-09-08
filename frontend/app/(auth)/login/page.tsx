@@ -1,107 +1,127 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { fetchApi } from '@/lib/api';
-import Link from 'next/link';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { fetchApi } from "@/lib/api";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     setLoading(true);
-    setError('');
 
     try {
-      await fetchApi('/api/v1/auth/login', {
-        method: 'POST',
+      await fetchApi("/api/v1/auth/login", {
+        method: "POST",
         body: JSON.stringify({ email, password }),
       });
-      // Redirect to dashboard on success, which will force a re-fetch of layout
-      window.location.href = '/dashboard';
+      router.push("/dashboard");
     } catch (err: any) {
-      if (err.status === 429) {
-        setError('Çok fazla başarısız giriş denemesi yaptınız. Lütfen 5 dakika sonra tekrar deneyin.');
-      } else if (err.status === 401) {
-        setError('E-posta adresi veya şifre hatalı.');
-      } else {
-        setError(err.message || 'Giriş yapılırken bir hata oluştu.');
-      }
+      setError(err.message || "Giriş başarısız.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg border border-gray-100">
+    <div className="min-h-screen bg-slate-50 flex">
+      {/* Left panel - Branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-navy-900 flex-col justify-between p-12 text-white">
         <div>
-          <h1 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Hesabınıza giriş yapın
+          <div className="flex items-center gap-3 font-bold text-2xl tracking-tight mb-8">
+            <div className="w-10 h-10 rounded bg-primary-500 flex items-center justify-center text-white">BT</div>
+            Borsa Takip
+          </div>
+          <h1 className="text-4xl font-bold leading-tight mt-20">
+            Kişisel yatırım <br/>
+            kararlarınızı <span className="text-primary-400">güçlendirin.</span>
           </h1>
+          <p className="text-navy-300 mt-6 text-lg max-w-md">
+            Gerçek zamanlı piyasa verileri, teknik analizler ve kişiselleştirilmiş stratejiler ile yatırımlarınızı daha iyi yönetin.
+          </p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleLogin}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="email-address" className="sr-only">
-                E-posta adresi
-              </label>
-              <input
-                id="email-address"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="E-posta adresi"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Şifre
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Şifre"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
+        <div className="text-sm text-navy-400">
+          &copy; {new Date().getFullYear()} Borsa Takip. Tüm hakları saklıdır.
+        </div>
+      </div>
+
+      {/* Right panel - Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-100 p-8 sm:p-10">
+          <div className="lg:hidden flex items-center gap-3 font-bold text-2xl tracking-tight mb-8 text-navy-900">
+            <div className="w-8 h-8 rounded bg-primary-600 flex items-center justify-center text-white">BT</div>
+            Borsa Takip
           </div>
 
-          {error && (
-            <div className="text-red-500 text-sm text-center font-medium">
-              {error}
-            </div>
-          )}
+          <h2 className="text-2xl font-bold text-navy-900">Tekrar Hoş Geldiniz</h2>
+          <p className="text-slate-500 mt-2 mb-8">Hesabınıza giriş yaparak portföyünüze ulaşın.</p>
 
-          <div>
+          <form onSubmit={handleLogin} className="space-y-5">
+            {error && (
+              <div className="p-3 bg-danger-50 border border-danger-200 text-danger-700 rounded-lg text-sm font-medium">
+                {error}
+              </div>
+            )}
+            
+            <div>
+              <label className="block text-sm font-semibold text-navy-800 mb-1.5" htmlFor="email">
+                E-posta Adresi
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="ornek@sirket.com"
+                className="w-full px-4 py-3 bg-white text-navy-900 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-shadow placeholder:text-slate-400 font-medium"
+                required
+              />
+            </div>
+            
+            <div>
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="block text-sm font-semibold text-navy-800" htmlFor="password">
+                  Şifre
+                </label>
+                <a href="#" className="text-sm font-medium text-primary-600 hover:text-primary-700">Şifremi Unuttum</a>
+              </div>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full px-4 py-3 bg-white text-navy-900 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-shadow placeholder:text-slate-400 font-medium"
+                required
+              />
+            </div>
+
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              className="w-full py-3 px-4 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-70 disabled:cursor-not-allowed mt-2 shadow-sm"
             >
-              {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
+              {loading ? "Giriş Yapılıyor..." : "Giriş Yap"}
             </button>
+          </form>
+
+          <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+            <p className="text-slate-600 text-sm">
+              Hesabınız yok mu?{" "}
+              <Link href="/register" className="font-semibold text-primary-600 hover:text-primary-700">
+                Hemen Hesap Oluşturun
+              </Link>
+            </p>
           </div>
-          
-          <div className="text-sm text-center">
-             Hesabınız yok mu? <Link href="/register" className="font-medium text-blue-600 hover:text-blue-500">Kayıt Olun</Link>
-          </div>
-        </form>
+        </div>
       </div>
-    </main>
+    </div>
   );
 }

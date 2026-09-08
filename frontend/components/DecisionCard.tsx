@@ -1,103 +1,116 @@
-﻿import { AlertCircle, AlertTriangle, TrendingUp, TrendingDown, Target, Brain, LineChart, Info } from "lucide-react";
+"use client";
 
-export default function DecisionCard({ decision }: { decision: any }) {
-  if (!decision) return null;
+import React from 'react';
+import { ShieldAlert, Activity, CheckCircle, Info } from 'lucide-react';
 
-  const actionColors: Record<string, string> = {
-    "STRONG_BUY": "bg-green-600 text-white",
-    "BUY": "bg-green-400 text-white",
-    "HOLD": "bg-yellow-400 text-gray-900",
-    "SELL": "bg-red-400 text-white",
-    "STRONG_SELL": "bg-red-600 text-white",
+export default function DecisionCard({ decision, symbol }: { decision: any, symbol: string }) {
+  
+  const getMarketViewStyle = (view: string) => {
+    switch (view) {
+      case 'STRONG_BUY': return 'bg-success-50 border-success-200 text-success-700';
+      case 'BUY': return 'bg-success-50 border-success-200 text-success-600';
+      case 'HOLD': return 'bg-slate-50 border-slate-200 text-slate-700';
+      case 'SELL': return 'bg-danger-50 border-danger-200 text-danger-600';
+      case 'STRONG_SELL': return 'bg-danger-50 border-danger-200 text-danger-700';
+      default: return 'bg-slate-50 border-slate-200 text-slate-600';
+    }
   };
 
-  const actionLabels: Record<string, string> = {
-    "STRONG_BUY": "AL (STRONG BUY)",
-    "BUY": "KADEMELİ AL (BUY)",
-    "HOLD": "BEKLE (HOLD)",
-    "SELL": "KADEMELİ SAT (SELL)",
-    "STRONG_SELL": "SAT (STRONG SELL)",
+  const getLabel = (view: string) => {
+    switch (view) {
+      case 'STRONG_BUY': return 'GÜÇLÜ AL';
+      case 'BUY': return 'KADEMELİ AL';
+      case 'HOLD': return 'BEKLE';
+      case 'SELL': return 'KADEMELİ SAT';
+      case 'STRONG_SELL': return 'SAT';
+      default: return view || 'BİLİNMİYOR';
+    }
+  };
+
+  // Translate reason codes to Turkish
+  const translateReason = (code: string) => {
+    const map: Record<string, string> = {
+      'RSI_OVERSOLD': 'RSI düşük bölgede (Aşırı satım)',
+      'RSI_OVERBOUGHT': 'RSI yüksek bölgede (Aşırı alım)',
+      'MACD_BULLISH': 'MACD pozitif trende girdi',
+      'MACD_BEARISH': 'MACD negatif trende girdi',
+      'PRICE_ABOVE_SMA200': 'Fiyat uzun vadeli ortalamanın (SMA200) üzerinde',
+      'PRICE_BELOW_SMA200': 'Fiyat uzun vadeli ortalamanın altında',
+      'RISK_LIMIT_EXCEEDED': 'Portföy konsantrasyon riski yüksek',
+      'LOW_DATA_QUALITY': 'Veri kalitesi hesaplama için yetersiz',
+      'INSUFFICIENT_DATA': 'Grafik geçmişi veya temel veriler yetersiz',
+    };
+    return map[code] || code;
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-      <div className="flex justify-between items-start mb-6">
-        <div>
-          <h2 className="text-xl font-bold flex items-center gap-2 mb-1">
-            <Brain className="text-blue-600" /> Deterministik Karar Motoru
-          </h2>
-          <p className="text-sm text-gray-500">
-            Vade: <span className="font-semibold text-gray-700">{decision.horizon}</span> | 
-            Motor: {decision.engine_version}
-          </p>
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Market View */}
+        <div className={`p-6 rounded-xl border ${getMarketViewStyle(decision.market_view)} flex flex-col items-center justify-center text-center shadow-sm`}>
+          <span className="text-sm font-semibold uppercase tracking-wider mb-2 opacity-80">Piyasa Görünümü</span>
+          <span className="text-3xl font-bold">{getLabel(decision.market_view)}</span>
         </div>
-        <div className={`px-4 py-2 rounded-lg font-bold text-lg shadow-sm ${actionColors[decision.personal_action || decision.market_view] || "bg-gray-200"}`}>
-          {actionLabels[decision.personal_action || decision.market_view] || decision.market_view}
+
+        {/* Personal Action */}
+        <div className={`p-6 rounded-xl border ${decision.personal_action ? getMarketViewStyle(decision.personal_action) : 'bg-surface border-navy-800/10 text-navy-900'} flex flex-col items-center justify-center text-center shadow-sm`}>
+          <span className="text-sm font-semibold uppercase tracking-wider mb-2 opacity-80">Kişisel Aksiyon</span>
+          <span className="text-3xl font-bold">
+            {decision.personal_action ? getLabel(decision.personal_action) : 'DEĞERLENDİRİLMEDİ'}
+          </span>
+          {!decision.personal_action && (
+            <span className="text-xs mt-2 opacity-60">Portföyünüzde bulunmuyor veya risk profili yok.</span>
+          )}
         </div>
       </div>
 
-      {decision.missing_data && (
-        <div className="bg-yellow-50 border-l-4 border-yellow-500 p-3 mb-6 rounded text-sm text-yellow-800 flex gap-2 items-start">
-          <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
-          <div>
-            <strong>Veri Eksikliği (Fail-Safe):</strong> Karar motoru yeterli teknik veri olmadığı için güvenli modda BEKLE (HOLD) üretti.
-          </div>
-        </div>
-      )}
-
-      {decision.personal_action && decision.personal_action !== decision.market_view && (
-        <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-6 rounded text-sm text-blue-800 flex gap-2 items-start">
-          <Info size={16} className="mt-0.5 flex-shrink-0" />
-          <div>
-            <strong>Kişisel Portföy Müdahalesi:</strong> Piyasa görünümü <em>{actionLabels[decision.market_view]}</em> olmasına rağmen, portföy risk/limit kurallarınız gereği karar <em>{actionLabels[decision.personal_action]}</em> olarak güncellendi.
-          </div>
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <ScoreBox label="Teknik Skor" value={decision.technical_score} />
-        <ScoreBox label="Temel Skor" value={decision.fundamental_score} />
-        <ScoreBox label="Haber/KAP Skoru" value={decision.news_score} />
-        <ScoreBox label="Veri Kalitesi" value={decision.data_quality_score} />
-      </div>
-
-      <div className="border-t border-gray-100 pt-4">
-        <h3 className="text-sm font-semibold text-gray-700 mb-2">Karar Nedenleri & Uyarılar</h3>
-        <div className="flex flex-wrap gap-2">
-          {decision.reason_codes?.map((code: string, i: number) => (
-            <span key={i} className="bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded border border-gray-200">
-              {code}
-            </span>
+      <div className="bg-surface rounded-xl p-6 border border-navy-800/10 shadow-sm">
+        <h3 className="font-semibold text-navy-900 mb-4 flex items-center gap-2">
+          <Activity size={18} className="text-primary-600" /> Neden Bu Karar Verildi?
+        </h3>
+        
+        <ul className="space-y-3">
+          {decision.reason_codes?.map((code: string) => (
+            <li key={code} className="flex items-start gap-2">
+              <CheckCircle className="text-success-500 mt-0.5 shrink-0" size={16} />
+              <span className="text-navy-800 text-sm">{translateReason(code)}</span>
+            </li>
+          )) || <li className="text-sm text-navy-700/60">Belirli bir neden kodu üretilmedi.</li>}
+          
+          {decision.warnings?.map((warn: string) => (
+            <li key={warn} className="flex items-start gap-2">
+              <ShieldAlert className="text-yellow-500 mt-0.5 shrink-0" size={16} />
+              <span className="text-navy-800 text-sm">Uyarı: {translateReason(warn)}</span>
+            </li>
           ))}
-          {decision.warnings?.map((warn: string, i: number) => (
-            <span key={`w-${i}`} className="bg-red-50 text-red-700 text-xs px-2 py-1 rounded border border-red-200 flex items-center gap-1">
-              <AlertCircle size={10} /> {warn}
-            </span>
-          ))}
-        </div>
+        </ul>
       </div>
-    </div>
-  );
-}
 
-function ScoreBox({ label, value }: { label: string, value: string | number | null }) {
-  if (value === null || value === undefined) {
-    return (
-      <div className="bg-gray-50 p-3 rounded border border-gray-100 text-center">
-        <div className="text-xs text-gray-500 mb-1">{label}</div>
-        <div className="text-sm font-semibold text-gray-400">N/A</div>
-      </div>
-    );
-  }
-  
-  const numValue = Number(value);
-  const color = numValue >= 60 ? "text-green-600" : numValue <= 40 ? "text-red-600" : "text-yellow-600";
-  
-  return (
-    <div className="bg-white p-3 rounded border border-gray-200 text-center shadow-sm">
-      <div className="text-xs text-gray-500 mb-1">{label}</div>
-      <div className={`text-xl font-bold ${color}`}>
-        {numValue.toFixed(1)}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+          <span className="text-xs text-slate-500 block">Genel Puan</span>
+          <span className="font-bold text-navy-900 text-lg">
+            {Number(decision.overall_market_score || 0).toFixed(1)} / 100
+          </span>
+        </div>
+        <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+          <span className="text-xs text-slate-500 block">Veri Kalitesi</span>
+          <span className="font-bold text-navy-900 text-lg">
+            {Number(decision.data_quality_score || 0).toFixed(1)} / 100
+          </span>
+        </div>
+        <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+          <span className="text-xs text-slate-500 block">Durum</span>
+          <span className="font-bold text-navy-900 text-sm mt-1 block truncate">
+            {decision.decision_state || 'AVAILABLE'}
+          </span>
+        </div>
+        <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+          <span className="text-xs text-slate-500 block">Hesaplama Tarihi</span>
+          <span className="font-medium text-navy-900 text-sm mt-1 block">
+            {new Date(decision.as_of).toLocaleTimeString('tr-TR')}
+          </span>
+        </div>
       </div>
     </div>
   );

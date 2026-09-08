@@ -2,74 +2,72 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { Activity, AlertCircle, Clock, WifiOff } from "lucide-react";
+import { 
+  Activity, 
+  WifiOff, 
+  Briefcase, 
+  TrendingUp, 
+  TrendingDown, 
+  Clock, 
+  AlertCircle,
+  ArrowRight
+} from "lucide-react";
 import { useNetwork } from "@/components/NetworkProvider";
+import { fetchApi } from "@/lib/api";
 
-async function fetchInstruments() {
-  const res = await fetch("/api/v1/instruments?size=4");
-  if (!res.ok) throw new Error("Failed to fetch instruments");
-  return res.json();
+function fetchDashboardData() {
+  return Promise.all([
+    fetchApi('/api/v1/portfolios/'),
+    fetchApi('/api/v1/instruments?size=4')
+  ]);
 }
 
-async function fetchQuote(symbol: string) {
-  const res = await fetch(`/api/v1/instruments/${symbol}/quote`);
-  if (!res.ok) throw new Error("Failed to fetch quote");
-  return res.json();
-}
-
-function MarketCard({ symbol, name }: { symbol: string; name: string }) {
+function QuoteCard({ symbol, name }: { symbol: string; name: string }) {
   const { isOnline } = useNetwork();
   const { data: quote, isLoading, isError } = useQuery({
     queryKey: ["quote", symbol],
-    queryFn: () => fetchQuote(symbol),
-    refetchInterval: isOnline ? 10000 : false, // pause refresh when offline
+    queryFn: () => fetchApi(`/api/v1/instruments/${symbol}/quote`),
+    refetchInterval: isOnline ? 30000 : false,
   });
 
   return (
-    <Link
-      href={`/instruments/${symbol}`}
-      className="block p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow relative"
-    >
-      {!isOnline && quote && (
-        <span className="absolute top-2 right-2 bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-1 rounded z-10">OFFLINE</span>
-      )}
-      <div className="flex justify-between items-start mb-2">
+    <Link href={`/instruments/${symbol}`} className="bg-surface rounded-xl p-5 border border-navy-800/10 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+      <div className="flex justify-between items-start mb-4">
         <div>
-          <h3 className="font-bold text-gray-900">{symbol}</h3>
-          <p className="text-sm text-gray-500 truncate max-w-[150px]">{name}</p>
+          <h3 className="font-bold text-navy-900 text-lg">{symbol}</h3>
+          <p className="text-sm text-navy-700/60 truncate max-w-[140px]">{name}</p>
         </div>
-        {quote && isOnline && (
-          <span
-            className={`px-2 py-1 text-xs font-semibold rounded-full ${
-              quote.is_stale ? "bg-yellow-100 text-yellow-800" : "bg-green-100 text-green-800"
-            }`}
-          >
-            {quote.is_stale ? "STALE" : "LIVE"}
+        {quote && (
+          <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${
+            quote.data_state === "DELAYED" ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
+            quote.data_state === "EOD" ? "bg-slate-50 text-slate-600 border-slate-200" :
+            "bg-primary-50 text-primary-700 border-primary-200"
+          }`}>
+            {quote.data_state || "DELAYED"}
           </span>
         )}
       </div>
 
       {isLoading ? (
-        <div className="h-10 flex items-center text-gray-400 text-sm">Yükleniyor...</div>
+        <div className="animate-pulse space-y-2">
+          <div className="h-6 bg-slate-200 rounded w-1/2"></div>
+          <div className="h-4 bg-slate-200 rounded w-1/3"></div>
+        </div>
       ) : isError ? (
-        <div className="h-10 flex items-center text-red-500 text-sm gap-1">
-          <AlertCircle size={14} /> {isOnline ? "Veri alınamadı" : "Çevrimdışı"}
+        <div className="text-danger-500 text-sm flex items-center gap-1">
+          <AlertCircle size={14} /> Veri alınamadı
         </div>
       ) : quote ? (
         <div>
-          <div className="text-2xl font-semibold text-gray-900">
-            {Number(quote.price).toFixed(2)}
+          <div className="text-2xl font-semibold text-navy-900 mb-1">
+            {Number(quote.price).toFixed(2)} ₺
           </div>
-          <div
-            className={`text-sm font-medium ${
-              Number(quote.change_pct) >= 0 ? "text-green-600" : "text-red-600"
-            }`}
-          >
+          <div className={`text-sm font-medium flex items-center gap-1 ${
+            Number(quote.change_pct) >= 0 ? "text-success-600" : "text-danger-600"
+          }`}>
+            {Number(quote.change_pct) >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
             {Number(quote.change_pct) >= 0 ? "+" : ""}
             {Number(quote.change_pct).toFixed(2)}%
-          </div>
-          <div className="text-xs text-gray-400 mt-2 flex items-center gap-1">
-            <Clock size={12} /> Son: {new Date(quote.timestamp).toLocaleTimeString()}
           </div>
         </div>
       ) : null}
@@ -79,41 +77,90 @@ function MarketCard({ symbol, name }: { symbol: string; name: string }) {
 
 export default function Dashboard() {
   const { isOnline } = useNetwork();
+  
   const { data, isLoading } = useQuery({
-    queryKey: ["instruments", "dashboard"],
-    queryFn: fetchInstruments,
+    queryKey: ["dashboard"],
+    queryFn: fetchDashboardData,
   });
 
+  const [portfoliosData, instrumentsData] = data || [null, null];
+
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <Activity className="text-blue-600" /> Piyasa Özeti
-        </h2>
-        <Link href="/markets" className="text-blue-600 hover:underline text-sm font-medium">
-          Tüm Piyasalar &rarr;
-        </Link>
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 tracking-tight">Günlük Özet</h1>
+          <p className="text-navy-700 mt-1">Piyasalar ve portföy durumunuz.</p>
+        </div>
+        
+        {!isOnline && (
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm shrink-0">
+            <WifiOff size={18} />
+            <span className="text-sm font-medium">Çevrimdışı (Eski Veri)</span>
+          </div>
+        )}
       </div>
 
-      {!isOnline && (
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-lg flex gap-3 shadow-sm">
-          <WifiOff className="shrink-0" />
-          <div>
-            <strong>STALE / LAST KNOWN DATA</strong>
-            <p className="text-sm">İnternet bağlantınız koptu. Fiyatlar otomatik güncellenmiyor.</p>
+      {/* Portfolios Overview Section */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-navy-900 flex items-center gap-2">
+            <Briefcase className="text-primary-600" size={20} />
+            Portföylerim
+          </h2>
+          <Link href="/portfolios" className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1">
+            Tümünü Gör <ArrowRight size={16} />
+          </Link>
+        </div>
+        
+        {isLoading ? (
+          <div className="h-32 bg-slate-100 animate-pulse rounded-xl border border-slate-200"></div>
+        ) : (portfoliosData as any)?.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(portfoliosData as any).map((p: any) => (
+              <div key={p.id} className="bg-surface rounded-xl p-5 border border-navy-800/10 shadow-sm">
+                <h3 className="font-semibold text-navy-900">{p.name}</h3>
+                <p className="text-sm text-navy-700/60 mb-3">{p.portfolio_type === 'REAL' ? 'Gerçek' : 'Simülasyon'}</p>
+                <div className="text-2xl font-bold text-navy-900">
+                  {p.total_market_value ? `${Number(p.total_market_value).toLocaleString('tr-TR')} ₺` : '0,00 ₺'}
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="bg-surface rounded-xl p-8 border border-navy-800/10 text-center shadow-sm">
+            <p className="text-navy-700 mb-4">Henüz bir portföy oluşturmadınız.</p>
+            <Link href="/portfolios" className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+              Portföy Oluştur
+            </Link>
+          </div>
+        )}
+      </section>
 
-      {isLoading ? (
-        <div>Yükleniyor...</div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {data?.items?.map((inst: any) => (
-            <MarketCard key={inst.symbol} symbol={inst.symbol} name={inst.name} />
-          ))}
+      {/* Markets Snapshot Section */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-navy-900 flex items-center gap-2">
+            <Activity className="text-primary-600" size={20} />
+            BIST 100 Gözlem
+          </h2>
+          <Link href="/markets" className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1">
+            Tüm Piyasalar <ArrowRight size={16} />
+          </Link>
         </div>
-      )}
+
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-slate-100 animate-pulse rounded-xl border border-slate-200"></div>)}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {(instrumentsData as any)?.items?.map((inst: any) => (
+              <QuoteCard key={inst.symbol} symbol={inst.symbol} name={inst.name} />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
