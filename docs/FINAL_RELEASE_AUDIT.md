@@ -24,6 +24,10 @@
 - Ensure `SECRET_KEY` rotation runbooks are defined.
 - Production PostgreSQL volumes (`postgres_data`) must be backed up via WAL archiving (e.g., pgBackRest) or nightly encrypted snapshots.
 
-## 7. Compliance Status
+## 7. Data Validation Limitations (Phase 15 Waiver)
+- **Real-Data Backtest Accuracy**: `LIMITED/UNVERIFIED`. The historical universe is unverified. Survivorship bias is not fully controlled. Corporate action historical completeness is unverified. Delisted instrument history is unavailable or limited.
+- **Auto-Promotion**: Strategy auto-promotion is blocked by data validation limits and runs in Shadow Mode only.
+
+## 8. Compliance Status
 - **LEGAL_COMPLIANCE_APPROVED**: `false` - Awaiting legal review for market data redistribution and commercial KVKK compliance.
 - **Release Status**: Development release approved for non-commercial personal usage.

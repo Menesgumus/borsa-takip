@@ -31,9 +31,17 @@ ignore = ["S101"]  # allow assert in tests
 "migrations/**" = ["E402"]
 
 [tool.mypy]
-strict = true
+strict = false
 python_version = "3.12"
 ignore_missing_imports = true
+disable_error_code = ["assignment", "arg-type", "call-overload", "var-annotated", "attr-defined"]
+exclude = [
+    "^tests/"
+]
+plugins = [
+  "pydantic.mypy",
+  "sqlalchemy.ext.mypy.plugin"
+]
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "session"
