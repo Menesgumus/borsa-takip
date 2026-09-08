@@ -336,6 +336,7 @@ class DecisionAction(enum.StrEnum):
     HOLD = "HOLD"
     SELL = "SELL"
     STRONG_SELL = "STRONG_SELL"
+    INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
 
 class DecisionSnapshot(Base):
     __tablename__ = "decision_snapshots"

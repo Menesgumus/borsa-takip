@@ -54,6 +54,8 @@ class MockMarketDataProvider(MarketDataProvider):
             source_name=self.name,
             freshness_seconds=0.0,
             is_stale=False,
+            data_state="MOCK",
+            is_mock=True,
         )
 
     async def get_quote(self, symbol: str) -> QuoteDTO:

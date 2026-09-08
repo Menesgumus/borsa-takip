@@ -18,6 +18,9 @@ class Settings(BaseSettings):
 
     EVDS_API_KEY: str | None = None
 
+    # Mock Data
+    ENABLE_MOCK_MARKET_DATA: bool = False
+
     # Session TTL (days) — used by auth endpoint; can be overridden in .env
     SESSION_TTL_DAYS: int = 7
 

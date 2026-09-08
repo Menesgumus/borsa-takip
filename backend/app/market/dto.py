@@ -35,5 +35,13 @@ class QuoteDTO(BaseModel):
         False,
         description="True when freshness_seconds exceeds the configured threshold",
     )
+    data_state: str = Field(
+        "DELAYED", 
+        description="Canonical state: LIVE, DELAYED, EOD, STALE, UNAVAILABLE, MOCK"
+    )
+    is_mock: bool = Field(
+        False, 
+        description="True if this is a synthetic mock quote"
+    )
 
     model_config = {"frozen": True}

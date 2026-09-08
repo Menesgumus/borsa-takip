@@ -1,4 +1,4 @@
-﻿from datetime import UTC, datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from app.db.models import DecisionAction
@@ -30,20 +30,39 @@ def evaluate_decision(
 
     # 1. Data Quality Score
     dq_score = Decimal("100")
-    if tech.current_price is None:
+    if tech.current_price is None or tech.current_price == Decimal("0"):
         dq_score -= Decimal("50")
         warnings.append("MISSING_CURRENT_PRICE")
     if tech.rsi_14 is None or tech.macd_line is None or tech.sma_50 is None:
         dq_score -= Decimal("30")
         warnings.append("INSUFFICIENT_TECHNICAL_HISTORY")
-    if tech.is_stale:
+    if getattr(tech, 'is_stale', False):
         dq_score -= Decimal("20")
         warnings.append("STALE_MARKET_DATA")
-    if news.is_mock:
+    if getattr(news, 'is_mock', False):
         dq_score -= Decimal("10")
         warnings.append("LOW_DATA_QUALITY_MOCK_NEWS")
 
     dq_score = clamp_score(dq_score)
+    
+    if dq_score < Decimal("50") or tech.current_price is None or tech.current_price == Decimal("0"):
+        return DecisionResult(
+            instrument_id=instrument_id,
+            horizon=horizon,
+            as_of=datetime.now(UTC),
+            data_quality_score=dq_score,
+            overall_market_score=Decimal("0"),
+            tech_score=Decimal("0"),
+            fund_score=Decimal("0"),
+            news_score=Decimal("0"),
+            portfolio_fit_score=Decimal("0") if portfolio_fit else None,
+            market_view=DecisionAction.INSUFFICIENT_DATA,
+            personal_action=DecisionAction.INSUFFICIENT_DATA if portfolio_fit else None,
+            reason_codes=["INSUFFICIENT_DATA"],
+            warnings=warnings,
+            missing_data=True,
+            engine_version="v2.0"
+        )
 
     # 2. Technical Score
     tech_score = Decimal("50")

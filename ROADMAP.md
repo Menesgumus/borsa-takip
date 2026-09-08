@@ -332,3 +332,10 @@ KanÃ„Â±t kaydÃ„Â± komut + cwd + tarih + commit/snapshot + ortam/datase
 Phase 0 baÃ…Å¸langÃ„Â±cÃ„Â± iÃƒÂ§in bilinen ÃƒÂ¼rÃƒÂ¼n/mimari blocker yoktur. KullanÃ„Â±cÃ„Â±nÃ„Â±n Docker'Ã„Â± aÃƒÂ§masÃ„Â±ndan sonra daemon salt okunur sorgusu baÃ…Å¸arÃ„Â±lÃ„Â±dÃ„Â±r (GAP E12). pnpm ÃƒÂ§alÃ„Â±Ã…Å¸Ã„Â±r; npm launcher hatasÃ„Â± nedeniyle plan pnpm'i ÃƒÂ¶nerir. uv kurulumu, dependency compatibility/registry, gerÃƒÂ§ek Compose, Git remote/CI eriÃ…Å¸imi implementation gÃƒÂ¶revlerinde doÃ„Å¸rulanacaktÃ„Â±r.
 
 GerÃƒÂ§ek CI yeÃ…Å¸il sonucu olmadan Phase 0 kapanamaz. GerÃƒÂ§ek BIST/KAP/EVDS/haber kaynaÃ„Å¸Ã„Â± izinleri ilgili adapter aktivasyonundan ÃƒÂ¶nce; chart lisansÃ„Â± Phase 4'ten ÃƒÂ¶nce; point-in-time veri Phase 15 gate'inden ÃƒÂ¶nce doÃ„Å¸rulanÃ„Â±r. Public/commercial launch Ã‚Â§75 kanÃ„Â±tlarÃ„Â± tamamlanana kadar **BLOCKED**'dÃ„Â±r; bu durum local Phase 0 baÃ…Å¸langÃ„Â±cÃ„Â±nÃ„Â± engellemez.
+ 
+ # # #   P O S T - V 1   I M P R O V E M E N T S  
+ -   * * P H A S E   2 1 : * *   R e a l   M a r k e t   D a t a   I n t e g r a t i o n   &   U I / U X   O v e r h a u l   ( v 1 . 0 . 1 )  
+     -   R e a l   B I S T 1 0 0   i n s t r u m e n t s ,   Y a h o o   F i n a n c e   w i r i n g ,   t r u e   h i s t o r i c a l   c h a r t s .  
+     -   F i n t e c h - g r a d e   g l o b a l   n a v i g a t i o n ,   r e a l   d a s h b o a r d ,   h o n e s t   d a t a   s t a t e   r e p r e s e n t a t i o n .  
+     -   C o m p l e t e   r e p l a c e m e n t   o f   m o c k   d a t a   w i t h   r e a l   d a t a   A P I s   o r   e x p l i c i t   U N A V A I L A B L E   s t a t e s .  
+ 

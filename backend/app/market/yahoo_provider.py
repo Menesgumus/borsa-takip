@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime
@@ -100,6 +100,8 @@ class YahooFinanceProvider(MarketDataProvider):
                 source_name=self.name,
                 freshness_seconds=(datetime.now(UTC) - timestamp).total_seconds(),
                 is_stale=False,
+                data_state="DELAYED",
+                is_mock=False,
             )
         except (KeyError, IndexError, TypeError, ValueError, ValidationError) as e:
             raise ProviderUnavailableError(self.name, f"Failed to parse response: {e}") from e
@@ -209,6 +211,8 @@ class YahooFinanceProvider(MarketDataProvider):
                         source_name=self.name,
                         freshness_seconds=0.0,
                         is_stale=False,
+                        data_state="EOD",
+                        is_mock=False,
                     )
                 )
             return quotes

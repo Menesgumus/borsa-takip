@@ -19,8 +19,12 @@ def override_dependencies():
     app.dependency_overrides.clear()
 
 
+from app.market.registry import registry
+from app.market.mock_provider import MockMarketDataProvider
+
 @pytest.fixture
 async def setup_instruments():
+    registry.register(MockMarketDataProvider(), is_primary=True)
     async with async_session_maker() as db_session:
         # cleanup first
         await db_session.execute(text("TRUNCATE TABLE instruments CASCADE"))

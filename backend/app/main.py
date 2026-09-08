@@ -13,9 +13,22 @@ from app.core.redis import redis_client
 from app.db.session import engine
 
 
+from app.market.registry import registry
+from app.market.yahoo_provider import YahooFinanceProvider
+from app.market.mock_provider import MockMarketDataProvider
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Startup resource initialization
+    yahoo_provider = YahooFinanceProvider()
+    
+    if settings.ENABLE_MOCK_MARKET_DATA:
+        mock_provider = MockMarketDataProvider()
+        registry.register(mock_provider, is_primary=True)
+        registry.register(yahoo_provider, is_primary=False)
+    else:
+        registry.register(yahoo_provider, is_primary=True)
+
     yield
     # Shutdown resource cleanup
     await redis_client.aclose()

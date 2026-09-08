@@ -1,4 +1,4 @@
-﻿import random
+import random
 import uuid
 
 import pytest
@@ -36,7 +36,7 @@ async def test_get_instrument_decision():
         assert res.status_code == 200
         data = res.json()
         assert "overall_market_score" in data
-        assert data["market_view"] in ["STRONG_BUY", "BUY", "HOLD", "SELL", "STRONG_SELL"]
+        assert data["market_view"] in ["STRONG_BUY", "BUY", "HOLD", "SELL", "STRONG_SELL", "INSUFFICIENT_DATA"]
         assert data["personal_action"] is None
 
         # Try with a mocked portfolio_id

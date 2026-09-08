@@ -9,14 +9,16 @@ from app.services.scanner import scan_opportunities
 
 @pytest.mark.asyncio
 async def test_scanner_same_instrument_different_portfolios():
+    import random
+    user_id = random.randint(100000, 999999)
     async with async_session_maker() as db:
-        user = User(id=101010, email="scan@example.com", password_hash="xx")
+        user = User(id=user_id, email=f"scan_{user_id}@example.com", password_hash="xx")
         db.add(user)
         await db.commit()
 
         inst = Instrument(symbol=f"SC_{uuid.uuid4().hex[:4]}", name="A", exchange="BIST", instrument_type=InstrumentType.STOCK)
-        p1 = Portfolio(user_id=101010, name="Safe", portfolio_type="REAL")
-        p2 = Portfolio(user_id=101010, name="Aggressive", portfolio_type="REAL")
+        p1 = Portfolio(user_id=user_id, name="Safe", portfolio_type="REAL")
+        p2 = Portfolio(user_id=user_id, name="Aggressive", portfolio_type="REAL")
         db.add_all([inst, p1, p2])
         await db.commit()
         await db.refresh(p1)

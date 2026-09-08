@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.api.v1.endpoints.auth import get_current_user
@@ -12,7 +12,11 @@ async def override_get_current_user():
 @pytest.fixture(autouse=True)
 def override_dependencies():
     app.dependency_overrides[get_current_user] = override_get_current_user
+    from app.core.config import settings
+    orig_mock = settings.ENABLE_MOCK_MARKET_DATA
+    settings.ENABLE_MOCK_MARKET_DATA = True
     yield
+    settings.ENABLE_MOCK_MARKET_DATA = orig_mock
     app.dependency_overrides.clear()
 
 @pytest.mark.asyncio

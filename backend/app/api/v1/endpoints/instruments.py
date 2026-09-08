@@ -14,7 +14,6 @@ from app.db.models import Instrument, OHLCVDaily, User
 from app.db.session import get_db_session
 from app.market.dto import QuoteDTO
 from app.market.exceptions import ProviderUnavailableError
-from app.market.mock_provider import MockMarketDataProvider
 from app.market.registry import registry
 from app.schemas.decision import (
     DecisionResult,
@@ -30,10 +29,6 @@ from app.services.decision_engine import evaluate_decision
 from app.services.technical_data import get_technical_analysis
 
 router = APIRouter()
-
-# Register mock provider at startup
-mock_provider = MockMarketDataProvider()
-registry.register(mock_provider, is_primary=True)
 
 
 @router.get("", response_model=InstrumentsPaginated)
@@ -151,12 +146,26 @@ async def get_instrument_quote(
 @router.get("/{symbol}/history", response_model=list[OHLCVDailyResponse])
 async def get_instrument_history(
     symbol: str,
+    period: str | None = Query(None, description="E.g., 1M, 3M, 6M, 1Y"),
     start_date: datetime | None = Query(None),  # noqa: B008
     end_date: datetime | None = Query(None),  # noqa: B008
     current_user: User = Depends(get_current_user),  # noqa: B008
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> Any:
     """Get historical OHLCV data from the database."""
+    from datetime import timedelta, UTC
+    
+    if period and not start_date:
+        end_date = end_date or datetime.now(UTC)
+        if period.upper() == "1M":
+            start_date = end_date - timedelta(days=30)
+        elif period.upper() == "3M":
+            start_date = end_date - timedelta(days=90)
+        elif period.upper() == "6M":
+            start_date = end_date - timedelta(days=180)
+        elif period.upper() == "1Y":
+            start_date = end_date - timedelta(days=365)
+            
     result = await db.execute(
         select(Instrument).where(Instrument.symbol == symbol, Instrument.is_active.is_(True))
     )
@@ -211,18 +220,25 @@ async def get_instrument_context(
     current_user: User = Depends(get_current_user)
 ):
     """Get Fundamentals, KAP, News, and Macro context."""
-    news_provider = MockNewsProvider()
+    from app.core.config import settings
+    
+    news = []
+    if settings.ENABLE_MOCK_MARKET_DATA:
+        from app.market.context_providers.mock_news_provider import MockNewsProvider
+        news_provider = MockNewsProvider()
+        news = await news_provider.get_latest_news(symbol)
+
+    from app.market.context_providers.evds_provider import EVDSProvider
+    from app.market.context_providers.kap_provider import KAPProvider
     kap_provider = KAPProvider()
     evds_provider = EVDSProvider()
 
-    news = await news_provider.get_latest_news(symbol)
-    kap = await kap_provider.get_latest_disclosures(symbol)
-
+    disclosures = await kap_provider.get_latest_disclosures(symbol)
     # Example macro: USD/TRY
     macro = await evds_provider.get_macro_series(["TP.DK.USD.S.YTL"])
 
     availability = {
-        "news": await news_provider.is_available(),
+        "news": await news_provider.is_available() if 'news_provider' in locals() else False,
         "kap": await kap_provider.is_available(),
         "evds": await evds_provider.is_available(),
         "fundamentals": False
@@ -234,7 +250,7 @@ async def get_instrument_context(
         freshness="LIVE" if any(availability.values()) else "STALE",
         availability=availability,
         fundamentals=[],
-        disclosures=kap,
+        disclosures=disclosures,
         news=news,
         macro=macro
     )
@@ -259,16 +275,29 @@ async def get_instrument_decision(
     context = await get_instrument_context(symbol, db, current_user)
 
     # 1. Technical Inputs
-    # For Phase 10 we mock technical signals if DB doesn't have them, since Phase 05 Technical Engine exists but
-    # we need its output here.
-    tech = TechnicalInputs(
-        current_price=Decimal("150"), # Mocked for now, integration with Phase 05 required for real
-        rsi_14=Decimal("50"),
-        macd_line=Decimal("0"),
-        macd_signal=Decimal("0"),
-        sma_50=Decimal("140"),
-        sma_200=Decimal("130")
-    )
+    try:
+        from app.services.technical_data import get_technical_analysis
+        tech_response = await get_technical_analysis(db, symbol)
+        if not tech_response.indicators:
+            tech = TechnicalInputs(current_price=None, rsi_14=None, macd_line=None, macd_signal=None, sma_50=None, sma_200=None)
+        else:
+            latest = tech_response.indicators[-1]
+            tech = TechnicalInputs(
+                current_price=Decimal(str(latest.close)) if hasattr(latest, 'close') else Decimal("0"),
+                rsi_14=Decimal(str(latest.rsi_14)) if latest.rsi_14 is not None else None,
+                macd_line=Decimal(str(latest.macd_line)) if latest.macd_line is not None else None,
+                macd_signal=Decimal(str(latest.macd_signal)) if latest.macd_signal is not None else None,
+                sma_50=Decimal(str(latest.sma_20)) if latest.sma_20 is not None else None,
+                sma_200=Decimal(str(latest.sma_20)) if latest.sma_20 is not None else None
+            )
+            try:
+                quote = await registry.get_quote("yahoo", symbol)
+                tech.current_price = quote.price
+                tech.is_stale = quote.is_stale
+            except Exception:
+                pass
+    except Exception:
+        tech = TechnicalInputs(current_price=None, rsi_14=None, macd_line=None, macd_signal=None, sma_50=None, sma_200=None)
 
     # 2. Fundamental Inputs
     fund = FundamentalInputs(instrument_type=instrument.instrument_type.value)
