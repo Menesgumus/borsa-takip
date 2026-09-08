@@ -6,9 +6,10 @@
 ## Context Summary
 - We have completely isolated `MockMarketDataProvider` behind `ENABLE_MOCK_MARKET_DATA=False`.
 - Real canonical BIST100 instruments were seeded using `backend/app/scripts/seed_bist100.py`.
-- Historical daily data (up to 365 days) is synced successfully for 97/100 instruments using `backend/app/scripts/sync_history.py`.
+- Historical daily data (2 years coverage) is synced successfully for 97/100 instruments using `backend/app/scripts/sync_history.py`. 
+  - Missing: `IPEKE` (UNAVAILABLE / PROVIDER_ERROR - not found on Yahoo), `KOZAA` (UNAVAILABLE / PROVIDER_ERROR), `KOZAL` (UNAVAILABLE / PROVIDER_ERROR). These will operate in `INSUFFICIENT_DATA` mode gracefully.
 - The `get_instrument_decision` endpoint now uses real historical OHLCVDaily data to dynamically calculate RSI, MACD, SMA20.
-- If data is insufficient for calculation (e.g. newly listed or missing), the decision engine now falls back safely to `DecisionAction.INSUFFICIENT_DATA` (added via Alembic migration).
+- If data is insufficient for calculation (e.g. newly listed or missing), the decision engine now falls back safely to `DecisionState.INSUFFICIENT_DATA` and `DecisionAction.HOLD`.
 - All 121 backend API and unit tests pass with `ENABLE_MOCK_MARKET_DATA=True` enforced for the test environment context.
 
 ## Next Steps
