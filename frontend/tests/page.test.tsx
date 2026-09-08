@@ -1,14 +1,15 @@
-import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import Page from '../app/page';
 
+vi.mock('next/navigation', () => ({
+  redirect: vi.fn(),
+}));
+
+import { redirect } from 'next/navigation';
+
 describe('Page', () => {
-  it('renders a heading', async () => {
-    const pageElement = await Page();
-    render(pageElement);
-    const heading = screen.getByRole('heading', { level: 1 });
-    expect(heading).toBeDefined();
-    expect(heading.textContent).toBe('Borsa Takip');
+  it('redirects to dashboard', () => {
+    Page();
+    expect(redirect).toHaveBeenCalledWith('/dashboard');
   });
 });
