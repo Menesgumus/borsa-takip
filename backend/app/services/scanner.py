@@ -1,4 +1,4 @@
-﻿import datetime
+import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -19,11 +19,23 @@ async def scan_opportunities(db: AsyncSession, portfolio_id: int | None = None) 
     # 1. Fetch all active instruments
     i_res = await db.execute(select(Instrument).where(Instrument.is_active == True))
     instruments = i_res.scalars().all()
+    inst_ids = [inst.id for inst in instruments]
 
     portfolio = None
     if portfolio_id:
         p_res = await db.execute(select(Portfolio).where(Portfolio.id == portfolio_id))
         portfolio = p_res.scalars().first()
+        
+    # Bulk fetch fundamentals (latest per instrument) to avoid N+1
+    f_res = await db.execute(
+        select(FundamentalData)
+        .where(FundamentalData.instrument_id.in_(inst_ids))
+        .order_by(FundamentalData.instrument_id, FundamentalData.id.desc())
+    )
+    fundamentals = {}
+    for f in f_res.scalars().all():
+        if f.instrument_id not in fundamentals:
+            fundamentals[f.instrument_id] = f
 
     results = []
 
@@ -36,8 +48,8 @@ async def scan_opportunities(db: AsyncSession, portfolio_id: int | None = None) 
         tech = TechnicalInputs()
         fund = FundamentalInputs()
         news = NewsInputs()
-        f_res = await db.execute(select(FundamentalData).where(FundamentalData.instrument_id == inst.id).order_by(FundamentalData.id.desc()).limit(1))
-        f_db = f_res.scalars().first()
+        
+        f_db = fundamentals.get(inst.id)
         if f_db:
             if f_db.pe_ratio: fund.pe_ratio = f_db.pe_ratio
             if f_db.pb_ratio: fund.pb_ratio = f_db.pb_ratio

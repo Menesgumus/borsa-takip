@@ -45,6 +45,15 @@ async def list_instruments(
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> Any:
     """List and search instruments (read-only, public data)."""
+    import json
+    from app.core.redis import redis_client
+    
+    cache_key = f"instruments:paginated:{page}:{size}:{search or ''}"
+    cached_data = await redis_client.get(cache_key)
+    if cached_data:
+        from fastapi.responses import Response
+        return Response(content=cached_data, media_type="application/json")
+
     offset = (page - 1) * size
 
     stmt = select(Instrument).where(Instrument.is_active.is_(True))
@@ -64,12 +73,16 @@ async def list_instruments(
     result = await db.execute(stmt)
     items = result.scalars().all()
 
-    return {
-        "items": items,
-        "total": total,
-        "page": page,
-        "size": size,
-    }
+    from app.schemas.instrument import InstrumentsPaginated
+    response_data = InstrumentsPaginated(
+        items=items,
+        total=total,
+        page=page,
+        size=size
+    )
+    
+    await redis_client.set(cache_key, response_data.model_dump_json(), ex=60)
+    return response_data
 
 
 @router.get("/{symbol}", response_model=InstrumentResponse)
