@@ -1,4 +1,4 @@
-﻿import random
+import random
 import uuid
 
 import pytest
@@ -39,19 +39,19 @@ async def test_opportunities_scanner_api():
         app.dependency_overrides[get_current_user] = override_get_current_user
 
         # 1. No portfolio
-        res = await client.get("/api/v1/opportunities/")
+        res = await client.get("/api/v1/opportunities")
         assert res.status_code == 200
         data = res.json()
         assert len(data) >= 2
         # Check sorting: missing_data is probably true for these new ones, so raw_score matters less, but symbol ASC tie-breaker
 
         # 2. With portfolio
-        res2 = await client.get(f"/api/v1/opportunities/?portfolio_id={p_id}")
+        res2 = await client.get(f"/api/v1/opportunities?portfolio_id={p_id}")
         assert res2.status_code == 200
         data2 = res2.json()
         # Ensure user_fit logic ran (even if missing_data fallback triggered)
         assert "user_fit_score" in data2[0]
 
         # 3. IDOR test portfolio
-        res_idor = await client.get("/api/v1/opportunities/?portfolio_id=9999999")
+        res_idor = await client.get("/api/v1/opportunities?portfolio_id=9999999")
         assert res_idor.status_code == 404
