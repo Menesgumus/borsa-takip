@@ -247,7 +247,7 @@ async def get_instrument_context(
     return ContextResponse(
         symbol=symbol,
         fetched_at=datetime.now(UTC),
-        freshness="LIVE" if any(availability.values()) else "STALE",
+        freshness="DELAYED" if any(availability.values()) else "STALE",
         availability=availability,
         fundamentals=[],
         disclosures=disclosures,

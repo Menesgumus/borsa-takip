@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 from datetime import datetime
 from typing import cast
 
@@ -88,7 +88,7 @@ async def get_technical_analysis(
 
     return TechnicalAnalysisResponse(
         symbol=symbol,
-        freshness="LIVE",
+        freshness="DELAYED",
         indicators=indicators,
         support_resistance=sr_dtos,
         patterns=pattern_dtos

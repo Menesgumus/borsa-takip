@@ -1,4 +1,4 @@
-﻿from datetime import UTC, datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from app.schemas.risk import LimitViolation, PortfolioRiskMetrics, PositionExposure
@@ -101,7 +101,7 @@ def calculate_portfolio_risk(
         positions_exposure=positions_exposure,
         limit_violations=violations,
         calculated_at=datetime.now(UTC),
-        data_freshness="STALE" if is_stale else "LIVE",
+        data_freshness="STALE" if is_stale else "DELAYED",
         coverage_percentage=coverage
     )
 

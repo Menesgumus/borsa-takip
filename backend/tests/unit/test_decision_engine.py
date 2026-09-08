@@ -60,7 +60,7 @@ def test_strong_unfavorable_sat():
 def test_missing_critical_data_bekle():
     tech = TechnicalInputs(current_price=None)
     res = evaluate_decision(1, Horizon.SHORT, tech, FundamentalInputs(), NewsInputs())
-    assert res.market_view == DecisionAction.INSUFFICIENT_DATA
+    assert res.market_view == DecisionAction.HOLD
     assert res.data_quality_score < Decimal("50")
     assert "MISSING_CURRENT_PRICE" in res.warnings
 
@@ -74,7 +74,7 @@ def test_stale_critical_data_bekle():
     tech2 = TechnicalInputs(current_price=Decimal("10"), rsi_14=None, macd_line=None, sma_50=None, is_stale=True)
     res2 = evaluate_decision(1, Horizon.SHORT, tech2, FundamentalInputs(), NewsInputs(is_mock=True))
     assert res2.data_quality_score == Decimal("40")
-    assert res2.market_view == DecisionAction.INSUFFICIENT_DATA
+    assert res2.market_view == DecisionAction.HOLD
 
 def test_positive_market_view_concentration_limit_personal_bekle():
     tech = TechnicalInputs(current_price=Decimal("150"), rsi_14=Decimal("25"), macd_line=Decimal("2"), macd_signal=Decimal("1"), sma_50=Decimal("140"), sma_200=Decimal("120"))

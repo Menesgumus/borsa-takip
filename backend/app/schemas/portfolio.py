@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 from decimal import Decimal
 
 from pydantic import BaseModel
@@ -58,7 +58,7 @@ class PortfolioSummaryDTO(BaseModel):
     total_realized_pnl: Decimal
     total_unrealized_pnl: Decimal | None = None
     total_market_value: Decimal | None = None
-    market_data_freshness: str = "LIVE"
+    market_data_freshness: str = "DELAYED"
     positions: list[PositionDTO]
 from datetime import datetime
 

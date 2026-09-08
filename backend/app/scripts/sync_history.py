@@ -13,7 +13,7 @@ from app.market.yahoo_provider import YahooFinanceProvider
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-async def sync_history(days: int = 365):
+async def sync_history(days: int = 730):
     # Ensure Yahoo provider is registered
     yahoo = YahooFinanceProvider()
     registry.register(yahoo, is_primary=True)
@@ -38,6 +38,7 @@ async def sync_history(days: int = 365):
         for inst_id, symbol, provider_symbol in instruments:
             logger.info(f"Syncing history for {symbol} via {provider_symbol}...")
             try:
+                # We now fetch 2 years of history to ensure we have ~500 trading bars for SMA200+ math
                 quotes = await registry.get_provider("yahoo").get_historical_quotes(
                     symbol=provider_symbol,
                     start_date=start_date,

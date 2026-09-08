@@ -336,7 +336,11 @@ class DecisionAction(enum.StrEnum):
     HOLD = "HOLD"
     SELL = "SELL"
     STRONG_SELL = "STRONG_SELL"
+
+class DecisionState(enum.StrEnum):
+    AVAILABLE = "AVAILABLE"
     INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
+    UNAVAILABLE = "UNAVAILABLE"
 
 class DecisionSnapshot(Base):
     __tablename__ = "decision_snapshots"
@@ -344,6 +348,7 @@ class DecisionSnapshot(Base):
     id = Column(Integer, primary_key=True, index=True)
     instrument_id = Column(Integer, ForeignKey("instruments.id"), nullable=False, index=True)
     action = Column(Enum(DecisionAction), nullable=False)
+    decision_state = Column(Enum(DecisionState), nullable=False, server_default="AVAILABLE")
 
     score = Column(Numeric(10, 4), nullable=False) # Normalized score -1.0 to 1.0
     engine_version = Column(String, nullable=False) # e.g. "v1.0"

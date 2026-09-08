@@ -36,7 +36,8 @@ async def test_get_instrument_decision():
         assert res.status_code == 200
         data = res.json()
         assert "overall_market_score" in data
-        assert data["market_view"] in ["STRONG_BUY", "BUY", "HOLD", "SELL", "STRONG_SELL", "INSUFFICIENT_DATA"]
+        assert data["market_view"] == "HOLD"
+        assert data.get("decision_state") == "INSUFFICIENT_DATA"
         assert data["personal_action"] is None
 
         # Try with a mocked portfolio_id
@@ -48,4 +49,4 @@ async def test_get_instrument_decision():
         p_data = res_pers.json()
         # Portfolio Fit is returned
         assert p_data["portfolio_fit_score"] is not None
-        assert p_data["personal_action"] is not None
+        assert p_data["personal_action"] == "HOLD"

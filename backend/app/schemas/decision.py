@@ -1,4 +1,4 @@
-﻿import enum
+import enum
 from datetime import datetime
 from decimal import Decimal
 
@@ -51,6 +51,7 @@ class DecisionResult(BaseModel):
     overall_market_score: Decimal                 # 0-100
     overall_personal_score: Decimal | None = None # 0-100
 
+    decision_state: str = "AVAILABLE"
     market_view: DecisionAction
     personal_action: DecisionAction | None = None
 

@@ -58,7 +58,7 @@ async def test_get_technical_analysis():
     data = response.json()
 
     assert data["symbol"] == sym
-    assert data["freshness"] == "LIVE"
+    assert data["freshness"] == "DELAYED"
     assert len(data["indicators"]) == 50
 
     # Check that SMA is populated correctly

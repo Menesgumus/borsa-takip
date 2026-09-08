@@ -194,7 +194,7 @@ async def get_portfolio_summary(
         total_realized_pnl=state.total_realized_pnl,
         total_unrealized_pnl=None if not all_prices_live else total_unrealized,
         total_market_value=None if not all_prices_live else total_market_value,
-        market_data_freshness="STALE" if not all_prices_live else "LIVE",
+        market_data_freshness="STALE" if not all_prices_live else "DELAYED",
         positions=pos_dtos
     )
 
