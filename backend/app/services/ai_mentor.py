@@ -39,14 +39,14 @@ class MentorContext(BaseModel):
 
 _EDUCATION_KB: dict[str, str] = {
     "rsi": (
-        "RSI (Goreceli Guc Endeksi / Relative Strength Index): 0-100 arasi bir momentum "
-        "gostergesidir. 70'in uzerinde asiri alim (overbought), 30'un altinda asiri satim "
+        "RSI (Göreceli Güç Endeksi / Relative Strength Index): 0-100 arasi bir momentum "
+        "göstergesidir. 70'in uzerinde asiri alim (overbought), 30'un altinda asiri satim "
         "(oversold) sinyali verir. RSI14 en yaygin kullanilan parametredir (14 gunluk)."
     ),
     "macd": (
         "MACD (Hareketli Ortalama Yakinsamasi/Uzaklasmasi): Kisa vadeli EMA (12 gun) ile uzun "
         "vadeli EMA (26 gun) arasindaki farktir. Sinyal cizgisini (9 gunluk EMA) yukari kesmesi "
-        "alis, asagi kesmesi satis sinyali verir. Histogram, MACD ile sinyal cizgisi arasindaki "
+        "alış, asagi kesmesi satış sinyali verir. Histogram, MACD ile sinyal cizgisi arasindaki "
         "farki gosterir."
     ),
     "sma": (
@@ -70,19 +70,19 @@ _EDUCATION_KB: dict[str, str] = {
         "destekler; dusuk hacimde olusan fiyat hareketleri daha az guvenilirdir."
     ),
     "stop loss": (
-        "Stop-Loss (Zarar Kes): Yatirimcinin maksimum kayip limitini belirleyen otomatik satis "
+        "Stop-Loss (Zarar Kes): Yatirimcinin maksimum kayip limitini belirleyen otomatik satış "
         "emridir. Risk yonetiminin temelidir. Ornek: Hisseyi 100 TL'ye alan yatirimci %10 "
-        "stop-loss koyarsa 90 TL'de otomatik satis emri aktif olur."
+        "stop-loss koyarsa 90 TL'de otomatik satış emri aktif olur."
     ),
     "teknik analiz": (
         "Teknik Analiz: Gecmis fiyat ve hacim verilerini kullanarak gelecekteki fiyat "
-        "hareketlerini tahmin etmeye calisan analiz yontemidir. Grafik desenleri, osilatörler "
+        "hareketlerini tahmin etmeye çalışan analiz yontemidir. Grafik desenleri, osilatörler "
         "ve hareketli ortalamalar temel araclaridir."
     ),
     "temel analiz": (
         "Temel Analiz (Fundamental Analysis): Sirketin finansal tablolari, buyume beklentileri, "
         "rekabetci konumu ve makroekonomik faktorleri degerlendirerek icsel degerini bulmaya "
-        "calisan yontemdir."
+        "çalışan yontemdir."
     ),
     "f/k": (
         "F/K (Fiyat/Kazanc) Orani (P/E Ratio): Hisse fiyatinin hisse basina kazanca (EPS) "
@@ -102,7 +102,7 @@ _EDUCATION_KB: dict[str, str] = {
     "dividan": (
         "Dividan (Temettü): Sirketin karinin bir kismini hissedarlara dagitmasi. Yil ici "
         "temettü verimi, hisse fiyatina bolunur. Temettü odeme gelecekteki nakit akisi "
-        "guvenilirliginin gostergesidir."
+        "guvenilirliginin göstergesidir."
     ),
     "portfoy": (
         "Portfoy: Yatirimcinin sahip oldugu tumuyle finansal varliklarin topluludugudur. "
@@ -198,7 +198,7 @@ class MockMentorProvider(BaseMentorProvider):
                 risks=[],
                 data_quality_note=None,
                 learning_points=[
-                    "AI saglayicisi bagli degil; deterministik egitim modunda calisiyorum.",
+                    "AI saglayicisi bagli degil; deterministik egitim modunda çalışiyorum.",
                     "Gercek AI yaniti icin OPENAI_API_KEY ve USE_MOCK_MENTOR=false ayarlayin.",
                 ],
                 action=None,
@@ -229,7 +229,7 @@ class MockMentorProvider(BaseMentorProvider):
                 ),
                 learning_points=[
                     f"Aciklama seviyesi: {level}",
-                    "AI saglayicisi bagli olmadigi icin deterministik modda calisiyorum.",
+                    "AI saglayicisi bagli olmadigi icin deterministik modda çalışiyorum.",
                     "Gercek AI analizi icin OPENAI_API_KEY ve USE_MOCK_MENTOR=false ayarlayin.",
                 ],
                 action=action_str,
@@ -252,7 +252,7 @@ class MockMentorProvider(BaseMentorProvider):
                 "USE_MOCK_MENTOR=true - Gercek AI yaniti icin OPENAI_API_KEY "
                 "ve USE_MOCK_MENTOR=false ayarlayin."
             ),
-            learning_points=["Su an deterministik fallback modunda calisiyorum."],
+            learning_points=["Su an deterministik fallback modunda çalışiyorum."],
             action=None,
             synthetic=True,
         )

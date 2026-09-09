@@ -1,4 +1,3 @@
-import sys
 content = open('app/api/v1/endpoints/instruments.py', encoding='utf-8').read()
 new_endpoint = '''
 @router.get("/quotes/batch", response_model=dict[str, QuoteDTO])

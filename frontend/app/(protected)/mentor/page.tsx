@@ -12,7 +12,7 @@ interface ParsedMentorResponse {
   risks: string[];
   data_quality_note?: string | null;
   learning_points: string[];
-  action: string;
+  action?: string | null;
   synthetic: boolean;
 }
 
@@ -65,7 +65,7 @@ function AssistantBubble({ msg }: { msg: Message }) {
         </div>
         <div className="space-y-3 max-w-[85%]">
           {/* Action badge */}
-          {p.action && (
+          {p.action && p.response_kind === 'DECISION' && (
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${actionColor}`}>
               {actionLabel}
             </span>
@@ -240,13 +240,6 @@ export default function MentorPage() {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend(input);
-    }
-  };
-
   const lastMessage = messages[messages.length - 1];
   const isLastDecision = lastMessage?.role === 'assistant' && lastMessage?.parsed?.response_kind === 'DECISION';
   const currentSuggestions = isLastDecision ? [
@@ -373,20 +366,18 @@ export default function MentorPage() {
       </div>
 
       {/* Suggestions */}
-      {messages.length <= 1 && (
-        <div className="flex flex-wrap gap-2 mb-3">
-          {SUGGESTIONS.map((s) => (
-            <button
-              key={s}
-              onClick={() => handleSend(s)}
-              disabled={!threadId || loading}
-              className="px-3 py-1.5 text-sm text-navy-700 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="flex flex-wrap gap-2 mb-3">
+        {currentSuggestions.map((s) => (
+          <button
+            key={s}
+            onClick={() => handleSend(s)}
+            disabled={!threadId || loading}
+            className="px-3 py-1.5 text-sm text-navy-700 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {s}
+          </button>
+        ))}
+      </div>
 
       {/* Input */}
       <div className="border-t border-slate-200 pt-4">

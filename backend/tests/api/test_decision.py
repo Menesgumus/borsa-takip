@@ -41,7 +41,7 @@ async def test_get_instrument_decision():
         assert data["personal_action"] is None
 
         # Try with a mocked portfolio_id
-        res2 = await client.post("/api/v1/portfolios/", json={"name": "P1", "portfolio_type": "REAL"})
+        res2 = await client.post("/api/v1/portfolios", json={"name": "P1", "portfolio_type": "REAL"})
         p_id = res2.json()["id"]
 
         res_pers = await client.get(f"/api/v1/instruments/{symbol}/decision?portfolio_id={p_id}")

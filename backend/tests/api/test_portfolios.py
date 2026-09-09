@@ -38,7 +38,7 @@ async def test_portfolio_lifecycle_and_accounting():
         inst_id = inst.id
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        res = await client.post("/api/v1/portfolios/", json={"name": "My Paper", "portfolio_type": "PAPER"})
+        res = await client.post("/api/v1/portfolios", json={"name": "My Paper", "portfolio_type": "PAPER"})
         assert res.status_code == 200
         p_id = res.json()["id"]
 
@@ -104,7 +104,7 @@ async def test_portfolio_idor():
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         app.dependency_overrides[get_current_user] = override_get_current_user
-        res = await client.post("/api/v1/portfolios/", json={"name": "My Paper IDOR", "portfolio_type": "PAPER"})
+        res = await client.post("/api/v1/portfolios", json={"name": "My Paper IDOR", "portfolio_type": "PAPER"})
         p_id = res.json()["id"]
 
         app.dependency_overrides[get_current_user] = override_get_current_user2
@@ -129,7 +129,7 @@ async def test_portfolio_journal():
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         app.dependency_overrides[get_current_user] = override_get_current_user
-        res = await client.post("/api/v1/portfolios/", json={"name": "Journal Test", "portfolio_type": "REAL"})
+        res = await client.post("/api/v1/portfolios", json={"name": "Journal Test", "portfolio_type": "REAL"})
         p_id = res.json()["id"]
 
         # Add Journal
@@ -168,7 +168,7 @@ async def test_portfolio_risk_and_whatif():
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         app.dependency_overrides[get_current_user] = override_get_current_user
-        res = await client.post("/api/v1/portfolios/", json={"name": "Risk Test", "portfolio_type": "REAL"})
+        res = await client.post("/api/v1/portfolios", json={"name": "Risk Test", "portfolio_type": "REAL"})
         p_id = res.json()["id"]
 
         await client.post(f"/api/v1/portfolios/{p_id}/transactions", json={

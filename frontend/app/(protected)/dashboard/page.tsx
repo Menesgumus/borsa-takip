@@ -48,12 +48,12 @@ function QuoteCard({ symbol, name }: { symbol: string; name: string }) {
         </div>
       ) : isError ? (
         <div className="text-danger-500 text-sm flex items-center gap-1">
-          <AlertCircle size={14} /> Veri alÄ±namadÄ±
+          <AlertCircle size={14} /> Veri alınamadı
         </div>
       ) : quote ? (
         <div>
           <div className="text-2xl font-semibold text-navy-900 mb-1">
-            {Number((quote as any).price).toFixed(2)} â‚º
+            {Number((quote as any).price).toFixed(2)} ₺
           </div>
           <div className={`text-sm font-medium flex items-center gap-1 ${
             Number((quote as any).change_pct) >= 0 ? "text-success-600" : "text-danger-600"
@@ -91,14 +91,14 @@ export default function Dashboard() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 tracking-tight">GÃ¼nlÃ¼k Ã–zet</h1>
-          <p className="text-navy-700 mt-1">Piyasalar ve portfÃ¶y durumunuz.</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 tracking-tight">Günlük Özet</h1>
+          <p className="text-navy-700 mt-1">Piyasalar ve portföy durumunuz.</p>
         </div>
         
         {!isOnline && (
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm shrink-0">
             <WifiOff size={18} />
-            <span className="text-sm font-medium">Ã‡evrimdÄ±ÅŸÄ± (Eski Veri)</span>
+            <span className="text-sm font-medium">Çevrimdışı (Eski Veri)</span>
           </div>
         )}
       </div>
@@ -136,18 +136,18 @@ export default function Dashboard() {
             {(portfoliosData as any).map((p: any) => (
               <div key={p.id} className="bg-surface rounded-xl p-5 border border-navy-800/10 shadow-sm">
                 <h3 className="font-semibold text-navy-900">{p.name}</h3>
-                <p className="text-sm text-navy-700/60 mb-3">{p.portfolio_type === 'REAL' ? 'GerÃ§ek' : 'SimÃ¼lasyon'}</p>
+                <p className="text-sm text-navy-700/60 mb-3">{p.portfolio_type === 'REAL' ? 'Gerçek' : 'Simülasyon'}</p>
                 <div className="text-2xl font-bold text-navy-900">
-                  {p.total_market_value ? `${Number(p.total_market_value).toLocaleString('tr-TR')} â‚º` : '0,00 â‚º'}
+                  {p.total_market_value ? `${Number(p.total_market_value).toLocaleString('tr-TR')} ₺` : '0,00 ₺'}
                 </div>
               </div>
             ))}
           </div>
         ) : (
           <div className="bg-surface rounded-xl p-8 border border-navy-800/10 text-center shadow-sm">
-            <p className="text-navy-700 mb-4">HenÃ¼z bir portfÃ¶y oluÅŸturmadÄ±nÄ±z.</p>
+            <p className="text-navy-700 mb-4">Henüz bir portföy oluşturmadınız.</p>
             <Link href="/portfolios" className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
-              PortfÃ¶y OluÅŸtur
+              Portföy Oluştur
             </Link>
           </div>
         )}
@@ -158,10 +158,10 @@ export default function Dashboard() {
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-navy-900 flex items-center gap-2">
             <Activity className="text-primary-600" size={20} />
-            BIST 100 GÃ¶zlem
+            BIST 100 Gözlem
           </h2>
           <Link href="/markets" className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1">
-            TÃ¼m Piyasalar <ArrowRight size={16} />
+            Tüm Piyasalar <ArrowRight size={16} />
           </Link>
         </div>
 
@@ -171,7 +171,7 @@ export default function Dashboard() {
           </div>
         ) : isInstrumentsError ? (
           <div className="bg-red-50 text-red-600 rounded-xl p-5 border border-red-200 text-sm flex items-center gap-2">
-            <AlertCircle size={18} /> GÃ¶zlem listesi yÃ¼klenemedi.
+            <AlertCircle size={18} /> Gözlem listesi yüklenemedi.
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

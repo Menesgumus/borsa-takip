@@ -1,8 +1,11 @@
 import asyncio
+
 import yfinance as yf
 from sqlalchemy import select
-from app.db.session import async_session_maker
+
 from app.db.models import Instrument
+from app.db.session import async_session_maker
+
 
 async def main():
     async with async_session_maker() as session:

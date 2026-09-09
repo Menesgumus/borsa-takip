@@ -109,8 +109,8 @@ async def send_message(
 
             # Try to get live/delayed quote via canonical provider resolver (NO fake prices)
             try:
-                from app.services.provider_resolver import resolve_provider
                 from app.market.registry import registry
+                from app.services.provider_resolver import resolve_provider
                 resolved = resolve_provider(inst)
                 quote = await registry.get_quote(resolved.provider_name, resolved.provider_symbol)
                 ctx.current_price = quote.price

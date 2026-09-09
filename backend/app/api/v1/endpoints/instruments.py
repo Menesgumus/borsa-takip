@@ -23,7 +23,13 @@ from app.schemas.decision import (
     PortfolioFitInputs,
     TechnicalInputs,
 )
-from app.schemas.instrument import BatchQuoteItem, BatchQuoteResponse, InstrumentResponse, InstrumentsPaginated, OHLCVDailyResponse
+from app.schemas.instrument import (
+    BatchQuoteItem,
+    BatchQuoteResponse,
+    InstrumentResponse,
+    InstrumentsPaginated,
+    OHLCVDailyResponse,
+)
 from app.schemas.technical import TechnicalAnalysisResponse
 from app.services.decision_engine import evaluate_decision
 from app.services.technical_data import get_technical_analysis
@@ -145,8 +151,9 @@ async def get_instrument_quotes_batch(
             by_provider[resolved.provider_name].append(resolved.provider_symbol)
             symbol_map[resolved.provider_symbol] = inst.symbol
         except ProviderUnavailableError as e:
-            items[inst.symbol] = BatchQuoteItem(
-                symbol=inst.symbol, status="UNAVAILABLE", error_code=str(e)[:200]
+            sym_str = str(inst.symbol)
+            items[sym_str] = BatchQuoteItem(
+                symbol=sym_str, status="UNAVAILABLE", error_code=str(e)[:200]
             )
 
     # ── EXTERNAL I/O PHASE ───────────────────────────────────────────────────
@@ -174,7 +181,7 @@ async def get_instrument_quotes_batch(
                             status="UNAVAILABLE",
                             error_code="NOT_RETURNED_BY_PROVIDER",
                         )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             for ps in provider_symbols:
                 canonical = symbol_map.get(ps, ps)
                 items[canonical] = BatchQuoteItem(
