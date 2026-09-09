@@ -7,6 +7,20 @@ export class ApiError extends Error {
   }
 }
 
+export class NetworkError extends Error {
+  constructor(message: string = 'Ağ hatası oluştu.') {
+    super(message);
+    this.name = 'NetworkError';
+  }
+}
+
+export class RequestTimeoutError extends Error {
+  constructor(message: string = 'İstek zaman aşımına uğradı.') {
+    super(message);
+    this.name = 'RequestTimeoutError';
+  }
+}
+
 export async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   let baseUrl = '';
   if (typeof window === 'undefined') {
@@ -39,20 +53,26 @@ export async function fetchApi<T>(endpoint: string, options: RequestInit = {}): 
 
     const data = await response.json().catch(() => null);
 
-  if (!response.ok) {
-    throw new ApiError(
-      response.status,
-      data?.error?.message || data?.detail || 'Bilinmeyen bir API hatası oluştu',
-      data?.error?.code
-    );
-  }
+    if (!response.ok) {
+      throw new ApiError(
+        response.status,
+        data?.error?.message || data?.detail || 'Sunucu hatası oluştu',
+        data?.error?.code
+      );
+    }
 
-  return data as T;
+    return data as T;
   } catch (error: any) {
     clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
-      throw new Error('İstek zaman aşımına uğradı');
+    if (error instanceof ApiError) {
+      throw error;
     }
-    throw error;
+    if (error.name === 'AbortError') {
+      throw new RequestTimeoutError();
+    }
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new NetworkError();
+    }
+    throw new NetworkError(error.message);
   }
 }

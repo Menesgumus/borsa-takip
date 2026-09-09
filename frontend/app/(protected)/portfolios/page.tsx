@@ -9,7 +9,7 @@ import { ArrowRight, AlertCircle, Plus } from "lucide-react";
 export default function PortfolioOverviewPage() {
   const { data: portfolios, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["portfolios"],
-    queryFn: () => fetchApi("/api/v1/portfolios/"),
+    queryFn: () => fetchApi("/api/v1/portfolios"),
     staleTime: 30_000,
     retry: (failureCount: number, err: any) => {
       if (err?.status >= 400 && err?.status < 500) return false;
@@ -30,7 +30,7 @@ export default function PortfolioOverviewPage() {
     setIsCreating(true);
     setCreateError(null);
     try {
-      const data = await fetchApi("/api/v1/portfolios/", {
+      const data = await fetchApi("/api/v1/portfolios", {
         method: "POST",
         body: JSON.stringify({
           name: newPortName,
@@ -46,9 +46,9 @@ export default function PortfolioOverviewPage() {
     } catch (e: any) {
       console.error(e);
       if (e.status === 422) {
-        setCreateError("Lütfen geçerli bilgiler girin.");
+        setCreateError("LÃ¼tfen geÃ§erli bilgiler girin.");
       } else {
-        setCreateError(e.message || "Portföy oluşturulurken bir hata oluştu.");
+        setCreateError(e.message || "PortfÃ¶y oluÅŸturulurken bir hata oluÅŸtu.");
       }
     } finally {
       setIsCreating(false);
@@ -60,7 +60,7 @@ export default function PortfolioOverviewPage() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-navy-900/40 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-slate-100">
-            <h2 className="text-xl font-bold text-navy-900 mb-4">Yeni Portföy Ekle</h2>
+            <h2 className="text-xl font-bold text-navy-900 mb-4">Yeni PortfÃ¶y Ekle</h2>
             
             {createError && (
               <div className="mb-4 p-3 bg-danger-50 text-danger-700 border border-danger-200 rounded-lg text-sm font-medium">
@@ -70,24 +70,24 @@ export default function PortfolioOverviewPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-navy-700 mb-1">Portföy Adı</label>
+                <label className="block text-sm font-medium text-navy-700 mb-1">PortfÃ¶y AdÄ±</label>
                 <input 
                   type="text" 
                   value={newPortName}
                   onChange={(e) => setNewPortName(e.target.value)}
-                  placeholder="Örn: Uzun Vade Emeklilik" 
+                  placeholder="Ã–rn: Uzun Vade Emeklilik" 
                   className="w-full px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-navy-700 mb-1">Portföy Tipi</label>
+                <label className="block text-sm font-medium text-navy-700 mb-1">PortfÃ¶y Tipi</label>
                 <select 
                   value={newPortType}
                   onChange={(e) => setNewPortType(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                 >
-                  <option value="REAL">Gerçek</option>
-                  <option value="PAPER">Simülasyon (Sanal)</option>
+                  <option value="REAL">GerÃ§ek</option>
+                  <option value="PAPER">SimÃ¼lasyon (Sanal)</option>
                 </select>
               </div>
             </div>
@@ -98,14 +98,14 @@ export default function PortfolioOverviewPage() {
                 className="px-4 py-2 text-navy-700 hover:bg-slate-100 rounded-md text-sm font-medium transition-colors"
                 disabled={isCreating}
               >
-                İptal
+                Ä°ptal
               </button>
               <button 
                 onClick={handleCreate}
                 disabled={isCreating || !newPortName.trim()}
                 className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium transition-colors disabled:opacity-50"
               >
-                {isCreating ? "Oluşturuluyor..." : "Oluştur"}
+                {isCreating ? "OluÅŸturuluyor..." : "OluÅŸtur"}
               </button>
             </div>
           </div>
@@ -114,8 +114,8 @@ export default function PortfolioOverviewPage() {
 
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 tracking-tight">Portföylerim</h1>
-          <p className="text-navy-700 mt-1">Yatırımlarınızın güncel durumunu takip edin.</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 tracking-tight">PortfÃ¶ylerim</h1>
+          <p className="text-navy-700 mt-1">YatÄ±rÄ±mlarÄ±nÄ±zÄ±n gÃ¼ncel durumunu takip edin.</p>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
@@ -128,13 +128,20 @@ export default function PortfolioOverviewPage() {
       {isLoading ? (
         <div className="text-center py-12 text-slate-500 flex flex-col items-center gap-3">
           <div className="w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
-          Yükleniyor...
+          YÃ¼kleniyor...
         </div>
       ) : isError ? (
         <div className="text-center py-12 flex flex-col items-center gap-4">
           <AlertCircle className="text-danger-500" size={32} />
-          <div className="text-danger-700 font-medium">Portföy verileri alınamadı</div>
-          <div className="text-sm text-slate-500">{(error as any)?.message || "Lütfen daha sonra tekrar deneyin."}</div>
+          <div className="text-danger-700 font-medium">
+            {(error as any)?.name === 'RequestTimeoutError' ? 'Portföy verileri zamanında alınamadı.' :
+             (error as any)?.name === 'NetworkError' ? 'Portföy servisine şu anda ulaşılamıyor.' :
+             'Portföy verileri alınırken sunucu hatası oluştu.'}
+          </div>
+          <div className="text-sm text-slate-500">
+            {(error as any)?.message !== 'Ağ hatası oluştu.' && (error as any)?.message !== 'İstek zaman aşımına uğradı.' 
+              ? (error as any)?.message : "Lütfen daha sonra tekrar deneyin."}
+          </div>
           <button onClick={() => refetch()} className="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors">
             Tekrar Dene
           </button>
@@ -147,23 +154,23 @@ export default function PortfolioOverviewPage() {
                 <div>
                   <h3 className="text-lg font-bold text-navy-900 group-hover:text-primary-600 transition-colors">{p.name}</h3>
                   <span className="inline-block mt-1 px-2 py-0.5 bg-slate-100 text-slate-600 text-xs font-semibold rounded">
-                    {p.portfolio_type === 'REAL' ? 'GERÇEK' : p.portfolio_type === 'PAPER' ? 'SİMÜLASYON' : p.portfolio_type}
+                    {p.portfolio_type === 'REAL' ? 'GERÃ‡EK' : p.portfolio_type === 'PAPER' ? 'SÄ°MÃœLASYON' : p.portfolio_type}
                   </span>
                 </div>
                 <ArrowRight className="text-slate-300 group-hover:text-primary-600 transition-colors" />
               </div>
               
               <div className="space-y-1">
-                <span className="text-xs text-navy-700/60 font-medium">Toplam Değer</span>
+                <span className="text-xs text-navy-700/60 font-medium">Toplam DeÄŸer</span>
                 <div className="text-2xl font-bold text-navy-900">
-                  {p.total_market_value ? `${Number(p.total_market_value).toLocaleString('tr-TR')} ₺` : '0,00 ₺'}
+                  {p.total_market_value ? `${Number(p.total_market_value).toLocaleString('tr-TR')} â‚º` : '0,00 â‚º'}
                 </div>
               </div>
               
               <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-sm">
-                <span className="text-navy-700">Gerçekleşen K/Z</span>
+                <span className="text-navy-700">GerÃ§ekleÅŸen K/Z</span>
                 <span className={`font-semibold ${Number(p.total_realized_pnl) >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
-                  {Number(p.total_realized_pnl) > 0 ? '+' : ''}{Number(p.total_realized_pnl).toLocaleString('tr-TR')} ₺
+                  {Number(p.total_realized_pnl) > 0 ? '+' : ''}{Number(p.total_realized_pnl).toLocaleString('tr-TR')} â‚º
                 </span>
               </div>
             </Link>
@@ -172,10 +179,10 @@ export default function PortfolioOverviewPage() {
       ) : (
         <div className="bg-surface rounded-xl p-12 border border-navy-800/10 shadow-sm text-center max-w-2xl mx-auto">
           <BriefcaseIcon className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-navy-900 mb-2">Henüz Portföyünüz Yok</h2>
-          <p className="text-navy-700 mb-6">Yatırımlarınızı takip etmek için ilk portföyünüzü oluşturun. İsterseniz gerçek hesap, isterseniz risk almadan simülasyon hesabı açabilirsiniz.</p>
+          <h2 className="text-xl font-bold text-navy-900 mb-2">HenÃ¼z PortfÃ¶yÃ¼nÃ¼z Yok</h2>
+          <p className="text-navy-700 mb-6">YatÄ±rÄ±mlarÄ±nÄ±zÄ± takip etmek iÃ§in ilk portfÃ¶yÃ¼nÃ¼zÃ¼ oluÅŸturun. Ä°sterseniz gerÃ§ek hesap, isterseniz risk almadan simÃ¼lasyon hesabÄ± aÃ§abilirsiniz.</p>
           <button onClick={() => setIsModalOpen(true)} className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors shadow-sm">
-            İlk Portföyü Oluştur
+            Ä°lk PortfÃ¶yÃ¼ OluÅŸtur
           </button>
         </div>
       )}

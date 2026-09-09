@@ -40,6 +40,7 @@ export default function DecisionCard({ decision, symbol }: { decision: any, symb
       'RISK_LIMIT_EXCEEDED': 'Portföy konsantrasyon riski yüksek',
       'LOW_DATA_QUALITY': 'Veri kalitesi hesaplama için yetersiz',
       'INSUFFICIENT_DATA': 'Grafik geçmişi veya temel veriler yetersiz',
+      'NEWS_UNAVAILABLE': 'Haber verisi şu anda kullanılamıyor',
     };
     return map[code] || code;
   };
@@ -95,7 +96,7 @@ export default function DecisionCard({ decision, symbol }: { decision: any, symb
           </span>
         </div>
         <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-          <span className="text-xs text-slate-500 block">Veri Kalitesi</span>
+          <span className="text-xs text-slate-500 block">Piyasa/Teknik Veri Kalitesi</span>
           <span className="font-bold text-navy-900 text-lg">
             {Number(decision.data_quality_score || 0).toFixed(1)} / 100
           </span>

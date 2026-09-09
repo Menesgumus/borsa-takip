@@ -1,10 +1,11 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useRef } from "react";
 import { Send, User, Bot, Sparkles, GraduationCap, Plus, AlertCircle } from "lucide-react";
 import { fetchApi } from "@/lib/api";
 
 interface ParsedMentorResponse {
+  response_kind?: string;
   summary: string;
   action_explanation: string;
   key_reasons: string[];
@@ -22,12 +23,20 @@ interface Message {
   error?: boolean;
 }
 
+const ACTION_LABEL: Record<string, string> = {
+  STRONG_BUY: "AL",
+  BUY: "KADEMELİ AL",
+  HOLD: "BEKLE",
+  SELL: "KADEMELİ SAT",
+  STRONG_SELL: "SAT",
+};
+
 const ACTION_COLOR: Record<string, string> = {
-  AL: "text-success-700 bg-success-50 border-success-200",
-  "KADEMELI AL": "text-success-600 bg-success-50 border-success-200",
-  BEKLE: "text-amber-700 bg-amber-50 border-amber-200",
-  "KADEMELI SAT": "text-orange-600 bg-orange-50 border-orange-200",
-  SAT: "text-danger-700 bg-danger-50 border-danger-200",
+  STRONG_BUY: "text-success-700 bg-success-50 border-success-200",
+  BUY: "text-success-600 bg-success-50 border-success-200",
+  HOLD: "text-amber-700 bg-amber-50 border-amber-200",
+  SELL: "text-orange-600 bg-orange-50 border-orange-200",
+  STRONG_SELL: "text-danger-700 bg-danger-50 border-danger-200",
 };
 
 function AssistantBubble({ msg }: { msg: Message }) {
@@ -35,9 +44,9 @@ function AssistantBubble({ msg }: { msg: Message }) {
     return (
       <div className="flex gap-3 items-start">
         <div className="w-8 h-8 rounded-full bg-danger-100 flex-shrink-0 flex items-center justify-center">
-          <AlertCircle className="text-danger-500" size={16} />
+          <AlertCircle className="text-danger-600" size={16} />
         </div>
-        <div className="bg-danger-50 border border-danger-200 rounded-xl px-4 py-3 text-sm text-danger-700 max-w-[80%]">
+        <div className="bg-danger-50 border border-danger-200 rounded-xl px-4 py-3 text-sm text-danger-800">
           {msg.content}
         </div>
       </div>
@@ -46,7 +55,9 @@ function AssistantBubble({ msg }: { msg: Message }) {
 
   if (msg.parsed) {
     const p = msg.parsed;
-    const actionColor = ACTION_COLOR[p.action] || "text-slate-700 bg-slate-50 border-slate-200";
+    const actionLabel = p.action ? ACTION_LABEL[p.action] || p.action : null;
+    const actionColor = p.action ? ACTION_COLOR[p.action] || "text-slate-700 bg-slate-50 border-slate-200" : "";
+
     return (
       <div className="flex gap-3 items-start">
         <div className="w-8 h-8 rounded-full bg-primary-100 flex-shrink-0 flex items-center justify-center">
@@ -54,9 +65,11 @@ function AssistantBubble({ msg }: { msg: Message }) {
         </div>
         <div className="space-y-3 max-w-[85%]">
           {/* Action badge */}
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${actionColor}`}>
-            {p.action}
-          </span>
+          {p.action && (
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${actionColor}`}>
+              {actionLabel}
+            </span>
+          )}
 
           {/* Summary */}
           <div className="bg-surface border border-navy-800/10 rounded-xl px-4 py-3 text-sm text-navy-800 leading-relaxed whitespace-pre-wrap">
@@ -147,34 +160,47 @@ export default function MentorPage() {
   const [initError, setInitError] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [activeSymbol, setActiveSymbol] = useState<string | null>(null);
 
-  const initThread = () => {
-    setInitError(false);
-    fetchApi("/api/v1/chat/threads", { method: "POST" })
-      .then((data: any) => setThreadId(data.id))
-      .catch(() => setInitError(true));
+  const initThread = async () => {
+    try {
+      setInitError(false);
+      const data: any = await fetchApi("/api/v1/chat/threads", {
+        method: "POST",
+        body: JSON.stringify({ title: "Yeni Sohbet" }),
+      });
+      setThreadId(data.id);
+    } catch (e) {
+      console.error(e);
+      setInitError(true);
+    }
   };
 
   useEffect(() => {
     initThread();
   }, []);
 
-  // Auto-scroll on new messages
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+    if (messages.length > 1 && bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
 
   const handleSend = async (text: string) => {
-    if (!text.trim() || !threadId || loading) return;
+    if (!text.trim() || !threadId) return;
 
     const userMsg: Message = { role: "user", content: text };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setLoading(true);
 
-    // Naive symbol extraction (e.g. THYAO, GARAN)
+    // Active instrument context
+    let instrument_symbol = activeSymbol;
     const match = text.match(/\b([A-Z]{4,5})\b/);
-    const instrument_symbol = match ? match[1] : null;
+    if (match) {
+      instrument_symbol = match[1];
+      setActiveSymbol(instrument_symbol);
+    }
 
     try {
       const data: any = await fetchApi(`/api/v1/chat/threads/${threadId}/messages`, {
@@ -204,18 +230,36 @@ export default function MentorPage() {
         { role: "assistant", content: displayContent, parsed },
       ]);
     } catch (e: any) {
+      console.error(e);
       setMessages((prev) => [
         ...prev,
-        {
-          role: "assistant",
-          content: e?.message || "Bir hata oluştu. Lütfen tekrar deneyin.",
-          error: true,
-        },
+        { role: "assistant", content: "Bir hata oluştu. Lütfen tekrar deneyin.", error: true },
       ]);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend(input);
+    }
+  };
+
+  const lastMessage = messages[messages.length - 1];
+  const isLastDecision = lastMessage?.role === 'assistant' && lastMessage?.parsed?.response_kind === 'DECISION';
+  const currentSuggestions = isLastDecision ? [
+    "RSI bu kararı nasıl etkiliyor?",
+    "MACD ne söylüyor?",
+    "Temel riskler neler?",
+    "Veri kalitesi yeterli mi?"
+  ] : [
+    "THYAO neden BEKLE veriyor?",
+    "RSI nedir?",
+    "MACD nasıl yorumlanır?",
+    "Portföy çeşitlendirmesi nedir?"
+  ];
 
   const startNewConversation = () => {
     setMessages([

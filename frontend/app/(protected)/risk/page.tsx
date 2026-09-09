@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -21,7 +21,7 @@ export default function RiskPage() {
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["portfolios"],
-    queryFn: () => fetchApi("/api/v1/portfolios/"),
+    queryFn: () => fetchApi("/api/v1/portfolios"),
     staleTime: 30_000,
     retry: (failureCount: number, err: any) => {
       if (err?.status >= 400 && err?.status < 500) return false;
@@ -35,10 +35,13 @@ export default function RiskPage() {
   if (isLoading) {
     state = { kind: "LOADING" };
   } else if (isError) {
-    const errMsg = (error as any)?.message || "Portföy verileri alınamadı.";
-    state = errMsg.toLowerCase().includes("timeout") || errMsg.toLowerCase().includes("abort")
-      ? { kind: "TIMEOUT" }
-      : { kind: "ERROR", message: errMsg };
+    if ((error as any)?.name === 'RequestTimeoutError') {
+      state = { kind: "TIMEOUT" };
+    } else if ((error as any)?.name === 'NetworkError') {
+      state = { kind: "ERROR", message: "Portföy servisine şu anda ulaşılamıyor." };
+    } else {
+      state = { kind: "ERROR", message: "Portföy verileri alınırken sunucu hatası oluştu." };
+    }
   } else if (portfolios.length === 0) {
     state = { kind: "NO_PORTFOLIO" };
   } else if (portfolios.length === 1) {

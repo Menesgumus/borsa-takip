@@ -58,7 +58,7 @@ export default function InstrumentDetail() {
   });
 
   if (isContextLoading) {
-    return <div className="animate-pulse space-y-4 p-4">Yükleniyor...</div>;
+    return <div className="animate-pulse space-y-4 p-4">YÃ¼kleniyor...</div>;
   }
 
   const q = quote as any;
@@ -93,7 +93,7 @@ export default function InstrumentDetail() {
 
         <div className="text-left md:text-right">
           <div className="text-4xl font-bold text-navy-900">
-            {quote ? `${Number(q.price).toFixed(2)} ₺` : '---'}
+            {quote ? `${Number(q.price).toFixed(2)} â‚º` : '---'}
           </div>
           <div className={`text-lg font-medium flex items-center md:justify-end gap-1 mt-1 ${
             isPositive ? 'text-success-600' : 'text-danger-600'
@@ -116,7 +116,7 @@ export default function InstrumentDetail() {
             </span>
             {Boolean(quote) && (
               <span className="text-navy-700/60 flex items-center gap-1">
-                <Clock size={12} /> Son veri: {new Date((quote as any).timestamp).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                <Clock size={12} /> Son fiyat: {new Date((quote as any).timestamp).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })} (Gecikmeli)
               </span>
             )}
           </div>
@@ -126,7 +126,7 @@ export default function InstrumentDetail() {
       {/* Chart Section */}
       <div className="bg-surface rounded-xl p-4 border border-navy-800/10 shadow-sm">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-navy-900">Fiyat Grafiği</h2>
+          <h2 className="text-lg font-semibold text-navy-900">Fiyat Grafiği <span className="text-sm font-normal text-slate-500 ml-2">(Son günlük kapanış)</span></h2>
           <div className="flex bg-slate-100 rounded-lg p-1">
             {['1A', '3A', '6A', '1Y', '2Y'].map(p => {
               const mapped = p.replace('A', 'M').replace('Y', 'Y');
@@ -147,20 +147,20 @@ export default function InstrumentDetail() {
         
         <div className="h-[400px] w-full border border-slate-100 rounded-lg overflow-hidden bg-slate-50 relative">
           {isHistoryLoading ? (
-            <div className="absolute inset-0 flex items-center justify-center text-slate-400">Yükleniyor...</div>
+            <div className="absolute inset-0 flex items-center justify-center text-slate-400">YÃ¼kleniyor...</div>
           ) : isHistoryError ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-danger-500">
               <AlertCircle size={32} className="text-danger-300 mb-2" />
-              <p>Veri çekilemedi.</p>
-              <p className="text-xs mt-1 text-slate-500">Geçmiş veriler alınırken bir hata oluştu.</p>
+              <p>Veri Ã§ekilemedi.</p>
+              <p className="text-xs mt-1 text-slate-500">GeÃ§miÅŸ veriler alÄ±nÄ±rken bir hata oluÅŸtu.</p>
             </div>
           ) : hist?.length > 0 ? (
             <CandlestickChart data={history as any} />
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
               <AlertCircle size={32} className="text-slate-300 mb-2" />
-              <p>Grafik verisi bulunamadı.</p>
-              <p className="text-xs mt-1">Bu sembol için belirtilen dönemde işlem verisi bulunmuyor.</p>
+              <p>Grafik verisi bulunamadÄ±.</p>
+              <p className="text-xs mt-1">Bu sembol iÃ§in belirtilen dÃ¶nemde iÅŸlem verisi bulunmuyor.</p>
             </div>
           )}
         </div>
@@ -170,12 +170,12 @@ export default function InstrumentDetail() {
       <div className="border-b border-navy-800/10">
         <nav className="flex space-x-6 overflow-x-auto">
           {[
-            { id: 'GENEL_BAKIS', label: 'GENEL BAKIŞ' },
-            { id: 'TEKNIK', label: 'TEKNİK' },
+            { id: 'GENEL_BAKIS', label: 'GENEL BAKIÅ' },
+            { id: 'TEKNIK', label: 'TEKNÄ°K' },
             { id: 'KARAR', label: 'KARAR' },
             { id: 'KAP', label: 'KAP / HABER' },
             { id: 'TEMEL', label: 'TEMEL' },
-            { id: 'RISK', label: 'RİSK / PORTFÖY' },
+            { id: 'RISK', label: 'RÄ°SK / PORTFÃ–Y' },
           ].map(tab => (
             <button
               key={tab.id}
@@ -197,14 +197,14 @@ export default function InstrumentDetail() {
         {activeTab === 'GENEL_BAKIS' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-surface rounded-xl p-5 border border-navy-800/10 shadow-sm">
-              <h3 className="text-sm font-semibold text-navy-700 mb-4">Özet Bilgiler</h3>
+              <h3 className="text-sm font-semibold text-navy-700 mb-4">Ã–zet Bilgiler</h3>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-navy-700/70">Fiyat</span>
-                  <span className="font-medium text-navy-900">{(quote as any)?.price ? `${Number((quote as any).price).toFixed(2)} ₺` : '-'}</span>
+                  <span className="font-medium text-navy-900">{(quote as any)?.price ? `${Number((quote as any).price).toFixed(2)} â‚º` : '-'}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-navy-700/70">Değişim</span>
+                  <span className="text-sm text-navy-700/70">DeÄŸiÅŸim</span>
                   <span className={`font-medium ${isPositive ? 'text-success-600' : 'text-danger-600'}`}>
                     {(quote as any)?.change_pct ? `${Number((quote as any).change_pct).toFixed(2)}%` : '-'}
                   </span>
@@ -234,7 +234,7 @@ export default function InstrumentDetail() {
                       if (!tech?.indicators || tech.indicators.length === 0) return 'Yetersiz Veri';
                       const macdVal = tech.indicators[tech.indicators.length - 1].macd_hist;
                       if (macdVal == null) return 'Yetersiz Veri';
-                      return macdVal > 0 ? 'Pozitif' : (macdVal < 0 ? 'Negatif' : 'Nötr');
+                      return macdVal > 0 ? 'Pozitif' : (macdVal < 0 ? 'Negatif' : 'NÃ¶tr');
                     })()}
                   </span>
                 </div>
@@ -242,7 +242,7 @@ export default function InstrumentDetail() {
             </div>
 
             <div className="bg-surface rounded-xl p-5 border border-navy-800/10 shadow-sm">
-              <h3 className="text-sm font-semibold text-navy-700 mb-4">Sistem Kararı</h3>
+              <h3 className="text-sm font-semibold text-navy-700 mb-4">Sistem KararÄ±</h3>
               {decision ? (
                 <div className="text-center mt-6">
                   <div className={`inline-block px-4 py-2 rounded-lg font-bold text-lg mb-2 ${
@@ -251,16 +251,16 @@ export default function InstrumentDetail() {
                     ['STRONG_SELL', 'SELL'].includes((decision as any).market_view) ? 'bg-danger-50 text-danger-700' :
                     'bg-slate-100 text-slate-700'
                   }`}>
-                    {(decision as any).decision_state === 'INSUFFICIENT_DATA' ? 'YETERSİZ VERİ (BEKLE)' :
-                     (decision as any).market_view === 'STRONG_BUY' ? 'GÜÇLÜ AL' : 
-                     (decision as any).market_view === 'BUY' ? 'KADEMELİ AL' : 
+                    {(decision as any).decision_state === 'INSUFFICIENT_DATA' ? 'YETERSÄ°Z VERÄ° (BEKLE)' :
+                     (decision as any).market_view === 'STRONG_BUY' ? 'GÃœÃ‡LÃœ AL' : 
+                     (decision as any).market_view === 'BUY' ? 'KADEMELÄ° AL' : 
                      (decision as any).market_view === 'HOLD' ? 'BEKLE' : 
-                     (decision as any).market_view === 'SELL' ? 'KADEMELİ SAT' : 'SAT'}
+                     (decision as any).market_view === 'SELL' ? 'KADEMELÄ° SAT' : 'SAT'}
                   </div>
-                  <div className="text-sm text-navy-700/60 mt-2">Detaylar için KARAR sekmesine bakınız.</div>
+                  <div className="text-sm text-navy-700/60 mt-2">Detaylar iÃ§in KARAR sekmesine bakÄ±nÄ±z.</div>
                 </div>
               ) : (
-                <div className="text-sm text-slate-500 text-center mt-8">Hesaplanıyor...</div>
+                <div className="text-sm text-slate-500 text-center mt-8">HesaplanÄ±yor...</div>
               )}
             </div>
           </div>
@@ -272,7 +272,7 @@ export default function InstrumentDetail() {
               <DecisionCard decision={decision as any} symbol={symbol} />
             ) : (
               <div className="text-center p-8 bg-surface rounded-xl border border-navy-800/10 text-slate-500">
-                Karar verisi bulunamadı veya hesaplanıyor.
+                Karar verisi bulunamadÄ± veya hesaplanÄ±yor.
               </div>
             )}
           </div>
@@ -280,7 +280,7 @@ export default function InstrumentDetail() {
 
         {activeTab === 'TEKNIK' && (
           <div className="bg-surface rounded-xl p-6 border border-navy-800/10 shadow-sm">
-            <h3 className="text-lg font-semibold text-navy-900 mb-6">Teknik Göstergeler</h3>
+            <h3 className="text-lg font-semibold text-navy-900 mb-6">Teknik GÃ¶stergeler</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {tech?.indicators?.length > 0 ? (() => {
                 const latest = tech.indicators[tech.indicators.length - 1];
@@ -291,7 +291,7 @@ export default function InstrumentDetail() {
                     <div className="flex flex-col border-b border-slate-100 pb-3">
                       <span className="text-xs font-medium text-navy-700/60">RSI (14)</span>
                       <span className="text-lg font-bold text-navy-900 mt-1">{formatVal(latest.rsi_14)}</span>
-                      <span className="text-xs text-navy-700 mt-1">{latest.rsi_14 ? (latest.rsi_14 > 70 ? 'Aşırı Alım' : latest.rsi_14 < 30 ? 'Aşırı Satım' : 'Nötr') : ''}</span>
+                      <span className="text-xs text-navy-700 mt-1">{latest.rsi_14 ? (latest.rsi_14 > 70 ? 'AÅŸÄ±rÄ± AlÄ±m' : latest.rsi_14 < 30 ? 'AÅŸÄ±rÄ± SatÄ±m' : 'NÃ¶tr') : ''}</span>
                     </div>
                     <div className="flex flex-col border-b border-slate-100 pb-3">
                       <span className="text-xs font-medium text-navy-700/60">SMA 20</span>
@@ -329,7 +329,7 @@ export default function InstrumentDetail() {
             <div className="mb-8">
               <h4 className="text-sm font-bold text-navy-700 mb-3 border-b pb-2">KAP Bildirimleri</h4>
               {!(context as any)?.availability?.kap ? (
-                <div className="text-slate-500 text-sm py-4">KAP veri kaynağı şu an ulaşılamıyor (UNAVAILABLE).</div>
+                <div className="text-slate-500 text-sm py-4">KAP veri kaynaÄŸÄ± ÅŸu an ulaÅŸÄ±lamÄ±yor (UNAVAILABLE).</div>
               ) : (context as any)?.disclosures?.length > 0 ? (
                 <ul className="space-y-3">
                   {(context as any).disclosures.map((d: any, idx: number) => (
@@ -346,7 +346,7 @@ export default function InstrumentDetail() {
             <div>
               <h4 className="text-sm font-bold text-navy-700 mb-3 border-b pb-2">Piyasa Haberleri</h4>
               {!(context as any)?.availability?.news ? (
-                <div className="text-slate-500 text-sm py-4">Haber kaynağı şu an ulaşılamıyor (NEWS_UNAVAILABLE).</div>
+                <div className="text-slate-500 text-sm py-4">Haber kaynaÄŸÄ± ÅŸu an ulaÅŸÄ±lamÄ±yor (NEWS_UNAVAILABLE).</div>
               ) : (context as any)?.news?.length > 0 ? (
                 <ul className="space-y-3">
                   {(context as any).news.map((n: any, idx: number) => (
@@ -356,7 +356,7 @@ export default function InstrumentDetail() {
                   ))}
                 </ul>
               ) : (
-                <div className="text-slate-500 text-sm py-4">Güncel haber bulunmuyor.</div>
+                <div className="text-slate-500 text-sm py-4">GÃ¼ncel haber bulunmuyor.</div>
               )}
             </div>
           </div>
@@ -364,18 +364,19 @@ export default function InstrumentDetail() {
 
         {activeTab === 'TEMEL' && (
           <div className="text-center p-12 bg-surface rounded-xl border border-navy-800/10">
-            <h3 className="text-lg font-medium text-navy-900 mb-2">TEMEL VERİ KAYNAĞI BAĞLI DEĞİL</h3>
-            <p className="text-navy-700/60">Bu modül (F/K, PD/DD, Bilanço) için ticari veri sağlayıcı entegrasyonu gerekmektedir.</p>
+            <h3 className="text-lg font-medium text-navy-900 mb-2">TEMEL VERÄ° KAYNAÄI BAÄLI DEÄÄ°L</h3>
+            <p className="text-navy-700/60">Bu modÃ¼l (F/K, PD/DD, BilanÃ§o) iÃ§in ticari veri saÄŸlayÄ±cÄ± entegrasyonu gerekmektedir.</p>
           </div>
         )}
 
         {activeTab === 'RISK' && (
           <div className="text-center p-12 bg-surface rounded-xl border border-navy-800/10">
-            <h3 className="text-lg font-medium text-navy-900 mb-2">Bu hisseyi portföy riskinizle karşılaştırmak için bir portföy seçin.</h3>
-            <p className="text-navy-700/60">Portföy seçimi sonrası algoritma ağırlık ve korelasyon hesaplayacaktır.</p>
+            <h3 className="text-lg font-medium text-navy-900 mb-2">Bu hisseyi portfÃ¶y riskinizle karÅŸÄ±laÅŸtÄ±rmak iÃ§in bir portfÃ¶y seÃ§in.</h3>
+            <p className="text-navy-700/60">PortfÃ¶y seÃ§imi sonrasÄ± algoritma aÄŸÄ±rlÄ±k ve korelasyon hesaplayacaktÄ±r.</p>
           </div>
         )}
       </div>
     </div>
   );
 }
+

@@ -30,7 +30,7 @@ from app.services.portfolio_ledger import (
 
 router = APIRouter()
 
-@router.post("/", response_model=PortfolioRead)
+@router.post("", response_model=PortfolioRead)
 async def create_portfolio(
     portfolio_in: PortfolioCreate,
     db: AsyncSession = Depends(get_db_session),
@@ -42,7 +42,7 @@ async def create_portfolio(
     await db.refresh(portfolio)
     return portfolio
 
-@router.get("/", response_model=list[PortfolioRead])
+@router.get("", response_model=list[PortfolioRead])
 async def list_portfolios(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user)

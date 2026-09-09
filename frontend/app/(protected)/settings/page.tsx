@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "@/lib/api";
@@ -59,20 +59,29 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-1 space-y-2">
-          <div className="p-4 bg-slate-100 rounded-xl text-navy-900 font-medium flex items-center gap-2 border border-slate-200">
+          <button 
+            onClick={() => document.getElementById('profile')?.scrollIntoView({ behavior: 'smooth' })}
+            className="w-full text-left p-4 bg-slate-100 rounded-xl text-navy-900 font-medium flex items-center gap-2 border border-slate-200 hover:bg-slate-200 transition-colors focus:ring-2 focus:ring-primary-500 focus:outline-none"
+          >
             <User size={18} /> Profil Bilgileri
-          </div>
-          <div className="p-4 text-navy-700 font-medium flex items-center gap-2 hover:bg-slate-50 rounded-xl cursor-pointer">
+          </button>
+          <button 
+            onClick={() => document.getElementById('risk')?.scrollIntoView({ behavior: 'smooth' })}
+            className="w-full text-left p-4 text-navy-700 font-medium flex items-center gap-2 hover:bg-slate-50 rounded-xl cursor-pointer border border-transparent transition-colors focus:ring-2 focus:ring-primary-500 focus:outline-none"
+          >
             <Shield size={18} /> Güvenlik ve Risk
-          </div>
-          <div className="p-4 text-navy-700 font-medium flex items-center gap-2 hover:bg-slate-50 rounded-xl cursor-pointer">
+          </button>
+          <button 
+            onClick={() => document.getElementById('mentor')?.scrollIntoView({ behavior: 'smooth' })}
+            className="w-full text-left p-4 text-navy-700 font-medium flex items-center gap-2 hover:bg-slate-50 rounded-xl cursor-pointer border border-transparent transition-colors focus:ring-2 focus:ring-primary-500 focus:outline-none"
+          >
             <GraduationCap size={18} /> Mentor Tercihleri
-          </div>
+          </button>
         </div>
 
         <div className="md:col-span-2 space-y-6">
           {/* Account Info */}
-          <div className="bg-surface rounded-xl p-6 border border-navy-800/10 shadow-sm">
+          <div id="profile" className="bg-surface rounded-xl p-6 border border-navy-800/10 shadow-sm scroll-mt-6">
             <h3 className="text-lg font-bold text-navy-900 mb-4 border-b pb-2">Hesap Bilgileri</h3>
             <div className="space-y-4">
               <div>
@@ -88,7 +97,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Risk Preferences */}
-          <div className="bg-surface rounded-xl p-6 border border-navy-800/10 shadow-sm">
+          <div id="risk" className="bg-surface rounded-xl p-6 border border-navy-800/10 shadow-sm scroll-mt-6">
             <h3 className="text-lg font-bold text-navy-900 mb-4 border-b pb-2">Risk Tercihleri</h3>
             <div className="space-y-4">
               <div>
@@ -110,7 +119,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Mentor Preferences */}
-          <div className="bg-surface rounded-xl p-6 border border-navy-800/10 shadow-sm">
+          <div id="mentor" className="bg-surface rounded-xl p-6 border border-navy-800/10 shadow-sm scroll-mt-6">
             <h3 className="text-lg font-bold text-navy-900 mb-4 border-b pb-2">Finansal Mentor</h3>
             <div className="space-y-4">
               <div>

@@ -193,5 +193,34 @@ async def run_maintenance() -> None:
     )
 
 
+async def main_loop():
+    import datetime
+    try:
+        from zoneinfo import ZoneInfo
+    except ImportError:
+        from backports.zoneinfo import ZoneInfo
+        
+    trt = ZoneInfo("Europe/Istanbul")
+    
+    # Run once on startup
+    logger.info("Running initial market maintenance...")
+    await run_maintenance()
+    
+    while True:
+        now = datetime.datetime.now(trt)
+        target = now.replace(hour=19, minute=0, second=0, microsecond=0)
+        
+        # If it's already past 19:00 today, schedule for tomorrow
+        if now >= target:
+            target += datetime.timedelta(days=1)
+            
+        wait_seconds = (target - now).total_seconds()
+        logger.info(f"Sleeping for {wait_seconds:.0f} seconds until next maintenance window ({target.strftime('%Y-%m-%d %H:%M:%S %Z')})...")
+        
+        await asyncio.sleep(wait_seconds)
+        
+        logger.info("Starting scheduled market maintenance...")
+        await run_maintenance()
+
 if __name__ == "__main__":
-    asyncio.run(run_maintenance())
+    asyncio.run(main_loop())

@@ -37,7 +37,7 @@ export default function CandlestickChart({ data }: { data: OHLCV[] }) {
       width: chartContainerRef.current.clientWidth,
       height: 400,
       timeScale: {
-        timeVisible: true,
+        timeVisible: false,
         secondsVisible: false,
       },
       crosshair: {
