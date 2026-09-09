@@ -24,7 +24,7 @@ export default function OpportunitiesPage() {
           <strong className="block text-navy-900 mb-1">Fırsat Puanlaması Hakkında</strong>
           Piyasa Fırsat Puanı (Raw Market Score), teknik ve temel analize dayalı mutlak pazar potansiyelini gösterir. 
           Kişisel Uyum (User Fit), sizin risk toleransınıza ve portföy yoğunluğunuza göre bu fırsatın sizin için ne kadar uygun olduğunu belirtir.
-          <em> En yüksek puan her zaman kesin "Al" demek değildir.</em>
+          <em> En yüksek puan her zaman kesin &quot;Al&quot; demek değildir.</em>
         </div>
       </div>
 
@@ -33,8 +33,8 @@ export default function OpportunitiesPage() {
           [1, 2, 3, 4, 5, 6].map(i => (
             <div key={i} className="h-48 bg-slate-100 animate-pulse rounded-xl border border-slate-200"></div>
           ))
-        ) : instruments?.length > 0 ? (
-          instruments.map((inst: any) => (
+        ) : instruments && (instruments as any).length > 0 ? (
+          (instruments as any).map((inst: any) => (
             <Link key={inst.symbol} href={`/instruments/${inst.symbol}`} className="bg-surface rounded-xl p-6 border border-navy-800/10 shadow-sm hover:shadow-md transition-all group">
               <div className="flex justify-between items-start mb-4">
                 <div>

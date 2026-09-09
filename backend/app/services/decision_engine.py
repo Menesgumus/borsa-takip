@@ -44,7 +44,7 @@ def evaluate_decision(
         warnings.append("LOW_DATA_QUALITY_MOCK_NEWS")
 
     dq_score = clamp_score(dq_score)
-    
+
     if dq_score < Decimal("50") or tech.current_price is None or tech.current_price == Decimal("0"):
         return DecisionResult(
             instrument_id=instrument_id,

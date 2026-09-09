@@ -41,7 +41,7 @@ export default function InstrumentDetail() {
   // 2. Fetch History
   const { data: history, isLoading: isHistoryLoading } = useQuery({
     queryKey: ['instrument', symbol, 'history', period],
-    queryFn: () => fetchApi(`/api/v1/instruments/${symbol}/history?period=${period}`),
+    queryFn: () => fetchApi(`/api/v1/instruments/${symbol}/hist?period=${period}`),
     enabled: isOnline,
   });
 
@@ -61,7 +61,14 @@ export default function InstrumentDetail() {
     return <div className="animate-pulse space-y-4 p-4">Yükleniyor...</div>;
   }
 
-  const isPositive = quote ? Number(quote.change_pct) >= 0 : false;
+  const q = quote as any;
+  const inst = instrument as any;
+  const hist = history as any;
+  const tech = technical as any;
+  const ctx = context as any;
+  const dec = decision as any;
+
+  const isPositive = q ? Number(q.change_pct) >= 0 : false;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -78,7 +85,7 @@ export default function InstrumentDetail() {
       <div className="bg-surface rounded-xl p-6 border border-navy-800/10 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <h1 className="text-3xl font-bold text-navy-900 tracking-tight">{symbol}</h1>
-          <p className="text-navy-700/80 text-lg mt-1">{instrument?.name || '---'}</p>
+          <p className="text-navy-700/80 text-lg mt-1">{inst?.name || '---'}</p>
           <div className="text-xs font-medium text-navy-700/60 mt-2 flex items-center gap-2">
             BIST &middot; STOCK
           </div>
@@ -86,30 +93,30 @@ export default function InstrumentDetail() {
 
         <div className="text-left md:text-right">
           <div className="text-4xl font-bold text-navy-900">
-            {quote ? `${Number(quote.price).toFixed(2)} ₺` : '---'}
+            {quote ? `${Number(q.price).toFixed(2)} ₺` : '---'}
           </div>
           <div className={`text-lg font-medium flex items-center md:justify-end gap-1 mt-1 ${
             isPositive ? 'text-success-600' : 'text-danger-600'
           }`}>
             {isPositive ? '+' : ''}
-            {quote ? `${Number(quote.change).toFixed(2)} (${Number(quote.change_pct).toFixed(2)}%)` : '---'}
+            {quote ? `${Number(q.change).toFixed(2)} (${Number(q.change_pct).toFixed(2)}%)` : '---'}
           </div>
           <div className="mt-3 flex flex-wrap md:justify-end gap-2 items-center text-xs">
-            {quote && (
+            {Boolean(quote) && (
               <span className={`px-2 py-1 font-semibold rounded border ${
-                quote.data_state === 'DELAYED' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
-                quote.data_state === 'EOD' ? 'bg-slate-50 text-slate-600 border-slate-200' :
+                q.data_state === 'DELAYED' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                q.data_state === 'EOD' ? 'bg-slate-50 text-slate-600 border-slate-200' :
                 'bg-primary-50 text-primary-700 border-primary-200'
               }`}>
-                {quote.data_state || 'DELAYED'}
+                {String(q.data_state || 'DELAYED')}
               </span>
             )}
             <span className="px-2 py-1 bg-slate-50 text-slate-600 border border-slate-200 rounded font-medium">
               Yahoo Finance
             </span>
-            {quote && (
+            {Boolean(quote) && (
               <span className="text-navy-700/60 flex items-center gap-1">
-                <Clock size={12} /> Son veri: {new Date(quote.timestamp).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                <Clock size={12} /> Son veri: {new Date((quote as any).timestamp).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
               </span>
             )}
           </div>
@@ -141,8 +148,8 @@ export default function InstrumentDetail() {
         <div className="h-[400px] w-full border border-slate-100 rounded-lg overflow-hidden bg-slate-50 relative">
           {isHistoryLoading ? (
             <div className="absolute inset-0 flex items-center justify-center text-slate-400">Yükleniyor...</div>
-          ) : history?.length > 0 ? (
-            <CandlestickChart data={history} />
+          ) : hist?.length > 0 ? (
+            <CandlestickChart data={history as any} />
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
               <AlertCircle size={32} className="text-slate-300 mb-2" />
@@ -188,17 +195,17 @@ export default function InstrumentDetail() {
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-navy-700/70">Fiyat</span>
-                  <span className="font-medium text-navy-900">{quote?.price ? `${Number(quote.price).toFixed(2)} ₺` : '-'}</span>
+                  <span className="font-medium text-navy-900">{(quote as any)?.price ? `${Number((quote as any).price).toFixed(2)} ₺` : '-'}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-navy-700/70">Değişim</span>
                   <span className={`font-medium ${isPositive ? 'text-success-600' : 'text-danger-600'}`}>
-                    {quote?.change_pct ? `${Number(quote.change_pct).toFixed(2)}%` : '-'}
+                    {(quote as any)?.change_pct ? `${Number((quote as any).change_pct).toFixed(2)}%` : '-'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-navy-700/70">Hacim</span>
-                  <span className="font-medium text-navy-900">{quote?.volume ? Number(quote.volume).toLocaleString() : '-'}</span>
+                  <span className="font-medium text-navy-900">{(quote as any)?.volume ? Number((quote as any).volume).toLocaleString() : '-'}</span>
                 </div>
               </div>
             </div>
@@ -209,14 +216,14 @@ export default function InstrumentDetail() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-navy-700/70">RSI (14)</span>
                   <span className="font-medium text-navy-900">
-                    {technical?.indicators?.find((i: any) => i.name === 'RSI_14')?.value?.toFixed(2) || 'Yetersiz Veri'}
+                    {(technical as any)?.indicators?.find((i: any) => i.name === 'RSI_14')?.value?.toFixed(2) || 'Yetersiz Veri'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-navy-700/70">MACD Trend</span>
                   <span className="font-medium text-navy-900">
                     {(() => {
-                      const macdVal = technical?.indicators?.find((i: any) => i.name === 'MACD_12_26_9')?.value;
+                      const macdVal = (technical as any)?.indicators?.find((i: any) => i.name === 'MACD_12_26_9')?.value;
                       if (macdVal === undefined || macdVal === null) return 'Yetersiz Veri';
                       return macdVal > 0 ? 'Pozitif' : (macdVal < 0 ? 'Negatif' : 'Nötr');
                     })()}
@@ -230,14 +237,14 @@ export default function InstrumentDetail() {
               {decision ? (
                 <div className="text-center mt-6">
                   <div className={`inline-block px-4 py-2 rounded-lg font-bold text-lg mb-2 ${
-                    ['STRONG_BUY', 'BUY'].includes(decision.market_view) ? 'bg-success-50 text-success-700' :
-                    ['STRONG_SELL', 'SELL'].includes(decision.market_view) ? 'bg-danger-50 text-danger-700' :
+                    ['STRONG_BUY', 'BUY'].includes((decision as any).market_view) ? 'bg-success-50 text-success-700' :
+                    ['STRONG_SELL', 'SELL'].includes((decision as any).market_view) ? 'bg-danger-50 text-danger-700' :
                     'bg-slate-100 text-slate-700'
                   }`}>
-                    {decision.market_view === 'STRONG_BUY' ? 'GÜÇLÜ AL' : 
-                     decision.market_view === 'BUY' ? 'KADEMELİ AL' : 
-                     decision.market_view === 'HOLD' ? 'BEKLE' : 
-                     decision.market_view === 'SELL' ? 'KADEMELİ SAT' : 'SAT'}
+                    {(decision as any).market_view === 'STRONG_BUY' ? 'GÜÇLÜ AL' : 
+                     (decision as any).market_view === 'BUY' ? 'KADEMELİ AL' : 
+                     (decision as any).market_view === 'HOLD' ? 'BEKLE' : 
+                     (decision as any).market_view === 'SELL' ? 'KADEMELİ SAT' : 'SAT'}
                   </div>
                   <div className="text-sm text-navy-700/60 mt-2">Detaylar için KARAR sekmesine bakınız.</div>
                 </div>
@@ -251,7 +258,7 @@ export default function InstrumentDetail() {
         {activeTab === 'KARAR' && (
           <div className="max-w-3xl mx-auto">
             {decision ? (
-              <DecisionCard decision={decision} symbol={symbol} />
+              <DecisionCard decision={decision as any} symbol={symbol} />
             ) : (
               <div className="text-center p-8 bg-surface rounded-xl border border-navy-800/10 text-slate-500">
                 Karar verisi bulunamadı veya hesaplanıyor.
@@ -264,7 +271,7 @@ export default function InstrumentDetail() {
           <div className="bg-surface rounded-xl p-6 border border-navy-800/10 shadow-sm">
             <h3 className="text-lg font-semibold text-navy-900 mb-6">Teknik Göstergeler</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {technical?.indicators?.map((ind: any) => (
+              {(technical as any)?.indicators?.map((ind: any) => (
                 <div key={ind.name} className="flex flex-col border-b border-slate-100 pb-3">
                   <span className="text-xs font-medium text-navy-700/60">{ind.name.replace(/_/g, ' ')}</span>
                   <span className="text-lg font-bold text-navy-900 mt-1">{ind.value?.toFixed(2) || 'Yetersiz Veri'}</span>
@@ -283,11 +290,11 @@ export default function InstrumentDetail() {
             
             <div className="mb-8">
               <h4 className="text-sm font-bold text-navy-700 mb-3 border-b pb-2">KAP Bildirimleri</h4>
-              {!context?.availability?.kap ? (
+              {!(context as any)?.availability?.kap ? (
                 <div className="text-slate-500 text-sm py-4">KAP veri kaynağı şu an ulaşılamıyor (UNAVAILABLE).</div>
-              ) : context?.disclosures?.length > 0 ? (
+              ) : (context as any)?.disclosures?.length > 0 ? (
                 <ul className="space-y-3">
-                  {context.disclosures.map((d: any, idx: number) => (
+                  {(context as any).disclosures.map((d: any, idx: number) => (
                     <li key={idx} className="text-sm">
                       <span className="font-medium text-navy-900">{new Date(d.publish_date).toLocaleDateString()}</span> - <a href={d.url} target="_blank" className="text-primary-600 hover:underline">{d.title}</a>
                     </li>
@@ -300,11 +307,11 @@ export default function InstrumentDetail() {
 
             <div>
               <h4 className="text-sm font-bold text-navy-700 mb-3 border-b pb-2">Piyasa Haberleri</h4>
-              {!context?.availability?.news ? (
+              {!(context as any)?.availability?.news ? (
                 <div className="text-slate-500 text-sm py-4">Haber kaynağı şu an ulaşılamıyor (NEWS_UNAVAILABLE).</div>
-              ) : context?.news?.length > 0 ? (
+              ) : (context as any)?.news?.length > 0 ? (
                 <ul className="space-y-3">
-                  {context.news.map((n: any, idx: number) => (
+                  {(context as any).news.map((n: any, idx: number) => (
                     <li key={idx} className="text-sm">
                       <span className="font-medium text-navy-900">{new Date(n.publish_date).toLocaleDateString()}</span> - <a href={n.url} target="_blank" className="text-primary-600 hover:underline">{n.title}</a>
                     </li>

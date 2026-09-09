@@ -19,8 +19,9 @@ def override_dependencies():
     app.dependency_overrides.clear()
 
 
-from app.market.registry import registry
 from app.market.mock_provider import MockMarketDataProvider
+from app.market.registry import registry
+
 
 @pytest.fixture
 async def setup_instruments():

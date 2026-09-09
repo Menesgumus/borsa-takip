@@ -40,9 +40,8 @@ async def list_instruments(
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> Any:
     """List and search instruments (read-only, public data)."""
-    import json
     from app.core.redis import redis_client
-    
+
     cache_key = f"instruments:paginated:{page}:{size}:{search or ''}"
     cached_data = await redis_client.get(cache_key)
     if cached_data:
@@ -75,7 +74,7 @@ async def list_instruments(
         page=page,
         size=size
     )
-    
+
     await redis_client.set(cache_key, response_data.model_dump_json(), ex=60)
     return response_data
 
@@ -153,8 +152,8 @@ async def get_instrument_history(
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> Any:
     """Get historical OHLCV data from the database."""
-    from datetime import timedelta, UTC
-    
+    from datetime import UTC, timedelta
+
     if period and not start_date:
         end_date = end_date or datetime.now(UTC)
         if period.upper() == "1M":
@@ -167,7 +166,7 @@ async def get_instrument_history(
             start_date = end_date - timedelta(days=365)
         elif period.upper() == "2Y":
             start_date = end_date - timedelta(days=730)
-            
+
     result = await db.execute(
         select(Instrument).where(Instrument.symbol == symbol, Instrument.is_active.is_(True))
     )
@@ -211,7 +210,6 @@ from datetime import UTC
 
 from app.market.context_providers.evds_provider import EVDSProvider
 from app.market.context_providers.kap_provider import KAPProvider
-from app.market.context_providers.mock_news_provider import MockNewsProvider
 from app.schemas.context import ContextResponse
 
 
@@ -223,15 +221,13 @@ async def get_instrument_context(
 ):
     """Get Fundamentals, KAP, News, and Macro context."""
     from app.core.config import settings
-    
+
     news = []
     if settings.ENABLE_MOCK_MARKET_DATA:
         from app.market.context_providers.mock_news_provider import MockNewsProvider
         news_provider = MockNewsProvider()
         news = await news_provider.get_latest_news(symbol)
 
-    from app.market.context_providers.evds_provider import EVDSProvider
-    from app.market.context_providers.kap_provider import KAPProvider
     kap_provider = KAPProvider()
     evds_provider = EVDSProvider()
 

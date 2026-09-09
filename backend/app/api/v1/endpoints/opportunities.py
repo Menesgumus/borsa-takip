@@ -17,9 +17,10 @@ async def get_opportunities(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ):
-    from app.core.redis import redis_client
-    import json
+
     from fastapi.responses import Response
+
+    from app.core.redis import redis_client
 
     if portfolio_id:
         # IDOR protection
@@ -33,12 +34,12 @@ async def get_opportunities(
         return Response(content=cached_data, media_type="application/json")
 
     results = await scan_opportunities(db, portfolio_id=portfolio_id)
-    
+
     # Cache for 60 seconds
     try:
         json_data = "[%s]" % ",".join([r.model_dump_json() for r in results])
         await redis_client.set(cache_key, json_data, ex=60)
     except Exception:
         pass
-    
+
     return results

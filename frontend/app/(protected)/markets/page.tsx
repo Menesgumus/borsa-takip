@@ -10,11 +10,11 @@ function MarketsTable() {
   const [searchTerm, setSearchTerm] = useState("");
   
   const { data, isLoading } = useQuery({
-    queryKey: ["instruments", "markets"],
-    queryFn: () => fetchApi("/api/v1/instruments?size=100"), // BIST100
+    queryKey: ['instruments', 'BIST100'],
+    queryFn: () => fetchApi('/api/v1/instruments?universe=BIST100&limit=100'),
   });
 
-  const instruments = data?.items || [];
+  const instruments = (data as any)?.items || [];
   
   const filtered = instruments.filter((inst: any) => 
     inst.symbol.toLowerCase().includes(searchTerm.toLowerCase()) || 

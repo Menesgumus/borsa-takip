@@ -25,13 +25,10 @@ export default function PortfolioOverviewPage() {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="h-48 bg-slate-100 animate-pulse rounded-xl border border-slate-200"></div>
-          <div className="h-48 bg-slate-100 animate-pulse rounded-xl border border-slate-200"></div>
-        </div>
-      ) : portfolios?.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {portfolios.map((p: any) => (
+        <div className="text-center py-12 text-slate-500">Yükleniyor...</div>
+      ) : portfolios && (portfolios as any).length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+          {(portfolios as any).map((p: any) => (
             <Link key={p.id} href={`/portfolios/${p.id}`} className="bg-surface rounded-xl p-6 border border-navy-800/10 shadow-sm hover:shadow-md transition-shadow group">
               <div className="flex justify-between items-start mb-6">
                 <div>

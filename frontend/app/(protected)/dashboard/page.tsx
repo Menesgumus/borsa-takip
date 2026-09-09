@@ -37,13 +37,13 @@ function QuoteCard({ symbol, name }: { symbol: string; name: string }) {
           <h3 className="font-bold text-navy-900 text-lg">{symbol}</h3>
           <p className="text-sm text-navy-700/60 truncate max-w-[140px]">{name}</p>
         </div>
-        {quote && (
+        {Boolean(quote) && (
           <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${
-            quote.data_state === "DELAYED" ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
-            quote.data_state === "EOD" ? "bg-slate-50 text-slate-600 border-slate-200" :
+            (quote as any).data_state === "DELAYED" ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
+            (quote as any).data_state === "EOD" ? "bg-slate-50 text-slate-600 border-slate-200" :
             "bg-primary-50 text-primary-700 border-primary-200"
           }`}>
-            {quote.data_state || "DELAYED"}
+            {(quote as any).data_state || "DELAYED"}
           </span>
         )}
       </div>
@@ -60,14 +60,14 @@ function QuoteCard({ symbol, name }: { symbol: string; name: string }) {
       ) : quote ? (
         <div>
           <div className="text-2xl font-semibold text-navy-900 mb-1">
-            {Number(quote.price).toFixed(2)} ₺
+            {Number((quote as any).price).toFixed(2)} ₺
           </div>
           <div className={`text-sm font-medium flex items-center gap-1 ${
-            Number(quote.change_pct) >= 0 ? "text-success-600" : "text-danger-600"
+            Number((quote as any).change_pct) >= 0 ? "text-success-600" : "text-danger-600"
           }`}>
-            {Number(quote.change_pct) >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-            {Number(quote.change_pct) >= 0 ? "+" : ""}
-            {Number(quote.change_pct).toFixed(2)}%
+            {Number((quote as any).change_pct) >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+            {Number((quote as any).change_pct) >= 0 ? "+" : ""}
+            {Number((quote as any).change_pct).toFixed(2)}%
           </div>
         </div>
       ) : null}

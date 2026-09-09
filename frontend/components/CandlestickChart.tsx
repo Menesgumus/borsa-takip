@@ -47,7 +47,7 @@ export default function CandlestickChart({ data }: { data: OHLCV[] }) {
 
     chartRef.current = chart;
 
-    const candlestickSeries = chart.addCandlestickSeries({
+    const candlestickSeries = (chart as any).addCandlestickSeries({
       upColor: '#16a34a', // success-600
       downColor: '#dc2626', // danger-600
       borderVisible: false,
@@ -55,7 +55,7 @@ export default function CandlestickChart({ data }: { data: OHLCV[] }) {
       wickDownColor: '#dc2626',
     });
 
-    const volumeSeries = chart.addHistogramSeries({
+    const volumeSeries = (chart as any).addHistogramSeries({
       color: '#cbd5e1',
       priceFormat: {
         type: 'volume',

@@ -25,7 +25,7 @@ async def scan_opportunities(db: AsyncSession, portfolio_id: int | None = None) 
     if portfolio_id:
         p_res = await db.execute(select(Portfolio).where(Portfolio.id == portfolio_id))
         portfolio = p_res.scalars().first()
-        
+
     # Bulk fetch fundamentals (latest per instrument) to avoid N+1
     f_res = await db.execute(
         select(FundamentalData)
@@ -48,7 +48,7 @@ async def scan_opportunities(db: AsyncSession, portfolio_id: int | None = None) 
         tech = TechnicalInputs()
         fund = FundamentalInputs()
         news = NewsInputs()
-        
+
         f_db = fundamentals.get(inst.id)
         if f_db:
             if f_db.pe_ratio: fund.pe_ratio = f_db.pe_ratio

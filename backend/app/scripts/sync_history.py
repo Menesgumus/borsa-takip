@@ -1,12 +1,11 @@
 import asyncio
-from datetime import datetime, timedelta, UTC
 import logging
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import engine, async_session_maker
-from app.db.models import Instrument, ProviderMapping, OHLCVDaily
+from app.db.models import Instrument, OHLCVDaily, ProviderMapping
+from app.db.session import async_session_maker
 from app.market.registry import registry
 from app.market.yahoo_provider import YahooFinanceProvider
 
@@ -20,7 +19,7 @@ async def sync_history(days: int = 730):
 
     end_date = datetime.now(UTC)
     start_date = end_date - timedelta(days=days)
-    
+
     async with async_session_maker() as session:
         # Get active instruments with Yahoo mapping
         stmt = (
@@ -31,9 +30,9 @@ async def sync_history(days: int = 730):
         )
         result = await session.execute(stmt)
         instruments = result.all()
-        
+
         logger.info(f"Found {len(instruments)} instruments to sync history for.")
-        
+
         success_count = 0
         for inst_id, symbol, provider_symbol in instruments:
             logger.info(f"Syncing history for {symbol} via {provider_symbol}...")
@@ -44,11 +43,11 @@ async def sync_history(days: int = 730):
                     start_date=start_date,
                     end_date=end_date
                 )
-                
+
                 if not quotes:
                     logger.warning(f"No history found for {symbol}")
                     continue
-                
+
                 new_records = []
                 for q in quotes:
                     new_records.append({
@@ -61,7 +60,7 @@ async def sync_history(days: int = 730):
                         "volume": q.volume
                     })
                 from sqlalchemy.dialects.postgresql import insert as pg_insert
-                
+
                 if new_records:
                     stmt = pg_insert(OHLCVDaily).values(new_records)
                     stmt = stmt.on_conflict_do_update(
@@ -78,11 +77,11 @@ async def sync_history(days: int = 730):
                     await session.commit()
                     success_count += 1
                     logger.info(f"Inserted/Updated {len(new_records)} days for {symbol}")
-                
+
             except Exception as e:
                 logger.error(f"Failed to sync {symbol}: {e}")
                 await session.rollback()
-                
+
             # Sleep slightly to avoid rate limit
             await asyncio.sleep(0.5)
 

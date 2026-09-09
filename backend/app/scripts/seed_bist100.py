@@ -5,8 +5,9 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import engine
 from app.db.models import Instrument, ProviderMapping
+from app.db.session import engine
+
 
 async def seed_bist100():
     csv_path = Path(__file__).parent.parent.parent.parent / "data" / "market" / "bist100_2026_Q3.csv"
@@ -29,18 +30,18 @@ async def seed_bist100():
 
         with open(csv_path, newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)
-            
+
             added = 0
             csv_symbols = set()
             for row in reader:
                 symbol = row["symbol"]
                 csv_symbols.add(symbol)
-                
+
                 # Check if instrument exists
                 stmt = select(Instrument).where(Instrument.symbol == symbol)
                 result = await session.execute(stmt)
                 instrument = result.scalar_one_or_none()
-                
+
                 if not instrument:
                     instrument = Instrument(
                         symbol=symbol,
@@ -51,7 +52,7 @@ async def seed_bist100():
                     )
                     session.add(instrument)
                     await session.flush()  # to get ID
-                    
+
                     # Add provider mapping
                     mapping = ProviderMapping(
                         instrument_id=instrument.id,
@@ -66,7 +67,7 @@ async def seed_bist100():
                     instrument.is_active = True
 
             # Deactivate any instruments that are NOT in the current BIST100 CSV but are marked active
-            all_db_instruments = (await session.execute(select(Instrument).where(Instrument.is_active == True))).scalars().all()
+            all_db_instruments = (await session.execute(select(Instrument).where(Instrument.is_active == True, Instrument.exchange == "BIST", Instrument.instrument_type == "STOCK"))).scalars().all()
             for db_inst in all_db_instruments:
                 if db_inst.symbol not in csv_symbols:
                     db_inst.is_active = False
