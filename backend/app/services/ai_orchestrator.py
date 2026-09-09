@@ -59,7 +59,7 @@ async def generate_mentor_response(
         )
         explanation = explanation.model_copy(update={
             "action": context.deterministic_action.value,
-            "summary": f"[DUZELTME]: {explanation.summary}",
+            "summary": f"[DÜZELTME]: {explanation.summary}",
         })
 
     return explanation

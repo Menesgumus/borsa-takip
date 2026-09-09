@@ -1,4 +1,4 @@
-﻿import asyncio
+import asyncio
 import logging
 import subprocess
 import sys
@@ -11,7 +11,7 @@ logger = logging.getLogger("bootstrap")
 def run_migrations():
     logger.info("Running database migrations...")
     result = subprocess.run(
-        ["alembic", "upgrade", "head"],
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
         capture_output=True,
         text=True
     )

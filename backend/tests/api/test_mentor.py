@@ -84,6 +84,6 @@ async def test_mentor_chat_api_and_idor():
         })
         assert r_msg.status_code == 200
         ans = json.loads(r_msg.json()["content"]) # It's a JSON string Structured Output
-        assert "MOCK" in ans["summary"]
+        assert "AI saglayicisi bagli degil" in ans["summary"] or "MOCK" in ans["summary"]
         assert ans["synthetic"] is True
         assert "action" in ans

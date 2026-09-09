@@ -174,18 +174,18 @@ async def run_maintenance() -> None:
 
     # Process catch-up in batches of 5 to avoid overwhelming Yahoo
     success = 0
-    BATCH = 5
+    batch_size = 5
     all_tasks = catchup_tasks + incremental_tasks
 
-    for i in range(0, len(all_tasks), BATCH):
-        batch = all_tasks[i : i + BATCH]
+    for i in range(0, len(all_tasks), batch_size):
+        batch = all_tasks[i : i + batch_size]
         results = await asyncio.gather(*[
             _upsert_ohlcv(async_session_maker, inst_id, sym, psym, sd, ed)
             for inst_id, sym, psym, sd, ed in batch
         ])
         success += sum(1 for r in results if r > 0)
         # Brief pause between batches to be Yahoo-respectful
-        if i + BATCH < len(all_tasks):
+        if i + batch_size < len(all_tasks):
             await asyncio.sleep(2.0)
 
     logger.info(
