@@ -14,11 +14,10 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // If user has a session and tries to access login/register
-  if (hasSession && authRoutes.some((route) => pathname.startsWith(route))) {
-    const dashboardUrl = new URL('/dashboard', request.url);
-    return NextResponse.redirect(dashboardUrl);
-  }
+  // We intentionally do NOT redirect away from auth routes if hasSession is true.
+  // Mere existence of a cookie does not guarantee a valid session.
+  // Validation is authoritative in getSession() / ProtectedLayout.
+  // This prevents infinite redirect loops when a stale cookie exists.
 
   return NextResponse.next();
 }
