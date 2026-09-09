@@ -1,26 +1,23 @@
 ﻿# AUTONOMOUS HANDOFF STATE
 
 ## CURRENT PHASE
-**POST-v1.0.5 END-TO-END RUNTIME + DATA PIPELINE STABILIZATION (v1.0.6) - COMPLETED**
+**POST-v1.0.6 REAL USER ACCEPTANCE CORRECTION (v1.0.7) - COMPLETED**
 
 ## COMPLETED WORK
-- **v1.0.6 Release Tagged**: 370a0d7
-- BIST100 instrument names successfully mapped in DB via `bist100_2026_Q3.csv` update and `seed_bist100.py`.
-- **Market History Populated**: `market-maintenance` background service built into `docker-compose.yml`. Verified ~50k OHLCV rows for the 100 instruments.
-- **Provider Resolution**: Built `ProviderResolver` to prevent mismatch between DB schema (which lacks `provider`) and Quote logic.
-- **Batch Quote Rewrite**: Rebuilt batch quote fetcher to handle `QuoteDTO` as a frozen Pydantic model (`model_copy(update=...)`).
-- **Mentor Context**: Added `conversation_history` to `ai_orchestrator` and `ai_mentor.py` with multi-turn support.
-- **Mentor Fallback & Intents**: Added strict `_detect_education_intent` check so mock provider gives legitimate answers to education queries instead of the static HOLD template.
-- **Frontend Markets**: Pagination implemented with `BatchQuoteResponse` parsing. No more frozen zero price displays.
-- **Frontend Risk**: Correctly handles NO_PORTFOLIO, ERROR, LOADING, ONE_PORTFOLIO, and MULTIPLE_PORTFOLIOS routing gracefully.
-- **Frontend Settings**: Correctly sets risk enum to `LOW/MEDIUM/HIGH` according to backend DB schema.
-- **Docker E2E**: API passes testing, authentication works.
+- **v1.0.7 Release Tagged**
+- **Portfolio Network Transport (P0)**: Identified and fixed the Next.js trailing slash proxy issue causing 307 temporary redirects and browser network errors.
+- **Frontend State Resilience (P1)**: Implemented explicitly typed NetworkError, RequestTimeoutError, and ApiError in etchApi. Handled in UI with explicit retries.
+- **Mentor Engine (P1)**: Added Turkish text normalizer for intent matching. Decoupled esponse_kind from action badges. Localized internal action tags (e.g. STRONG_BUY -> AL). Maintained ctiveSymbol state.
+- **Application Settings (P2)**: Converted static left-navigation labels into interactive, accessible anchor buttons.
+- **UI Clarity (P2)**: Localized reason codes (NEWS_UNAVAILABLE -> Haber verisi şu anda kullanılamıyor), clarified chart header text, removed exact times from daily candlestick tooltip.
+- **Background Jobs (P1)**: Refactored market_maintenance.py to a long-running daemon scheduled to wake at 19:00 TRT.
+- **Database Bootstrap (P1)**: Created ootstrap.py to run Alembic migrations and idempotent seed_bist100 before uvicorn startup.
 
 ## NEXT STEPS
-- Ensure the user tests v1.0.6 manually via Chrome.
-- Wait for user guidance on whether to proceed to Phase 22 (Champion/Challenger system) or fix further runtime bugs.
+- System is ready for a real-user acceptance sign-off. 
+- Wait for user guidance on whether to proceed to Phase 22 (Champion/Challenger system) or do further stabilization.
 
 ## WARNING TO FUTURE AGENTS
 - Do **NOT** start Phase 22 until the user explicitly asks for it.
-- Do **NOT** rewrite tags v1.0.0 through v1.0.6.
-- The repository represents the unvarnished truth.
+- Do **NOT** rewrite tags v1.0.0 through v1.0.7.
+- Repository + Docker are authoritative.
