@@ -27,7 +27,7 @@ export default function RegisterPage() {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
-      router.push("/onboarding");
+      window.location.href = "/onboarding";
     } catch (err: any) {
       setError(err.message || "Kayıt başarısız.");
     } finally {

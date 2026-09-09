@@ -111,9 +111,14 @@ class YahooFinanceProvider(MarketDataProvider):
         return self._parse_quote(symbol, data)
 
     async def get_quotes(self, symbols: list[str]) -> list[QuoteDTO]:
-        # Yahoo supports batching via v7/finance/quote?symbols=..., but for simplicity
-        # we can just run concurrent requests if it's a small batch
-        tasks = [self.get_quote(s) for s in symbols]
+        # Bounded concurrency to avoid tripping Yahoo rate limits
+        sem = asyncio.Semaphore(5)
+
+        async def _fetch_with_sem(s: str) -> QuoteDTO:
+            async with sem:
+                return await self.get_quote(s)
+
+        tasks = [_fetch_with_sem(s) for s in symbols]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         valid_quotes = []
@@ -123,9 +128,6 @@ class YahooFinanceProvider(MarketDataProvider):
             elif isinstance(r, InstrumentNotFoundError):
                 pass
             elif isinstance(r, Exception):
-                # If all failed, we might want to raise ProviderUnavailableError,
-                # but the spec says "Symbols that fail individually are omitted...
-                # unless the entire batch fails"
                 pass
 
         if not valid_quotes and symbols:

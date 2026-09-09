@@ -21,7 +21,8 @@ export default function LoginPage() {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
-      router.push("/dashboard");
+      // Force a full reload to clear Next.js client router cache and ensure cookies are sent
+      window.location.href = "/dashboard";
     } catch (err: any) {
       setError(err.message || "Giriş başarısız.");
     } finally {

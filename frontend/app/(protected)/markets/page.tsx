@@ -9,9 +9,9 @@ import { useState } from "react";
 function MarketsTable() {
   const [searchTerm, setSearchTerm] = useState("");
   
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['instruments', 'BIST100'],
-    queryFn: () => fetchApi('/api/v1/instruments?universe=BIST100&limit=100'),
+    queryFn: () => fetchApi('/api/v1/instruments?page=1&size=100'),
   });
 
   const instruments = (data as any)?.items || [];
@@ -23,7 +23,7 @@ function MarketsTable() {
 
   const symbolsToFetch = filtered.slice(0, 100).map((i: any) => i.symbol).join(',');
 
-  const { data: quotesData } = useQuery({
+  const { data: quotesData, isError: isQuotesError } = useQuery({
     queryKey: ['quotes_batch', symbolsToFetch],
     queryFn: () => symbolsToFetch ? fetchApi(`/api/v1/instruments/quotes/batch?symbols=${symbolsToFetch}`) : Promise.resolve({}),
     enabled: !!symbolsToFetch,
@@ -63,7 +63,14 @@ function MarketsTable() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {isLoading ? (
+            {isError ? (
+              <tr>
+                <td colSpan={6} className="p-8 text-center text-danger-600 bg-danger-50">
+                  <div className="font-semibold mb-1">Veri yüklenirken hata oluştu</div>
+                  <div className="text-sm opacity-80">Lütfen daha sonra tekrar deneyin veya oturumunuzu kontrol edin.</div>
+                </td>
+              </tr>
+            ) : isLoading ? (
               <tr><td colSpan={6} className="p-8 text-center text-slate-500">Yükleniyor...</td></tr>
             ) : filtered.length === 0 ? (
               <tr><td colSpan={6} className="p-8 text-center text-slate-500">Sonuç bulunamadı.</td></tr>

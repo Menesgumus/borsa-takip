@@ -119,22 +119,42 @@ async def get_instrument_quotes_batch(
     symbol_map = {} # provider_symbol -> native_symbol
 
     for inst in instruments:
-        provider_name = inst.provider or "yahoo"
-        mapping = next((m for m in inst.provider_mappings if m.provider_name == provider_name), None)
-        provider_symbol = str(mapping.provider_symbol) if mapping else (inst.symbol + ".IS" if provider_name == "yahoo" and not inst.symbol.endswith(".IS") else inst.symbol)
+        # Determine provider and provider symbol from mappings
+        provider_name = "mock"
+        provider_symbol = inst.symbol
+
+        if inst.provider_mappings:
+            # Prefer primary mapping
+            mapping = next((m for m in inst.provider_mappings if m.is_primary), None)
+            if not mapping:
+                mapping = sorted(inst.provider_mappings, key=lambda x: x.priority)[0]
+            provider_name = mapping.provider_name
+            provider_symbol = mapping.provider_symbol
+
         by_provider[provider_name].append(provider_symbol)
         symbol_map[provider_symbol] = inst.symbol
 
+    # Fetch quotes per provider
     results = {}
-    for provider, p_symbols in by_provider.items():
+    from datetime import UTC
+    for provider_name, provider_symbols in by_provider.items():
         try:
-            quotes = await registry.get_quotes(provider, p_symbols)
+            quotes = await registry.get_quotes(provider_name, provider_symbols)
             for q in quotes:
                 native_symbol = symbol_map.get(q.symbol, q.symbol)
+                q.symbol = native_symbol
                 results[native_symbol] = q
         except Exception:
-            pass
-
+            # Do not swallow silently. Return unavailable items honestly.
+            for s in provider_symbols:
+                native_symbol = symbol_map.get(s, s)
+                results[native_symbol] = QuoteDTO(
+                    symbol=native_symbol,
+                    price=Decimal("0"),
+                    change_pct=Decimal("0"),
+                    data_state="UNAVAILABLE",
+                    timestamp=datetime.now(UTC),
+                )
     return results
 
 @router.get("/{symbol}/quote", response_model=QuoteDTO)

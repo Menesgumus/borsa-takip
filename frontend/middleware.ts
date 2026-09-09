@@ -19,7 +19,14 @@ export function middleware(request: NextRequest) {
   // Validation is authoritative in getSession() / ProtectedLayout.
   // This prevents infinite redirect loops when a stale cookie exists.
 
-  return NextResponse.next();
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-pathname', pathname);
+
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 }
 
 export const config = {

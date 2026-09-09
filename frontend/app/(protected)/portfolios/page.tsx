@@ -16,19 +16,20 @@ export default function PortfolioOverviewPage() {
   const [newPortName, setNewPortName] = useState('');
   const [newPortType, setNewPortType] = useState('REAL');
   const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const router = useRouter();
   const queryClient = useQueryClient();
 
   const handleCreate = async () => {
     if (!newPortName.trim()) return;
     setIsCreating(true);
+    setCreateError(null);
     try {
       const data = await fetchApi("/api/v1/portfolios/", {
         method: "POST",
         body: JSON.stringify({
           name: newPortName,
           portfolio_type: newPortType,
-          description: ""
         })
       });
       await queryClient.invalidateQueries({ queryKey: ["portfolios"] });
@@ -37,9 +38,13 @@ export default function PortfolioOverviewPage() {
       if ((data as any)?.id) {
         router.push(`/portfolios/${(data as any).id}`);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("Hata oluştu.");
+      if (e.status === 422) {
+        setCreateError("Lütfen geçerli bilgiler girin.");
+      } else {
+        setCreateError(e.message || "Portföy oluşturulurken bir hata oluştu.");
+      }
     } finally {
       setIsCreating(false);
     }
@@ -52,6 +57,12 @@ export default function PortfolioOverviewPage() {
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-slate-100">
             <h2 className="text-xl font-bold text-navy-900 mb-4">Yeni Portföy Ekle</h2>
             
+            {createError && (
+              <div className="mb-4 p-3 bg-danger-50 text-danger-700 border border-danger-200 rounded-lg text-sm font-medium">
+                {createError}
+              </div>
+            )}
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-navy-700 mb-1">Portföy Adı</label>
@@ -71,7 +82,7 @@ export default function PortfolioOverviewPage() {
                   className="w-full px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                 >
                   <option value="REAL">Gerçek</option>
-                  <option value="SIMULATION">Simülasyon (Sanal)</option>
+                  <option value="PAPER">Simülasyon (Sanal)</option>
                 </select>
               </div>
             </div>

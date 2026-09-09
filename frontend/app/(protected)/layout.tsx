@@ -1,6 +1,7 @@
 import React from 'react';
 import { redirect } from 'next/navigation';
-import { getSession } from '@/lib/auth';
+import { getSession, getProfile } from '@/lib/auth';
+import { headers } from 'next/headers';
 import AppShell from '@/components/AppShell';
 
 export default async function ProtectedLayout({
@@ -12,6 +13,18 @@ export default async function ProtectedLayout({
 
   if (!session) {
     redirect('/login');
+  }
+
+  const profile = await getProfile();
+  const headersList = await headers();
+  const pathname = headersList.get('x-pathname') || '';
+
+  if (profile && profile.onboarding_completed === false && pathname !== '/onboarding') {
+    redirect('/onboarding');
+  }
+
+  if (profile && profile.onboarding_completed === true && pathname === '/onboarding') {
+    redirect('/dashboard');
   }
 
   return (

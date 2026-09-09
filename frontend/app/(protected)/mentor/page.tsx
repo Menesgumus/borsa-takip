@@ -56,7 +56,25 @@ export default function MentorPage() {
       let displayContent = (data as any).content;
       try {
         parsed = JSON.parse(displayContent);
-        displayContent = parsed.main_explanation || parsed.explanation || "Açıklama alınamadı.";
+        if (parsed.summary) {
+          // It's the new schema
+          displayContent = `Özet: ${parsed.summary}
+Karar: ${parsed.action}
+Neden: ${parsed.action_explanation}
+
+Önemli Nedenler:
+${parsed.key_reasons?.map((r: string) => `- ${r}`).join('\n')}
+
+Riskler:
+${parsed.risks?.map((r: string) => `- ${r}`).join('\n')}
+
+${parsed.data_quality_note ? `Veri Kalitesi: ${parsed.data_quality_note}` : ''}
+${parsed.learning_points?.length ? `\nEğitim Notları:\n${parsed.learning_points.map((r: string) => `- ${r}`).join('\n')}` : ''}
+
+${parsed.synthetic ? '(Güvenli Mock Modu - Yapay zeka sağlayıcısı kapalı)' : ''}`;
+        } else {
+          displayContent = parsed.main_explanation || parsed.explanation || "Açıklama alınamadı.";
+        }
       } catch (e) {
         // Not JSON
       }
@@ -100,13 +118,13 @@ export default function MentorPage() {
         {/* Chat Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
           {messages.map((msg, i) => (
-            <div key={i} className={`flex gap-4 max-w-[85%] ${msg.role === 'user' ? 'ml-auto flex-row-reverse' : ''}`}>
+            <div key={i} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
                 msg.role === 'user' ? 'bg-navy-900 text-white' : 'bg-primary-100 text-primary-700'
               }`}>
                 {msg.role === 'user' ? <User size={16} /> : <Bot size={18} />}
               </div>
-              <div className={`p-4 rounded-2xl text-sm ${
+              <div className={`max-w-[85%] p-4 rounded-2xl text-sm whitespace-pre-wrap ${
                 msg.role === 'user' 
                   ? 'bg-primary-600 text-white rounded-tr-sm' 
                   : 'bg-white border border-slate-200 text-navy-900 rounded-tl-sm shadow-sm'

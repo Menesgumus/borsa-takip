@@ -75,5 +75,18 @@ async def seed_bist100():
             await session.commit()
             print(f"Successfully seeded/updated {added} instruments from BIST100.")
 
+            # Invalidate instrument list caches
+            try:
+                import redis.asyncio as redis
+                from app.core.config import settings
+                redis_client = redis.from_url(str(settings.REDIS_URL), decode_responses=True)
+                keys = await redis_client.keys("instruments:paginated:*")
+                if keys:
+                    await redis_client.delete(*keys)
+                await redis_client.aclose()
+                print(f"Invalidated {len(keys)} instrument cache keys.")
+            except Exception as e:
+                print(f"Warning: Failed to invalidate cache: {e}")
+
 if __name__ == "__main__":
     asyncio.run(seed_bist100())

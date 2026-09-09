@@ -10,26 +10,39 @@ export default function OnboardingPage() {
   const [lastName, setLastName] = useState("");
   const [riskTolerance, setRiskTolerance] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const router = useRouter();
 
   const handleComplete = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!riskTolerance) return; // Form validation guards this anyway
     setLoading(true);
+    setErrorMsg(null);
 
     try {
-      await fetchApi("/api/v1/users/me", {
+      await fetchApi("/api/v1/users/profile", {
         method: "PUT",
         body: JSON.stringify({
           first_name: firstName,
           last_name: lastName,
           risk_tolerance: riskTolerance,
+          onboarding_completed: true
         }),
       });
-      router.push("/dashboard");
+      window.location.href = "/dashboard";
     } catch (err: any) {
       console.error(err);
-      alert("Hata oluştu.");
+      if (err.status === 401) {
+        setErrorMsg("Oturumunuz süresi dolmuş. Lütfen tekrar giriş yapın.");
+      } else if (err.status === 422) {
+        setErrorMsg("Girdiğiniz veriler geçersiz. Lütfen kontrol edip tekrar deneyin.");
+      } else if (err.status === 500) {
+        setErrorMsg("Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.");
+      } else if (err.name === 'AbortError' || err.message?.includes('timeout')) {
+        setErrorMsg("İstek zaman aşımına uğradı. Tekrar deneyin.");
+      } else {
+        setErrorMsg("Profil güncellenirken bir hata oluştu. Lütfen tekrar deneyin.");
+      }
     } finally {
       setLoading(false);
     }
@@ -65,6 +78,12 @@ export default function OnboardingPage() {
 
       <form onSubmit={handleComplete} className="bg-surface rounded-2xl shadow-sm border border-navy-800/10 p-8 space-y-8">
         
+        {errorMsg && (
+          <div className="p-4 rounded-lg bg-danger-50 text-danger-700 border border-danger-200 text-sm font-medium">
+            {errorMsg}
+          </div>
+        )}
+
         {/* Ad Soyad */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
