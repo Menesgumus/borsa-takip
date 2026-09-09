@@ -1,4 +1,5 @@
 "use client";
+import React, { useState } from "react";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -44,7 +45,7 @@ export default function LoginPage() {
             kararlarınızı <span className="text-primary-400">güçlendirin.</span>
           </h1>
           <p className="text-navy-300 mt-6 text-lg max-w-md">
-            Gerçek zamanlı piyasa verileri, teknik analizler ve kişiselleştirilmiş stratejiler ile yatırımlarınızı daha iyi yönetin.
+            Piyasa verileri, teknik analizler ve kişisel karar destek araçları ile yatırımlarınızı daha iyi yönetin.
           </p>
         </div>
         <div className="text-sm text-navy-400">
@@ -90,7 +91,6 @@ export default function LoginPage() {
                 <label className="block text-sm font-semibold text-navy-800" htmlFor="password">
                   Şifre
                 </label>
-                <a href="#" className="text-sm font-medium text-primary-600 hover:text-primary-700">Şifremi Unuttum</a>
               </div>
               <input
                 id="password"

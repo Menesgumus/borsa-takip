@@ -9,18 +9,32 @@ from app.db.session import engine
 from app.db.models import Instrument, ProviderMapping
 
 async def seed_bist100():
-    csv_path = Path(__file__).parent.parent.parent.parent / "data" / "market" / "bist100_2024.csv"
+    csv_path = Path(__file__).parent.parent.parent.parent / "data" / "market" / "bist100_2026_Q3.csv"
     if not csv_path.exists():
         print(f"CSV not found: {csv_path}")
         return
 
     async with AsyncSession(engine) as session:
+        # First safely rename old symbols to new symbols
+        renames = {"IPEKE": "TRENJ", "KOZAA": "TRMET", "KOZAL": "TRALT"}
+        for old_sym, new_sym in renames.items():
+            old_inst = (await session.execute(select(Instrument).where(Instrument.symbol == old_sym))).scalar_one_or_none()
+            if old_inst:
+                old_inst.symbol = new_sym
+                # Update provider mapping too
+                mapping = (await session.execute(select(ProviderMapping).where(ProviderMapping.instrument_id == old_inst.id))).scalar_one_or_none()
+                if mapping:
+                    mapping.provider_symbol = f"{new_sym}.IS"
+        await session.commit()
+
         with open(csv_path, newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             
             added = 0
+            csv_symbols = set()
             for row in reader:
                 symbol = row["symbol"]
+                csv_symbols.add(symbol)
                 
                 # Check if instrument exists
                 stmt = select(Instrument).where(Instrument.symbol == symbol)
@@ -48,8 +62,14 @@ async def seed_bist100():
                     session.add(mapping)
                     added += 1
                 else:
-                    # Ensure active
+                    # Ensure active and updated symbol if needed
                     instrument.is_active = True
+
+            # Deactivate any instruments that are NOT in the current BIST100 CSV but are marked active
+            all_db_instruments = (await session.execute(select(Instrument).where(Instrument.is_active == True))).scalars().all()
+            for db_inst in all_db_instruments:
+                if db_inst.symbol not in csv_symbols:
+                    db_inst.is_active = False
 
             await session.commit()
             print(f"Successfully seeded/updated {added} instruments from BIST100.")

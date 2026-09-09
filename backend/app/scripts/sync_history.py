@@ -49,33 +49,35 @@ async def sync_history(days: int = 730):
                     logger.warning(f"No history found for {symbol}")
                     continue
                 
-                await session.execute(
-                    OHLCVDaily.__table__.delete().where(
-                        OHLCVDaily.instrument_id == inst_id,
-                        OHLCVDaily.timestamp >= start_date,
-                        OHLCVDaily.timestamp <= end_date
-                    )
-                )
-                
                 new_records = []
                 for q in quotes:
-                    new_records.append(
-                        OHLCVDaily(
-                            instrument_id=inst_id,
-                            timestamp=q.timestamp,
-                            open=q.open,
-                            high=q.high,
-                            low=q.low,
-                            close=q.price,
-                            volume=q.volume
-                        )
-                    )
+                    new_records.append({
+                        "instrument_id": inst_id,
+                        "timestamp": q.timestamp,
+                        "open": q.open,
+                        "high": q.high,
+                        "low": q.low,
+                        "close": q.price,
+                        "volume": q.volume
+                    })
+                from sqlalchemy.dialects.postgresql import insert as pg_insert
                 
                 if new_records:
-                    session.add_all(new_records)
+                    stmt = pg_insert(OHLCVDaily).values(new_records)
+                    stmt = stmt.on_conflict_do_update(
+                        constraint='uq_ohlcv_daily_instrument_time',
+                        set_={
+                            'open': stmt.excluded.open,
+                            'high': stmt.excluded.high,
+                            'low': stmt.excluded.low,
+                            'close': stmt.excluded.close,
+                            'volume': stmt.excluded.volume,
+                        }
+                    )
+                    await session.execute(stmt)
                     await session.commit()
                     success_count += 1
-                    logger.info(f"Inserted {len(new_records)} days for {symbol}")
+                    logger.info(f"Inserted/Updated {len(new_records)} days for {symbol}")
                 
             except Exception as e:
                 logger.error(f"Failed to sync {symbol}: {e}")

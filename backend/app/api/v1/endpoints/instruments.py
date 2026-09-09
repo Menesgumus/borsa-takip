@@ -165,6 +165,8 @@ async def get_instrument_history(
             start_date = end_date - timedelta(days=180)
         elif period.upper() == "1Y":
             start_date = end_date - timedelta(days=365)
+        elif period.upper() == "2Y":
+            start_date = end_date - timedelta(days=730)
             
     result = await db.execute(
         select(Instrument).where(Instrument.symbol == symbol, Instrument.is_active.is_(True))

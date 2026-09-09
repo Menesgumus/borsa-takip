@@ -3,7 +3,7 @@
 **Date:** 2026-09-08
 
 ## Overview
-Phase 21 aimed to upgrade Borsa Takip from a developer/mock-heavy prototype into a production-ready application focused on real market data and a professional UI/UX. The target release is `v1.0.1`.
+Phase 21 aimed to upgrade Borsa Takip from a developer/mock-heavy prototype into a personal/local daily-use ready application focused on real market data and a professional UI/UX. The target release is `v1.0.1`.
 
 ## Achievements
 

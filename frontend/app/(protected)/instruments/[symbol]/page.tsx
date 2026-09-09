@@ -20,7 +20,12 @@ export default function InstrumentDetail() {
   const [period, setPeriod] = useState('1Y');
   const [activeTab, setActiveTab] = useState('GENEL_BAKIS');
 
-  // 1. Fetch Context (Basic Info + Live Quote)
+  const { data: instrument, isLoading: isInstrumentLoading } = useQuery({
+    queryKey: ['instrument', symbol, 'basic'],
+    queryFn: () => fetchApi(`/api/v1/instruments/${symbol}`),
+  });
+
+  // 1. Fetch Context (Live Quote etc)
   const { data: context, isLoading: isContextLoading } = useQuery({
     queryKey: ['instrument', symbol, 'context'],
     queryFn: () => fetchApi(`/api/v1/instruments/${symbol}/context`),
@@ -73,7 +78,7 @@ export default function InstrumentDetail() {
       <div className="bg-surface rounded-xl p-6 border border-navy-800/10 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <h1 className="text-3xl font-bold text-navy-900 tracking-tight">{symbol}</h1>
-          <p className="text-navy-700/80 text-lg mt-1">{context?.name || '---'}</p>
+          <p className="text-navy-700/80 text-lg mt-1">{instrument?.name || '---'}</p>
           <div className="text-xs font-medium text-navy-700/60 mt-2 flex items-center gap-2">
             BIST &middot; STOCK
           </div>
@@ -210,7 +215,11 @@ export default function InstrumentDetail() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-navy-700/70">MACD Trend</span>
                   <span className="font-medium text-navy-900">
-                    {technical?.indicators?.find((i: any) => i.name === 'MACD_12_26_9')?.value > 0 ? 'Pozitif' : 'Negatif'}
+                    {(() => {
+                      const macdVal = technical?.indicators?.find((i: any) => i.name === 'MACD_12_26_9')?.value;
+                      if (macdVal === undefined || macdVal === null) return 'Yetersiz Veri';
+                      return macdVal > 0 ? 'Pozitif' : (macdVal < 0 ? 'Negatif' : 'Nötr');
+                    })()}
                   </span>
                 </div>
               </div>
@@ -268,10 +277,57 @@ export default function InstrumentDetail() {
           </div>
         )}
 
-        {['KAP', 'TEMEL', 'RISK'].includes(activeTab) && (
+        {activeTab === 'KAP' && (
+          <div className="bg-surface rounded-xl p-6 border border-navy-800/10 shadow-sm">
+            <h3 className="text-lg font-semibold text-navy-900 mb-6">KAP ve Haberler</h3>
+            
+            <div className="mb-8">
+              <h4 className="text-sm font-bold text-navy-700 mb-3 border-b pb-2">KAP Bildirimleri</h4>
+              {!context?.availability?.kap ? (
+                <div className="text-slate-500 text-sm py-4">KAP veri kaynağı şu an ulaşılamıyor (UNAVAILABLE).</div>
+              ) : context?.disclosures?.length > 0 ? (
+                <ul className="space-y-3">
+                  {context.disclosures.map((d: any, idx: number) => (
+                    <li key={idx} className="text-sm">
+                      <span className="font-medium text-navy-900">{new Date(d.publish_date).toLocaleDateString()}</span> - <a href={d.url} target="_blank" className="text-primary-600 hover:underline">{d.title}</a>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="text-slate-500 text-sm py-4">Son KAP bildirimi bulunmuyor (EMPTY).</div>
+              )}
+            </div>
+
+            <div>
+              <h4 className="text-sm font-bold text-navy-700 mb-3 border-b pb-2">Piyasa Haberleri</h4>
+              {!context?.availability?.news ? (
+                <div className="text-slate-500 text-sm py-4">Haber kaynağı şu an ulaşılamıyor (NEWS_UNAVAILABLE).</div>
+              ) : context?.news?.length > 0 ? (
+                <ul className="space-y-3">
+                  {context.news.map((n: any, idx: number) => (
+                    <li key={idx} className="text-sm">
+                      <span className="font-medium text-navy-900">{new Date(n.publish_date).toLocaleDateString()}</span> - <a href={n.url} target="_blank" className="text-primary-600 hover:underline">{n.title}</a>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="text-slate-500 text-sm py-4">Güncel haber bulunmuyor.</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'TEMEL' && (
           <div className="text-center p-12 bg-surface rounded-xl border border-navy-800/10">
-            <h3 className="text-lg font-medium text-navy-900 mb-2">Bu Modül Henüz Aktif Değil</h3>
-            <p className="text-navy-700/60">Veri bağlantısı veya entegrasyonu aşamasındadır.</p>
+            <h3 className="text-lg font-medium text-navy-900 mb-2">TEMEL VERİ KAYNAĞI BAĞLI DEĞİL</h3>
+            <p className="text-navy-700/60">Bu modül (F/K, PD/DD, Bilanço) için ticari veri sağlayıcı entegrasyonu gerekmektedir.</p>
+          </div>
+        )}
+
+        {activeTab === 'RISK' && (
+          <div className="text-center p-12 bg-surface rounded-xl border border-navy-800/10">
+            <h3 className="text-lg font-medium text-navy-900 mb-2">Bu hisseyi portföy riskinizle karşılaştırmak için bir portföy seçin.</h3>
+            <p className="text-navy-700/60">Portföy seçimi sonrası algoritma ağırlık ve korelasyon hesaplayacaktır.</p>
           </div>
         )}
       </div>
