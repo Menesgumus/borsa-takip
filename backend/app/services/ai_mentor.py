@@ -182,25 +182,10 @@ class MockMentorProvider(BaseMentorProvider):
                 action_explanation="Guvenlik nedeniyle reddedildi.",
                 key_reasons=[],
                 risks=[],
-                action=action_str,
+                action=None,
                 learning_points=[],
                 synthetic=True,
             )
-
-        if "fiyatı 5000" in user_prompt.lower() or "fiyatı 5000" in user_prompt:
-            return MentorExplanation(
-                response_kind="DECISION",
-                summary="Sistemimde bu fiyat verisi bulunmuyor.",
-                action_explanation="Sadece güncel verilere dayanarak yorum yapabilirim.",
-                key_reasons=[],
-                risks=[],
-                action=action_str,
-                learning_points=[],
-                synthetic=True,
-            )
-
-        if "override_action_test" in user_prompt.lower():
-            action_str = "STRONG_BUY" if context.deterministic_action.value == "SELL" else "STRONG_SELL"
 
         # 1. Education intent detection
         education_answer = _detect_education_intent(user_prompt)

@@ -1,4 +1,4 @@
-﻿import os
+import os
 from typing import Any
 
 from app.services.ai_mentor import (
@@ -50,16 +50,21 @@ async def generate_mentor_response(
             synthetic=True,
         )
 
-    # ── ACTION PARITY - HARD INVARIANT ──────────────────────────────────────
-    # LLM may NEVER override the deterministic Decision Engine action
-    if explanation.action != context.deterministic_action.value:
-        logger.warning(
-            f"ACTION PARITY FAILURE: LLM={explanation.action}, "
-            f"Engine={context.deterministic_action.value}. Sanitizing."
-        )
-        explanation = explanation.model_copy(update={
-            "action": context.deterministic_action.value,
-            "summary": f"[DÜZELTME]: {explanation.summary}",
-        })
+    # ■ ACTION PARITY - HARD INVARIANT ■
+    # LLM may NEVER override the deterministic Decision Engine action for DECISIONs
+    if explanation.response_kind == "DECISION":
+        if explanation.action != context.deterministic_action.value:
+            logger.warning(
+                f"ACTION PARITY FAILURE: LLM={explanation.action}, "
+                f"Engine={context.deterministic_action.value}. Sanitizing."
+            )
+            explanation = explanation.model_copy(update={
+                "action": context.deterministic_action.value,
+                "summary": f"[DÜZELTME]: {explanation.summary}",
+            })
+    else:
+        # Non-DECISION responses must not have an action
+        if explanation.action is not None:
+            explanation = explanation.model_copy(update={"action": None})
 
     return explanation
