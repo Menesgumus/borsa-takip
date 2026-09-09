@@ -39,6 +39,9 @@ services:
       - POSTGRES_PASSWORD=fake_password
       - POSTGRES_DB=borsa_takip_dev
       - REDIS_URL=redis://redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MENTOR_MODEL=${OPENAI_MENTOR_MODEL:-gpt-4o-2024-08-06}
+      - USE_MOCK_MENTOR=${USE_MOCK_MENTOR:-true}
     ports:
       - "127.0.0.1:8001:8000"
     volumes:
@@ -48,6 +51,28 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  market-maintenance:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: python -m app.scripts.market_maintenance
+    environment:
+      - ENVIRONMENT=production
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=fake_password
+      - POSTGRES_DB=borsa_takip_dev
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./data:/data:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: on-failure
 
   web:
     build:
@@ -63,4 +88,3 @@ services:
 
 volumes:
   postgres_data:
-

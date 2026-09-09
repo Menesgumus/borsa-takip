@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "@/lib/api";
 import { useState, useEffect } from "react";
-import { User, Shield, GraduationCap, Save } from "lucide-react";
+import { User, Shield, GraduationCap, Save, CheckCircle, AlertCircle } from "lucide-react";
 
 export default function SettingsPage() {
   const { data: user } = useQuery({
@@ -11,37 +11,40 @@ export default function SettingsPage() {
     queryFn: () => fetchApi("/api/v1/auth/me"),
   });
 
+  // Backend canonical: LOW, MEDIUM, HIGH
   const [riskTolerance, setRiskTolerance] = useState("MEDIUM");
   const [explanationLevel, setExplanationLevel] = useState("PRO");
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    fetchApi("/api/v1/users/profile").then((profile: any) => {
-      if (profile?.risk_tolerance) {
-        setRiskTolerance(profile.risk_tolerance);
-      }
-    }).catch(console.error);
+    fetchApi("/api/v1/users/profile")
+      .then((profile: any) => {
+        if (profile?.risk_tolerance) {
+          setRiskTolerance(profile.risk_tolerance);
+        }
+      })
+      .catch(console.error);
 
-    const storedLevel = localStorage.getItem('bt_explanation_level');
+    const storedLevel = localStorage.getItem("bt_explanation_level");
     if (storedLevel) setExplanationLevel(storedLevel);
   }, []);
 
   const handleSave = async () => {
     setIsSaving(true);
+    setSaveError(null);
+    setSaved(false);
     try {
       await fetchApi("/api/v1/users/profile", {
         method: "PUT",
-        body: JSON.stringify({
-          risk_tolerance: riskTolerance,
-        })
+        body: JSON.stringify({ risk_tolerance: riskTolerance }),
       });
-      localStorage.setItem('bt_explanation_level', explanationLevel);
+      localStorage.setItem("bt_explanation_level", explanationLevel);
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch (e) {
-      console.error(e);
-      alert("Hata oluştu.");
+      setTimeout(() => setSaved(false), 3000);
+    } catch (e: any) {
+      setSaveError(e?.message || "Ayarlar kaydedilemedi. Lütfen tekrar deneyin.");
     } finally {
       setIsSaving(false);
     }
@@ -68,48 +71,53 @@ export default function SettingsPage() {
         </div>
 
         <div className="md:col-span-2 space-y-6">
+          {/* Account Info */}
           <div className="bg-surface rounded-xl p-6 border border-navy-800/10 shadow-sm">
             <h3 className="text-lg font-bold text-navy-900 mb-4 border-b pb-2">Hesap Bilgileri</h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-navy-700 mb-1">E-Posta Adresi</label>
-                <input 
-                  type="email" 
-                  disabled 
-                  value={(user as any)?.email || ''} 
+                <input
+                  type="email"
+                  disabled
+                  value={(user as any)?.email || ""}
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-500"
                 />
               </div>
             </div>
           </div>
 
+          {/* Risk Preferences */}
           <div className="bg-surface rounded-xl p-6 border border-navy-800/10 shadow-sm">
             <h3 className="text-lg font-bold text-navy-900 mb-4 border-b pb-2">Risk Tercihleri</h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-navy-700 mb-1">Risk Toleransı</label>
-                <select 
+                <select
                   value={riskTolerance}
-                  onChange={e => setRiskTolerance(e.target.value)}
+                  onChange={(e) => setRiskTolerance(e.target.value)}
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500"
                 >
-                  <option value="CONSERVATIVE">Düşük (Muhafazakar)</option>
-                  <option value="MODERATE">Orta (Dengeli)</option>
-                  <option value="AGGRESSIVE">Yüksek (Agresif)</option>
+                  <option value="LOW">Düşük (Muhafazakâr)</option>
+                  <option value="MEDIUM">Orta (Dengeli)</option>
+                  <option value="HIGH">Yüksek (Agresif)</option>
                 </select>
-                <p className="text-xs text-slate-500 mt-1">Karar motoru portföy uyumu hesaplarken bu değeri dikkate alacaktır.</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Karar motoru portföy uyumu hesaplarken bu değeri dikkate alacaktır.
+                </p>
               </div>
             </div>
           </div>
 
+          {/* Mentor Preferences */}
           <div className="bg-surface rounded-xl p-6 border border-navy-800/10 shadow-sm">
             <h3 className="text-lg font-bold text-navy-900 mb-4 border-b pb-2">Finansal Mentor</h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-navy-700 mb-1">Varsayılan Açıklama Seviyesi</label>
-                <select 
+                <select
                   value={explanationLevel}
-                  onChange={e => setExplanationLevel(e.target.value)}
+                  onChange={(e) => setExplanationLevel(e.target.value)}
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="BEGINNER">Başlangıç (Eğitim Odaklı)</option>
@@ -121,9 +129,19 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          {/* Save */}
           <div className="flex justify-end items-center gap-4">
-            {saved && <span className="text-success-600 font-medium text-sm">Değişiklikler kaydedildi!</span>}
-            <button 
+            {saved && (
+              <span className="flex items-center gap-1.5 text-success-600 font-medium text-sm">
+                <CheckCircle size={16} /> Değişiklikler kaydedildi!
+              </span>
+            )}
+            {saveError && (
+              <span className="flex items-center gap-1.5 text-danger-600 font-medium text-sm">
+                <AlertCircle size={16} /> {saveError}
+              </span>
+            )}
+            <button
               onClick={handleSave}
               disabled={isSaving}
               className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"

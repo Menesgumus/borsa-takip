@@ -39,3 +39,24 @@ class OHLCVDailyResponse(BaseModel):
     provider_name: str | None
 
     model_config = ConfigDict(from_attributes=True)
+
+from typing import Literal
+
+from app.market.dto import QuoteDTO
+
+
+class BatchQuoteItem(BaseModel):
+    """Status-wrapped quote item for batch responses."""
+    symbol: str
+    status: Literal["AVAILABLE", "UNAVAILABLE", "PROVIDER_ERROR", "TIMEOUT", "NOT_FOUND"]
+    quote: QuoteDTO | None = None
+    error_code: str | None = None
+
+
+class BatchQuoteResponse(BaseModel):
+    """Batch quote response with per-symbol availability status."""
+    items: dict[str, BatchQuoteItem]
+    requested_count: int
+    available_count: int
+    unavailable_count: int
+    as_of: datetime

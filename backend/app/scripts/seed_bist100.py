@@ -63,8 +63,11 @@ async def seed_bist100():
                     session.add(mapping)
                     added += 1
                 else:
-                    # Ensure active and updated symbol if needed
+                    # Update name and ensure active
                     instrument.is_active = True
+                    if row.get("name") and row["name"] != instrument.symbol:
+                        instrument.name = row["name"]
+                    added += 1
 
             # Deactivate any instruments that are NOT in the current BIST100 CSV but are marked active
             all_db_instruments = (await session.execute(select(Instrument).where(Instrument.is_active == True, Instrument.exchange == "BIST", Instrument.instrument_type == "STOCK"))).scalars().all()

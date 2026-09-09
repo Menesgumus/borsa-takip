@@ -7,9 +7,14 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { ArrowRight, AlertCircle, Plus } from "lucide-react";
 
 export default function PortfolioOverviewPage() {
-  const { data: portfolios, isLoading } = useQuery({
+  const { data: portfolios, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["portfolios"],
     queryFn: () => fetchApi("/api/v1/portfolios/"),
+    staleTime: 30_000,
+    retry: (failureCount: number, err: any) => {
+      if (err?.status >= 400 && err?.status < 500) return false;
+      return failureCount < 1;
+    },
   });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -121,7 +126,19 @@ export default function PortfolioOverviewPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-slate-500">Yükleniyor...</div>
+        <div className="text-center py-12 text-slate-500 flex flex-col items-center gap-3">
+          <div className="w-6 h-6 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
+          Yükleniyor...
+        </div>
+      ) : isError ? (
+        <div className="text-center py-12 flex flex-col items-center gap-4">
+          <AlertCircle className="text-danger-500" size={32} />
+          <div className="text-danger-700 font-medium">Portföy verileri alınamadı</div>
+          <div className="text-sm text-slate-500">{(error as any)?.message || "Lütfen daha sonra tekrar deneyin."}</div>
+          <button onClick={() => refetch()} className="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors">
+            Tekrar Dene
+          </button>
+        </div>
       ) : portfolios && (portfolios as any).length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
           {(portfolios as any).map((p: any) => (
@@ -130,7 +147,7 @@ export default function PortfolioOverviewPage() {
                 <div>
                   <h3 className="text-lg font-bold text-navy-900 group-hover:text-primary-600 transition-colors">{p.name}</h3>
                   <span className="inline-block mt-1 px-2 py-0.5 bg-slate-100 text-slate-600 text-xs font-semibold rounded">
-                    {p.portfolio_type === 'REAL' ? 'GERÇEK' : 'SİMÜLASYON'}
+                    {p.portfolio_type === 'REAL' ? 'GERÇEK' : p.portfolio_type === 'PAPER' ? 'SİMÜLASYON' : p.portfolio_type}
                   </span>
                 </div>
                 <ArrowRight className="text-slate-300 group-hover:text-primary-600 transition-colors" />

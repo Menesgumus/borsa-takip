@@ -1,189 +1,373 @@
-"use client";
+﻿"use client";
 
-import { useState, useEffect } from "react";
-import { Send, User, Bot, Sparkles, GraduationCap } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Send, User, Bot, Sparkles, GraduationCap, Plus, AlertCircle } from "lucide-react";
 import { fetchApi } from "@/lib/api";
 
+interface ParsedMentorResponse {
+  summary: string;
+  action_explanation: string;
+  key_reasons: string[];
+  risks: string[];
+  data_quality_note?: string | null;
+  learning_points: string[];
+  action: string;
+  synthetic: boolean;
+}
+
+interface Message {
+  role: "user" | "assistant";
+  content: string;
+  parsed?: ParsedMentorResponse;
+  error?: boolean;
+}
+
+const ACTION_COLOR: Record<string, string> = {
+  AL: "text-success-700 bg-success-50 border-success-200",
+  "KADEMELI AL": "text-success-600 bg-success-50 border-success-200",
+  BEKLE: "text-amber-700 bg-amber-50 border-amber-200",
+  "KADEMELI SAT": "text-orange-600 bg-orange-50 border-orange-200",
+  SAT: "text-danger-700 bg-danger-50 border-danger-200",
+};
+
+function AssistantBubble({ msg }: { msg: Message }) {
+  if (msg.error) {
+    return (
+      <div className="flex gap-3 items-start">
+        <div className="w-8 h-8 rounded-full bg-danger-100 flex-shrink-0 flex items-center justify-center">
+          <AlertCircle className="text-danger-500" size={16} />
+        </div>
+        <div className="bg-danger-50 border border-danger-200 rounded-xl px-4 py-3 text-sm text-danger-700 max-w-[80%]">
+          {msg.content}
+        </div>
+      </div>
+    );
+  }
+
+  if (msg.parsed) {
+    const p = msg.parsed;
+    const actionColor = ACTION_COLOR[p.action] || "text-slate-700 bg-slate-50 border-slate-200";
+    return (
+      <div className="flex gap-3 items-start">
+        <div className="w-8 h-8 rounded-full bg-primary-100 flex-shrink-0 flex items-center justify-center">
+          <Bot className="text-primary-600" size={16} />
+        </div>
+        <div className="space-y-3 max-w-[85%]">
+          {/* Action badge */}
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${actionColor}`}>
+            {p.action}
+          </span>
+
+          {/* Summary */}
+          <div className="bg-surface border border-navy-800/10 rounded-xl px-4 py-3 text-sm text-navy-800 leading-relaxed whitespace-pre-wrap">
+            {p.summary}
+          </div>
+
+          {/* Action explanation */}
+          {p.action_explanation && (
+            <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 leading-relaxed">
+              {p.action_explanation}
+            </div>
+          )}
+
+          {/* Key reasons */}
+          {p.key_reasons && p.key_reasons.length > 0 && (
+            <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 space-y-1">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Nedenler</p>
+              {p.key_reasons.map((r, i) => (
+                <div key={i} className="text-sm text-navy-800 flex items-start gap-2">
+                  <span className="text-primary-500 mt-0.5">•</span> {r}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Risks */}
+          {p.risks && p.risks.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 space-y-1">
+              <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-2">Riskler</p>
+              {p.risks.map((r, i) => (
+                <div key={i} className="text-sm text-amber-800 flex items-start gap-2">
+                  <span className="mt-0.5">⚠</span> {r}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Data quality note */}
+          {p.data_quality_note && (
+            <div className="bg-slate-100 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-500">
+              {p.data_quality_note}
+            </div>
+          )}
+
+          {/* Synthetic badge */}
+          {p.synthetic && (
+            <span className="text-xs text-slate-400 flex items-center gap-1">
+              <GraduationCap size={12} /> Deterministik yanıt
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Plain text fallback
+  return (
+    <div className="flex gap-3 items-start">
+      <div className="w-8 h-8 rounded-full bg-primary-100 flex-shrink-0 flex items-center justify-center">
+        <Bot className="text-primary-600" size={16} />
+      </div>
+      <div className="bg-surface border border-navy-800/10 rounded-xl px-4 py-3 text-sm text-navy-800 max-w-[85%] whitespace-pre-wrap leading-relaxed">
+        {msg.content}
+      </div>
+    </div>
+  );
+}
+
+const SUGGESTIONS = [
+  "THYAO neden BEKLE veriyor?",
+  "RSI nedir?",
+  "MACD nasıl yorumlanır?",
+  "Portföy diversifikasyonu nedir?",
+];
+
 export default function MentorPage() {
-  const [messages, setMessages] = useState<{role: string, content: string, parsed?: any}[]>([
+  const [messages, setMessages] = useState<Message[]>([
     {
-      role: 'assistant',
-      content: 'Merhaba! Ben Borsa Takip finansal asistanınız. Yatırımlarınız, piyasalar veya finansal kavramlar hakkında size nasıl yardımcı olabilirim?'
-    }
+      role: "assistant",
+      content:
+        "Merhaba! Ben Borsa Takip finansal asistanınız. Yatırımlarınız, teknik göstergeler veya belirli hisseler hakkında sorularınızı yanıtlayabilirim.",
+    },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"BEGINNER" | "PRO">("BEGINNER");
   const [threadId, setThreadId] = useState<number | null>(null);
+  const [initError, setInitError] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const initThread = () => {
+    setInitError(false);
+    fetchApi("/api/v1/chat/threads", { method: "POST" })
+      .then((data: any) => setThreadId(data.id))
+      .catch(() => setInitError(true));
+  };
 
   useEffect(() => {
-    // Create a new thread on mount
-    fetchApi('/api/v1/chat/threads', { method: 'POST' })
-      .then((data: any) => setThreadId(data.id))
-      .catch(console.error);
+    initThread();
   }, []);
 
-  const suggestions = [
-    "THYAO neden BEKLE veriyor?",
-    "Portföyümde en büyük risk ne?",
-    "Bugünkü fırsatları açıkla.",
-    "RSI (Göreceli Güç Endeksi) nedir?"
-  ];
+  // Auto-scroll on new messages
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
 
   const handleSend = async (text: string) => {
-    if (!text.trim() || !threadId) return;
-    
-    const userMsg = { role: 'user', content: text };
-    setMessages(prev => [...prev, userMsg]);
+    if (!text.trim() || !threadId || loading) return;
+
+    const userMsg: Message = { role: "user", content: text };
+    setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setLoading(true);
 
-    // Extract symbol if possible (naive extraction)
-    const possibleSymbolMatch = text.match(/\b([A-Z]{4,5})\b/);
-    const instrument_symbol = possibleSymbolMatch ? possibleSymbolMatch[1] : null;
+    // Naive symbol extraction (e.g. THYAO, GARAN)
+    const match = text.match(/\b([A-Z]{4,5})\b/);
+    const instrument_symbol = match ? match[1] : null;
 
     try {
-      const data = await fetchApi(`/api/v1/chat/threads/${threadId}/messages`, {
-        method: 'POST',
-        body: JSON.stringify({ 
-          content: text, 
+      const data: any = await fetchApi(`/api/v1/chat/threads/${threadId}/messages`, {
+        method: "POST",
+        body: JSON.stringify({
+          content: text,
           instrument_symbol,
-          explanation_level: mode 
-        })
+          explanation_level: mode,
+        }),
       });
-      
-      let parsed = null;
-      let displayContent = (data as any).content;
+
+      let parsed: ParsedMentorResponse | undefined;
+      let displayContent = data.content;
+
       try {
-        parsed = JSON.parse(displayContent);
-        if (parsed.summary) {
-          // It's the new schema
-          displayContent = `Özet: ${parsed.summary}
-Karar: ${parsed.action}
-Neden: ${parsed.action_explanation}
-
-Önemli Nedenler:
-${parsed.key_reasons?.map((r: string) => `- ${r}`).join('\n')}
-
-Riskler:
-${parsed.risks?.map((r: string) => `- ${r}`).join('\n')}
-
-${parsed.data_quality_note ? `Veri Kalitesi: ${parsed.data_quality_note}` : ''}
-${parsed.learning_points?.length ? `\nEğitim Notları:\n${parsed.learning_points.map((r: string) => `- ${r}`).join('\n')}` : ''}
-
-${parsed.synthetic ? '(Güvenli Mock Modu - Yapay zeka sağlayıcısı kapalı)' : ''}`;
-        } else {
-          displayContent = parsed.main_explanation || parsed.explanation || "Açıklama alınamadı.";
+        const raw = JSON.parse(displayContent);
+        if (raw.summary) {
+          parsed = raw as ParsedMentorResponse;
+          displayContent = raw.summary;
         }
-      } catch (e) {
-        // Not JSON
+      } catch {
+        // plain string
       }
-      
-      setMessages(prev => [...prev, { role: 'assistant', content: displayContent, parsed }]);
+
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: displayContent, parsed },
+      ]);
     } catch (e: any) {
-      setMessages(prev => [...prev, { role: 'assistant', content: e?.message || "Bağlantı veya sunucu hatası oluştu." }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: e?.message || "Bir hata oluştu. Lütfen tekrar deneyin.",
+          error: true,
+        },
+      ]);
     } finally {
       setLoading(false);
     }
   };
 
+  const startNewConversation = () => {
+    setMessages([
+      {
+        role: "assistant",
+        content:
+          "Yeni sohbet başlatıldı. Size nasıl yardımcı olabilirim?",
+      },
+    ]);
+    setThreadId(null);
+    initThread();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend(input);
+    }
+  };
+
   return (
-    <div className="max-w-4xl mx-auto h-[calc(100vh-8rem)] flex flex-col animate-in fade-in duration-500">
-      <div className="flex justify-between items-center mb-6">
+    <div className="flex flex-col h-[calc(100vh-10rem)] max-w-3xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 tracking-tight flex items-center gap-2">
-            <Sparkles className="text-primary-600" /> Finansal Mentor
+          <h1 className="text-2xl font-bold text-navy-900 flex items-center gap-2">
+            <Sparkles className="text-primary-500" size={22} /> Finansal Mentor
           </h1>
-          <p className="text-navy-700 mt-1">Yapay zeka destekli kişisel yatırım danışmanınız.</p>
+          <p className="text-sm text-navy-700 mt-0.5">
+            Deterministik karar motoru + eğitim modu
+          </p>
         </div>
-        
-        {/* Beginner / Pro Toggle */}
-        <div className="bg-slate-100 p-1 rounded-lg flex text-sm font-medium">
-          <button 
-            onClick={() => setMode("BEGINNER")}
-            className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors ${mode === "BEGINNER" ? "bg-white text-primary-600 shadow-sm" : "text-slate-500"}`}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1">
+            <button
+              onClick={() => setMode("BEGINNER")}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                mode === "BEGINNER"
+                  ? "bg-white text-navy-900 shadow-sm"
+                  : "text-slate-500 hover:text-navy-700"
+              }`}
+            >
+              Başlangıç
+            </button>
+            <button
+              onClick={() => setMode("PRO")}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                mode === "PRO"
+                  ? "bg-white text-navy-900 shadow-sm"
+                  : "text-slate-500 hover:text-navy-700"
+              }`}
+            >
+              Pro
+            </button>
+          </div>
+          <button
+            onClick={startNewConversation}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
           >
-            <GraduationCap size={16} /> Başlangıç
-          </button>
-          <button 
-            onClick={() => setMode("PRO")}
-            className={`px-3 py-1.5 rounded-md transition-colors ${mode === "PRO" ? "bg-white text-primary-600 shadow-sm" : "text-slate-500"}`}
-          >
-            PRO
+            <Plus size={15} /> Yeni Sohbet
           </button>
         </div>
       </div>
 
-      <div className="flex-1 bg-surface rounded-2xl border border-navy-800/10 shadow-sm flex flex-col overflow-hidden">
-        {/* Chat Area */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
-          {messages.map((msg, i) => (
-            <div key={i} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                msg.role === 'user' ? 'bg-navy-900 text-white' : 'bg-primary-100 text-primary-700'
-              }`}>
-                {msg.role === 'user' ? <User size={16} /> : <Bot size={18} />}
-              </div>
-              <div className={`max-w-[85%] p-4 rounded-2xl text-sm whitespace-pre-wrap ${
-                msg.role === 'user' 
-                  ? 'bg-primary-600 text-white rounded-tr-sm' 
-                  : 'bg-white border border-slate-200 text-navy-900 rounded-tl-sm shadow-sm'
-              }`}>
+      {initError && (
+        <div className="mb-3 flex items-center gap-2 text-sm text-danger-600 bg-danger-50 border border-danger-200 rounded-lg px-4 py-2">
+          <AlertCircle size={14} />
+          Sohbet başlatılamadı.{" "}
+          <button onClick={initThread} className="underline font-medium">
+            Tekrar dene
+          </button>
+        </div>
+      )}
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto space-y-4 pb-4 pr-1">
+        {messages.map((msg, i) =>
+          msg.role === "user" ? (
+            <div key={i} className="flex gap-3 justify-end">
+              <div className="bg-primary-600 text-white rounded-xl px-4 py-3 text-sm max-w-[80%] whitespace-pre-wrap">
                 {msg.content}
               </div>
-            </div>
-          ))}
-          {loading && (
-            <div className="flex gap-4 max-w-[85%]">
-              <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center shrink-0">
-                <Bot size={18} />
-              </div>
-              <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm rounded-tl-sm flex gap-1">
-                <span className="w-2 h-2 rounded-full bg-slate-300 animate-bounce"></span>
-                <span className="w-2 h-2 rounded-full bg-slate-300 animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-                <span className="w-2 h-2 rounded-full bg-slate-300 animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+              <div className="w-8 h-8 rounded-full bg-navy-100 flex-shrink-0 flex items-center justify-center">
+                <User className="text-navy-600" size={16} />
               </div>
             </div>
-          )}
-        </div>
+          ) : (
+            <AssistantBubble key={i} msg={msg} />
+          )
+        )}
 
-        {/* Input Area */}
-        <div className="p-4 bg-white border-t border-slate-100">
-          {messages.length < 3 && (
-            <div className="flex flex-wrap gap-2 mb-4">
-              {suggestions.map((sug, i) => (
-                <button 
-                  key={i} 
-                  onClick={() => handleSend(sug)}
-                  className="px-3 py-1.5 bg-primary-50 text-primary-700 hover:bg-primary-100 border border-primary-100 rounded-full text-xs font-medium transition-colors"
-                >
-                  {sug}
-                </button>
-              ))}
+        {loading && (
+          <div className="flex gap-3 items-start">
+            <div className="w-8 h-8 rounded-full bg-primary-100 flex-shrink-0 flex items-center justify-center">
+              <Bot className="text-primary-600" size={16} />
             </div>
-          )}
-          
-          <form 
-            onSubmit={(e) => { e.preventDefault(); handleSend(input); }}
-            className="flex gap-2"
-          >
-            <input
-              type="text"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              placeholder="Mentor'a sor..."
-              className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:bg-white transition-all text-sm"
-              disabled={loading}
-            />
-            <button 
-              type="submit"
-              disabled={!input.trim() || loading}
-              className="px-4 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            <div className="bg-surface border border-navy-800/10 rounded-xl px-4 py-3">
+              <div className="flex gap-1">
+                {[0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="w-2 h-2 bg-primary-400 rounded-full animate-bounce"
+                    style={{ animationDelay: `${i * 0.15}s` }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Suggestions */}
+      {messages.length <= 1 && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {SUGGESTIONS.map((s) => (
+            <button
+              key={s}
+              onClick={() => handleSend(s)}
+              disabled={!threadId || loading}
+              className="px-3 py-1.5 text-sm text-navy-700 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Send size={18} />
+              {s}
             </button>
-          </form>
+          ))}
         </div>
+      )}
+
+      {/* Input */}
+      <div className="border-t border-slate-200 pt-4">
+        <div className="flex gap-3 items-end">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            rows={2}
+            placeholder={threadId ? "Sorunuzu yazın... (Enter gönderir, Shift+Enter yeni satır)" : "Sohbet başlatılıyor..."}
+            disabled={!threadId || loading}
+            className="flex-1 px-4 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none disabled:bg-slate-50 disabled:cursor-not-allowed"
+          />
+          <button
+            onClick={() => handleSend(input)}
+            disabled={!input.trim() || !threadId || loading}
+            className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl bg-primary-600 text-white hover:bg-primary-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Send size={18} />
+          </button>
+        </div>
+        <p className="text-xs text-slate-400 mt-2 text-center">
+          Bu yanıtlar yatırım tavsiyesi değildir. Deterministik karar motoru çıktılarıdır.
+        </p>
       </div>
     </div>
   );

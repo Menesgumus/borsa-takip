@@ -23,7 +23,7 @@ from app.schemas.decision import (
     PortfolioFitInputs,
     TechnicalInputs,
 )
-from app.schemas.instrument import InstrumentResponse, InstrumentsPaginated, OHLCVDailyResponse
+from app.schemas.instrument import BatchQuoteItem, BatchQuoteResponse, InstrumentResponse, InstrumentsPaginated, OHLCVDailyResponse
 from app.schemas.technical import TechnicalAnalysisResponse
 from app.services.decision_engine import evaluate_decision
 from app.services.technical_data import get_technical_analysis
@@ -99,13 +99,28 @@ async def get_instrument(
 
 
 
-@router.get("/quotes/batch", response_model=dict[str, QuoteDTO])
+@router.get("/quotes/batch", response_model=BatchQuoteResponse)
 async def get_instrument_quotes_batch(
-    symbols: str = Query(..., description="Comma separated symbols"),
+    symbols: str = Query(..., description="Comma separated canonical symbols"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
 ) -> Any:
-    symbol_list = [s.strip() for s in symbols.split(',')]
+    """Batch quote endpoint.
+
+    DB work is completed and materialized BEFORE any external provider I/O.
+    One failed symbol does not fail the whole batch.
+    Frozen QuoteDTO is NEVER mutated - model_copy is used for symbol remapping.
+    Unavailable quotes are NEVER represented as price=0.
+    """
+    import asyncio
+    from collections import defaultdict
+    from datetime import UTC, datetime
+
+    from app.services.provider_resolver import resolve_provider
+
+    symbol_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+
+    # ── DB PHASE: complete all DB work before external I/O ──────────────────
     res = await db.execute(
         select(Instrument)
         .options(selectinload(Instrument.provider_mappings))
@@ -113,49 +128,79 @@ async def get_instrument_quotes_batch(
     )
     instruments = res.scalars().all()
 
-    # Group by provider
-    from collections import defaultdict
-    by_provider = defaultdict(list)
-    symbol_map = {} # provider_symbol -> native_symbol
+    # Materialize resolution data before session becomes idle
+    found_symbols = {inst.symbol for inst in instruments}
+    by_provider: dict[str, list[str]] = defaultdict(list)
+    symbol_map: dict[str, str] = {}  # provider_symbol -> canonical_symbol
+    items: dict[str, BatchQuoteItem] = {}
+
+    # Mark not-found symbols
+    for sym in symbol_list:
+        if sym not in found_symbols:
+            items[sym] = BatchQuoteItem(symbol=sym, status="NOT_FOUND", error_code="INSTRUMENT_NOT_IN_DB")
 
     for inst in instruments:
-        # Determine provider and provider symbol from mappings
-        provider_name = "mock"
-        provider_symbol = inst.symbol
-
-        if inst.provider_mappings:
-            # Prefer primary mapping
-            mapping = next((m for m in inst.provider_mappings if m.is_primary), None)
-            if not mapping:
-                mapping = sorted(inst.provider_mappings, key=lambda x: x.priority)[0]
-            provider_name = mapping.provider_name
-            provider_symbol = mapping.provider_symbol
-
-        by_provider[provider_name].append(provider_symbol)
-        symbol_map[provider_symbol] = inst.symbol
-
-    # Fetch quotes per provider
-    results = {}
-    from datetime import UTC
-    for provider_name, provider_symbols in by_provider.items():
         try:
-            quotes = await registry.get_quotes(provider_name, provider_symbols)
+            resolved = resolve_provider(inst)
+            by_provider[resolved.provider_name].append(resolved.provider_symbol)
+            symbol_map[resolved.provider_symbol] = inst.symbol
+        except ProviderUnavailableError as e:
+            items[inst.symbol] = BatchQuoteItem(
+                symbol=inst.symbol, status="UNAVAILABLE", error_code=str(e)[:200]
+            )
+
+    # ── EXTERNAL I/O PHASE ───────────────────────────────────────────────────
+    async def fetch_provider_batch(provider_name: str, provider_symbols: list[str]) -> None:
+        try:
+            # 12-second hard deadline for the whole provider batch
+            quotes = await asyncio.wait_for(
+                registry.get_quotes(provider_name, provider_symbols),
+                timeout=12.0,
+            )
+            returned_psymbols = {q.symbol for q in quotes}
             for q in quotes:
-                native_symbol = symbol_map.get(q.symbol, q.symbol)
-                q.symbol = native_symbol
-                results[native_symbol] = q
-        except Exception:
-            # Do not swallow silently. Return unavailable items honestly.
-            for s in provider_symbols:
-                native_symbol = symbol_map.get(s, s)
-                results[native_symbol] = QuoteDTO(
-                    symbol=native_symbol,
-                    price=Decimal("0"),
-                    change_pct=Decimal("0"),
-                    data_state="UNAVAILABLE",
-                    timestamp=datetime.now(UTC),
+                canonical = symbol_map.get(q.symbol, q.symbol)
+                # Remap provider symbol to canonical using model_copy (frozen DTO)
+                mapped_q = q.model_copy(update={"symbol": canonical})
+                items[canonical] = BatchQuoteItem(symbol=canonical, status="AVAILABLE", quote=mapped_q)
+
+            # Provider silently omitted some symbols
+            for ps in provider_symbols:
+                if ps not in returned_psymbols:
+                    canonical = symbol_map.get(ps, ps)
+                    if canonical not in items:
+                        items[canonical] = BatchQuoteItem(
+                            symbol=canonical,
+                            status="UNAVAILABLE",
+                            error_code="NOT_RETURNED_BY_PROVIDER",
+                        )
+        except asyncio.TimeoutError:
+            for ps in provider_symbols:
+                canonical = symbol_map.get(ps, ps)
+                items[canonical] = BatchQuoteItem(
+                    symbol=canonical, status="TIMEOUT", error_code="BATCH_DEADLINE_EXCEEDED"
                 )
-    return results
+        except Exception as exc:
+            for ps in provider_symbols:
+                canonical = symbol_map.get(ps, ps)
+                items[canonical] = BatchQuoteItem(
+                    symbol=canonical, status="PROVIDER_ERROR", error_code=str(exc)[:200]
+                )
+
+    if by_provider:
+        await asyncio.gather(*[
+            fetch_provider_batch(pname, psyms)
+            for pname, psyms in by_provider.items()
+        ])
+
+    available_count = sum(1 for i in items.values() if i.status == "AVAILABLE")
+    return BatchQuoteResponse(
+        items=items,
+        requested_count=len(symbol_list),
+        available_count=available_count,
+        unavailable_count=len(items) - available_count,
+        as_of=datetime.now(UTC),
+    )
 
 @router.get("/{symbol}/quote", response_model=QuoteDTO)
 async def get_instrument_quote(
@@ -177,18 +222,17 @@ async def get_instrument_quote(
             detail="Instrument not found",
         )
 
-    # 2. Get provider mapping (default to "mock" and symbol itself if none)
-    provider_name = "mock"
-    provider_symbol = str(instrument.symbol)
-
-    if instrument.provider_mappings:
-        # Pick primary or first
-        mapping = next(
-            (m for m in instrument.provider_mappings if m.is_primary),
-            instrument.provider_mappings[0],
+    # 2. Resolve provider mapping using canonical resolver
+    from app.services.provider_resolver import resolve_provider
+    try:
+        resolved = resolve_provider(instrument)
+        provider_name = resolved.provider_name
+        provider_symbol = resolved.provider_symbol
+    except ProviderUnavailableError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"No provider configured for instrument '{symbol}'",
         )
-        provider_name = mapping.provider_name
-        provider_symbol = str(mapping.provider_symbol)
 
     # 3. Fetch quote via registry
     try:
@@ -321,8 +365,12 @@ async def get_instrument_decision(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ) -> Any:
-    # Get instrument
-    result = await db.execute(select(Instrument).where(Instrument.symbol == symbol))
+    # Get instrument with provider_mappings loaded
+    result = await db.execute(
+        select(Instrument)
+        .options(selectinload(Instrument.provider_mappings))
+        .where(Instrument.symbol == symbol)
+    )
     instrument = result.scalars().first()
     if not instrument:
         raise HTTPException(status_code=404, detail="Instrument not found")
@@ -339,8 +387,10 @@ async def get_instrument_decision(
             tech = TechnicalInputs(current_price=None, rsi_14=None, macd_line=None, macd_signal=None, sma_50=None, sma_200=None)
         else:
             latest = tech_response.indicators[-1]
+            # Start with latest OHLCV close as base price
+            base_price = Decimal(str(latest.close)) if latest.close is not None else None
             tech = TechnicalInputs(
-                current_price=Decimal(str(latest.close)) if latest.close is not None else Decimal("0"),
+                current_price=base_price,
                 rsi_14=Decimal(str(latest.rsi_14)) if latest.rsi_14 is not None else None,
                 macd_line=Decimal(str(latest.macd_line)) if latest.macd_line is not None else None,
                 macd_signal=Decimal(str(latest.macd_signal)) if latest.macd_signal is not None else None,
@@ -348,24 +398,24 @@ async def get_instrument_decision(
                 sma_200=Decimal(str(latest.sma_200)) if latest.sma_200 is not None else None
             )
 
-            # Try to get live quote. If it fails or is None, current_price falls back to latest close.
+            # Try to upgrade to live/delayed quote via canonical provider resolver
             try:
-                provider = instrument.provider or "yahoo"
-                # Yahoo uses e.g. AEFES.IS
-                quote_symbol = instrument.symbol + ".IS" if provider == "yahoo" and not instrument.symbol.endswith(".IS") else instrument.symbol
-                quote = await registry.get_quote(provider, quote_symbol)
+                from app.services.provider_resolver import resolve_provider
+                resolved = resolve_provider(instrument)
+                quote = await registry.get_quote(resolved.provider_name, resolved.provider_symbol)
                 if quote and quote.price is not None:
-                    tech.current_price = quote.price
-                    tech.is_stale = quote.data_state != "LIVE"
+                    tech = tech.model_copy(update={
+                        "current_price": quote.price,
+                        "is_stale": quote.data_state not in ("LIVE", "DELAYED"),
+                    })
             except Exception:
-                pass
+                pass  # Fallback to OHLCV close already set above
     except Exception:
         tech = TechnicalInputs(current_price=None, rsi_14=None, macd_line=None, macd_signal=None, sma_50=None, sma_200=None)
 
     # 2. Fundamental Inputs
     fund = FundamentalInputs(instrument_type=instrument.instrument_type.value)
     if hasattr(context, 'fundamentals') and context.fundamentals:
-        # F/K and PD/DD might be in metrics JSON
         metrics = context.fundamentals.metrics or {}
         fk = metrics.get('f_k') or metrics.get('pe_ratio')
         pddd = metrics.get('pd_dd') or metrics.get('pb_ratio')
@@ -374,11 +424,13 @@ async def get_instrument_decision(
         if pddd:
             fund.pb_ratio = Decimal(str(pddd))
 
-    # 3. News Inputs
-    news_input = NewsInputs(is_mock=True) # default mock
+    # 3. News Inputs — honest semantics
+    # is_mock=False + news_count=0 = NEWS_UNAVAILABLE (no provider connected)
+    # is_mock=True = actual synthetic mock data was used
+    news_input = NewsInputs(is_mock=False, news_count=0)  # default: unavailable, NOT mock
     if hasattr(context, 'news') and context.news:
         news_input.news_count = len(context.news)
-        news_input.sentiment_score = Decimal("60") # Simplified
+        news_input.sentiment_score = Decimal("60")
         news_input.is_mock = any('mock' in getattr(n, 'source', '').lower() for n in context.news)
 
     # 4. Portfolio Fit
