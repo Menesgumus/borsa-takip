@@ -31,7 +31,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
       </head>
       <body
-        className={`${inter.className} antialiased bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col`}
+        className={`${inter.className} antialiased bg-slate-50 text-slate-900 min-h-screen flex flex-col`}
       >
         <Providers>
           <NetworkProvider>

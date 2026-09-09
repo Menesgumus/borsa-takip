@@ -21,7 +21,7 @@ export const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Piyasalar', href: '/markets', icon: LineChart },
   { name: 'Portföyüm', href: '/portfolios', icon: Briefcase },
-  { name: 'Risk Yönetimi', href: '/portfolios/1/risk', icon: ShieldAlert },
+  { name: 'Risk Yönetimi', href: '/risk', icon: ShieldAlert },
   { name: 'Fırsatlar', href: '/opportunities', icon: Target },
   { name: 'Alarmlar', href: '/alerts', icon: Bell },
   { name: 'Eğitim', href: '/education', icon: BookOpen },

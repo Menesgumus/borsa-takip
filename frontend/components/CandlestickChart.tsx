@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from 'react';
-import { createChart, ColorType, IChartApi, ISeriesApi } from 'lightweight-charts';
+import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
 
 interface OHLCV {
   timestamp: string;
@@ -47,7 +47,7 @@ export default function CandlestickChart({ data }: { data: OHLCV[] }) {
 
     chartRef.current = chart;
 
-    const candlestickSeries = (chart as any).addCandlestickSeries({
+    const candlestickSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#16a34a', // success-600
       downColor: '#dc2626', // danger-600
       borderVisible: false,
@@ -55,7 +55,7 @@ export default function CandlestickChart({ data }: { data: OHLCV[] }) {
       wickDownColor: '#dc2626',
     });
 
-    const volumeSeries = (chart as any).addHistogramSeries({
+    const volumeSeries = chart.addSeries(HistogramSeries, {
       color: '#cbd5e1',
       priceFormat: {
         type: 'volume',
@@ -71,7 +71,8 @@ export default function CandlestickChart({ data }: { data: OHLCV[] }) {
     });
 
     // Process data
-    const formattedData = data.map(d => ({
+    const uniqueData = Array.from(new Map(data.map(d => [new Date(d.timestamp).getTime(), d])).values());
+    const formattedData = uniqueData.map(d => ({
       time: new Date(d.timestamp).getTime() / 1000,
       open: Number(d.open),
       high: Number(d.high),
@@ -79,7 +80,7 @@ export default function CandlestickChart({ data }: { data: OHLCV[] }) {
       close: Number(d.close),
     })).sort((a, b) => (a.time as number) - (b.time as number));
 
-    const volumeData = data.map(d => ({
+    const volumeData = uniqueData.map(d => ({
       time: new Date(d.timestamp).getTime() / 1000,
       value: Number(d.volume),
       color: Number(d.close) > Number(d.open) ? 'rgba(22, 163, 74, 0.3)' : 'rgba(220, 38, 38, 0.3)'

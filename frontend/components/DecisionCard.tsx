@@ -16,7 +16,8 @@ export default function DecisionCard({ decision, symbol }: { decision: any, symb
     }
   };
 
-  const getLabel = (view: string) => {
+  const getLabel = (view: string, state?: string) => {
+    if (state === 'INSUFFICIENT_DATA') return 'YETERSİZ VERİ (BEKLE)';
     switch (view) {
       case 'STRONG_BUY': return 'GÜÇLÜ AL';
       case 'BUY': return 'KADEMELİ AL';
@@ -49,14 +50,14 @@ export default function DecisionCard({ decision, symbol }: { decision: any, symb
         {/* Market View */}
         <div className={`p-6 rounded-xl border ${getMarketViewStyle(decision.market_view)} flex flex-col items-center justify-center text-center shadow-sm`}>
           <span className="text-sm font-semibold uppercase tracking-wider mb-2 opacity-80">Piyasa Görünümü</span>
-          <span className="text-3xl font-bold">{getLabel(decision.market_view)}</span>
+          <span className="text-3xl font-bold">{getLabel(decision.market_view, decision.decision_state)}</span>
         </div>
 
         {/* Personal Action */}
         <div className={`p-6 rounded-xl border ${decision.personal_action ? getMarketViewStyle(decision.personal_action) : 'bg-surface border-navy-800/10 text-navy-900'} flex flex-col items-center justify-center text-center shadow-sm`}>
           <span className="text-sm font-semibold uppercase tracking-wider mb-2 opacity-80">Kişisel Aksiyon</span>
           <span className="text-3xl font-bold">
-            {decision.personal_action ? getLabel(decision.personal_action) : 'DEĞERLENDİRİLMEDİ'}
+            {decision.personal_action ? getLabel(decision.personal_action, decision.decision_state) : 'DEĞERLENDİRİLMEDİ'}
           </span>
           {!decision.personal_action && (
             <span className="text-xs mt-2 opacity-60">Portföyünüzde bulunmuyor veya risk profili yok.</span>

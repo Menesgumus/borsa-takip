@@ -46,6 +46,8 @@ async def get_technical_analysis(
 
     sma_20 = calculate_sma(closes, 20)
     ema_20 = calculate_ema(closes, 20)
+    sma_50 = calculate_sma(closes, 50)
+    sma_200 = calculate_sma(closes, 200)
     rsi_14 = calculate_rsi(closes, 14)
     macd_res = calculate_macd(closes, 12, 26, 9)
 
@@ -55,14 +57,21 @@ async def get_technical_analysis(
     indicators: list[IndicatorValue] = []
 
     for i in range(len(candles)):
+        # To avoid massive payload, we can limit to recent history if we wanted,
+        # but here we just return what is calculated. We only skip if all are None.
         if start_date and timestamps[i] < start_date:
+            continue
+        if (sma_20[i] is None and ema_20[i] is None and rsi_14[i] is None and macd_res[i].macd_line is None):
             continue
 
         indicators.append(
             IndicatorValue(
                 timestamp=timestamps[i],
+                close=closes[i],
                 sma_20=sma_20[i],
                 ema_20=ema_20[i],
+                sma_50=sma_50[i],
+                sma_200=sma_200[i],
                 rsi_14=rsi_14[i],
                 macd_line=macd_res[i].macd_line,
                 macd_signal=macd_res[i].signal_line,

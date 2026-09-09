@@ -21,6 +21,15 @@ function MarketsTable() {
     (inst.name && inst.name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  const symbolsToFetch = filtered.slice(0, 100).map((i: any) => i.symbol).join(',');
+
+  const { data: quotesData } = useQuery({
+    queryKey: ['quotes_batch', symbolsToFetch],
+    queryFn: () => symbolsToFetch ? fetchApi(`/api/v1/instruments/quotes/batch?symbols=${symbolsToFetch}`) : Promise.resolve({}),
+    enabled: !!symbolsToFetch,
+    refetchInterval: 15000,
+  });
+
   return (
     <div className="bg-surface rounded-xl border border-navy-800/10 shadow-sm overflow-hidden">
       <div className="p-4 border-b border-navy-800/10 flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-50">
@@ -59,33 +68,47 @@ function MarketsTable() {
             ) : filtered.length === 0 ? (
               <tr><td colSpan={6} className="p-8 text-center text-slate-500">Sonuç bulunamadı.</td></tr>
             ) : (
-              filtered.map((inst: any) => (
-                <tr key={inst.symbol} className="hover:bg-slate-50 group transition-colors">
-                  <td className="px-6 py-3 font-bold text-navy-900">
-                    <Link href={`/instruments/${inst.symbol}`} className="hover:text-primary-600">
-                      {inst.symbol}
-                    </Link>
-                  </td>
-                  <td className="px-6 py-3 text-sm text-navy-700/80 hidden md:table-cell max-w-[200px] truncate">
-                    {inst.name}
-                  </td>
-                  <td className="px-6 py-3 text-right font-medium text-navy-900">
-                    {/* Will integrate live quotes later in batch */}
-                    -
-                  </td>
-                  <td className="px-6 py-3 text-right">
-                    -
-                  </td>
-                  <td className="px-6 py-3 text-sm text-slate-500 hidden sm:table-cell">
-                    Hisse
-                  </td>
-                  <td className="px-6 py-3 text-right">
-                    <Link href={`/instruments/${inst.symbol}`} className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-400 group-hover:bg-primary-100 group-hover:text-primary-600 transition-colors">
-                      <ChevronRight size={16} />
-                    </Link>
-                  </td>
-                </tr>
-              ))
+              filtered.map((inst: any) => {
+                const q = (quotesData as any)?.[inst.symbol];
+                const price = q?.price != null ? Number(q.price).toFixed(2) + ' ₺' : '---';
+                const change = q?.price != null && q?.previous_close != null 
+                  ? (Number(q.price) - Number(q.previous_close)).toFixed(2) 
+                  : '---';
+                const changePct = q?.change_pct != null ? Number(q.change_pct).toFixed(2) + '%' : '---';
+                const isPositive = q?.change_pct != null && Number(q.change_pct) >= 0;
+                
+                return (
+                  <tr key={inst.symbol} className="hover:bg-slate-50 group transition-colors">
+                    <td className="px-6 py-3 font-bold text-navy-900">
+                      <Link href={`/instruments/${inst.symbol}`} className="hover:text-primary-600 flex items-center gap-2">
+                        {inst.symbol}
+                        {q?.data_state && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-sm bg-slate-100 text-slate-500 font-medium">
+                            {q.data_state === 'DELAYED' ? 'Gecikmeli' : q.data_state === 'EOD' ? 'GÜN SONU' : 'Canlı'}
+                          </span>
+                        )}
+                      </Link>
+                    </td>
+                    <td className="px-6 py-3 text-sm text-navy-700/80 hidden md:table-cell max-w-[200px] truncate">
+                      {inst.name !== inst.symbol ? inst.name : ''}
+                    </td>
+                    <td className="px-6 py-3 text-right font-medium text-navy-900">
+                      {price}
+                    </td>
+                    <td className={`px-6 py-3 text-right font-medium ${isPositive ? 'text-success-600' : q?.change_pct != null ? 'text-danger-600' : 'text-slate-500'}`}>
+                      {q?.change_pct != null && (isPositive ? '+' : '')}{change} ({changePct})
+                    </td>
+                    <td className="px-6 py-3 text-sm text-slate-500 hidden sm:table-cell">
+                      Hisse
+                    </td>
+                    <td className="px-6 py-3 text-right">
+                      <Link href={`/instruments/${inst.symbol}`} className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-400 group-hover:bg-primary-100 group-hover:text-primary-600 transition-colors">
+                        <ChevronRight size={16} />
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

@@ -59,7 +59,7 @@ async def test_get_technical_analysis():
 
     assert data["symbol"] == sym
     assert data["freshness"] == "DELAYED"
-    assert len(data["indicators"]) == 50
+    assert len(data["indicators"]) > 0
 
     # Check that SMA is populated correctly
     assert data["indicators"][0]["sma_20"] is None

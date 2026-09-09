@@ -98,6 +98,45 @@ async def get_instrument(
     return instrument
 
 
+
+@router.get("/quotes/batch", response_model=dict[str, QuoteDTO])
+async def get_instrument_quotes_batch(
+    symbols: str = Query(..., description="Comma separated symbols"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> Any:
+    symbol_list = [s.strip() for s in symbols.split(',')]
+    res = await db.execute(
+        select(Instrument)
+        .options(selectinload(Instrument.provider_mappings))
+        .where(Instrument.symbol.in_(symbol_list), Instrument.is_active.is_(True))
+    )
+    instruments = res.scalars().all()
+
+    # Group by provider
+    from collections import defaultdict
+    by_provider = defaultdict(list)
+    symbol_map = {} # provider_symbol -> native_symbol
+
+    for inst in instruments:
+        provider_name = inst.provider or "yahoo"
+        mapping = next((m for m in inst.provider_mappings if m.provider_name == provider_name), None)
+        provider_symbol = str(mapping.provider_symbol) if mapping else (inst.symbol + ".IS" if provider_name == "yahoo" and not inst.symbol.endswith(".IS") else inst.symbol)
+        by_provider[provider_name].append(provider_symbol)
+        symbol_map[provider_symbol] = inst.symbol
+
+    results = {}
+    for provider, p_symbols in by_provider.items():
+        try:
+            quotes = await registry.get_quotes(provider, p_symbols)
+            for q in quotes:
+                native_symbol = symbol_map.get(q.symbol, q.symbol)
+                results[native_symbol] = q
+        except Exception:
+            pass
+
+    return results
+
 @router.get("/{symbol}/quote", response_model=QuoteDTO)
 async def get_instrument_quote(
     symbol: str,
@@ -281,17 +320,23 @@ async def get_instrument_decision(
         else:
             latest = tech_response.indicators[-1]
             tech = TechnicalInputs(
-                current_price=Decimal(str(latest.close)) if hasattr(latest, 'close') else Decimal("0"),
+                current_price=Decimal(str(latest.close)) if latest.close is not None else Decimal("0"),
                 rsi_14=Decimal(str(latest.rsi_14)) if latest.rsi_14 is not None else None,
                 macd_line=Decimal(str(latest.macd_line)) if latest.macd_line is not None else None,
                 macd_signal=Decimal(str(latest.macd_signal)) if latest.macd_signal is not None else None,
-                sma_50=Decimal(str(latest.sma_20)) if latest.sma_20 is not None else None,
-                sma_200=Decimal(str(latest.sma_20)) if latest.sma_20 is not None else None
+                sma_50=Decimal(str(latest.sma_50)) if latest.sma_50 is not None else None,
+                sma_200=Decimal(str(latest.sma_200)) if latest.sma_200 is not None else None
             )
+
+            # Try to get live quote. If it fails or is None, current_price falls back to latest close.
             try:
-                quote = await registry.get_quote("yahoo", symbol)
-                tech.current_price = quote.price
-                tech.is_stale = quote.is_stale
+                provider = instrument.provider or "yahoo"
+                # Yahoo uses e.g. AEFES.IS
+                quote_symbol = instrument.symbol + ".IS" if provider == "yahoo" and not instrument.symbol.endswith(".IS") else instrument.symbol
+                quote = await registry.get_quote(provider, quote_symbol)
+                if quote and quote.price is not None:
+                    tech.current_price = quote.price
+                    tech.is_stale = quote.data_state != "LIVE"
             except Exception:
                 pass
     except Exception:

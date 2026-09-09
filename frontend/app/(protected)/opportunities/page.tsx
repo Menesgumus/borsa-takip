@@ -8,7 +8,7 @@ import { ChevronRight, Target, ShieldAlert, Star } from "lucide-react";
 export default function OpportunitiesPage() {
   const { data: instruments, isLoading } = useQuery({
     queryKey: ["opportunities"],
-    queryFn: () => fetchApi("/api/v1/instruments/scanner?limit=10"),
+    queryFn: () => fetchApi("/api/v1/opportunities?limit=10"),
   });
 
   return (

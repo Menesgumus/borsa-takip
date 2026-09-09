@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Send, User, Bot, Sparkles, GraduationCap } from "lucide-react";
 import { fetchApi } from "@/lib/api";
 
 export default function MentorPage() {
-  const [messages, setMessages] = useState<{role: string, content: string}[]>([
+  const [messages, setMessages] = useState<{role: string, content: string, parsed?: any}[]>([
     {
       role: 'assistant',
       content: 'Merhaba! Ben Borsa Takip finansal asistanınız. Yatırımlarınız, piyasalar veya finansal kavramlar hakkında size nasıl yardımcı olabilirim?'
@@ -14,6 +14,14 @@ export default function MentorPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"BEGINNER" | "PRO">("BEGINNER");
+  const [threadId, setThreadId] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Create a new thread on mount
+    fetchApi('/api/v1/chat/threads', { method: 'POST' })
+      .then((data: any) => setThreadId(data.id))
+      .catch(console.error);
+  }, []);
 
   const suggestions = [
     "THYAO neden BEKLE veriyor?",
@@ -23,23 +31,39 @@ export default function MentorPage() {
   ];
 
   const handleSend = async (text: string) => {
-    if (!text.trim()) return;
+    if (!text.trim() || !threadId) return;
     
     const userMsg = { role: 'user', content: text };
     setMessages(prev => [...prev, userMsg]);
     setInput("");
     setLoading(true);
 
+    // Extract symbol if possible (naive extraction)
+    const possibleSymbolMatch = text.match(/\b([A-Z]{4,5})\b/);
+    const instrument_symbol = possibleSymbolMatch ? possibleSymbolMatch[1] : null;
+
     try {
-      // Fake delay for UI since the mentor backend endpoint is context-aware and might take time
-      const data = await fetchApi('/api/v1/mentor/chat', {
+      const data = await fetchApi(`/api/v1/chat/threads/${threadId}/messages`, {
         method: 'POST',
-        body: JSON.stringify({ message: text, context_symbol: null })
+        body: JSON.stringify({ 
+          content: text, 
+          instrument_symbol,
+          explanation_level: mode 
+        })
       });
       
-      setMessages(prev => [...prev, { role: 'assistant', content: (data as any).reply || "Bir yanıt oluşturamadım." }]);
-    } catch (e) {
-      setMessages(prev => [...prev, { role: 'assistant', content: "Bağlantı hatası oluştu. Lütfen tekrar deneyin." }]);
+      let parsed = null;
+      let displayContent = (data as any).content;
+      try {
+        parsed = JSON.parse(displayContent);
+        displayContent = parsed.main_explanation || parsed.explanation || "Açıklama alınamadı.";
+      } catch (e) {
+        // Not JSON
+      }
+      
+      setMessages(prev => [...prev, { role: 'assistant', content: displayContent, parsed }]);
+    } catch (e: any) {
+      setMessages(prev => [...prev, { role: 'assistant', content: e?.message || "Bağlantı veya sunucu hatası oluştu." }]);
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query"; import { useState } from "react"; import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { fetchApi } from "@/lib/api";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
@@ -12,14 +12,99 @@ export default function PortfolioOverviewPage() {
     queryFn: () => fetchApi("/api/v1/portfolios/"),
   });
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newPortName, setNewPortName] = useState('');
+  const [newPortType, setNewPortType] = useState('REAL');
+  const [isCreating, setIsCreating] = useState(false);
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const handleCreate = async () => {
+    if (!newPortName.trim()) return;
+    setIsCreating(true);
+    try {
+      const data = await fetchApi("/api/v1/portfolios/", {
+        method: "POST",
+        body: JSON.stringify({
+          name: newPortName,
+          portfolio_type: newPortType,
+          description: ""
+        })
+      });
+      await queryClient.invalidateQueries({ queryKey: ["portfolios"] });
+      setIsModalOpen(false);
+      setNewPortName('');
+      if ((data as any)?.id) {
+        router.push(`/portfolios/${(data as any).id}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Hata oluştu.");
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 max-w-6xl mx-auto">
+    <div className="space-y-6 animate-in fade-in duration-500 max-w-6xl mx-auto relative">
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 bg-navy-900/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-slate-100">
+            <h2 className="text-xl font-bold text-navy-900 mb-4">Yeni Portföy Ekle</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-navy-700 mb-1">Portföy Adı</label>
+                <input 
+                  type="text" 
+                  value={newPortName}
+                  onChange={(e) => setNewPortName(e.target.value)}
+                  placeholder="Örn: Uzun Vade Emeklilik" 
+                  className="w-full px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-navy-700 mb-1">Portföy Tipi</label>
+                <select 
+                  value={newPortType}
+                  onChange={(e) => setNewPortType(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                >
+                  <option value="REAL">Gerçek</option>
+                  <option value="SIMULATION">Simülasyon (Sanal)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-3 justify-end">
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 text-navy-700 hover:bg-slate-100 rounded-md text-sm font-medium transition-colors"
+                disabled={isCreating}
+              >
+                İptal
+              </button>
+              <button 
+                onClick={handleCreate}
+                disabled={isCreating || !newPortName.trim()}
+                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                {isCreating ? "Oluşturuluyor..." : "Oluştur"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-navy-900 tracking-tight">Portföylerim</h1>
           <p className="text-navy-700 mt-1">Yatırımlarınızın güncel durumunu takip edin.</p>
         </div>
-        <button className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-2">
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-2"
+        >
           <Plus size={16} /> Yeni Ekle
         </button>
       </div>
@@ -61,7 +146,7 @@ export default function PortfolioOverviewPage() {
           <BriefcaseIcon className="w-16 h-16 text-slate-300 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-navy-900 mb-2">Henüz Portföyünüz Yok</h2>
           <p className="text-navy-700 mb-6">Yatırımlarınızı takip etmek için ilk portföyünüzü oluşturun. İsterseniz gerçek hesap, isterseniz risk almadan simülasyon hesabı açabilirsiniz.</p>
-          <button className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors shadow-sm">
+          <button onClick={() => setIsModalOpen(true)} className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors shadow-sm">
             İlk Portföyü Oluştur
           </button>
         </div>

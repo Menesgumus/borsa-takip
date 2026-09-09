@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle, Circle, BookOpen, Clock } from "lucide-react";
@@ -9,7 +9,7 @@ export function EducationList() {
   const [activeLesson, setActiveLesson] = useState<any | null>(null);
   const [level, setLevel] = useState<"BEGINNER"|"DETAILED">("BEGINNER");
 
-  const { data: modules, isLoading } = useQuery({
+  const { data: modules, isLoading, isError } = useQuery({
     queryKey: ["education-modules"],
     queryFn: async () => {
       const res = await fetch("/api/v1/education/modules");
@@ -32,7 +32,9 @@ export function EducationList() {
     }
   });
 
-  if (isLoading) return <div>Yükleniyor...</div>;
+  if (isLoading) return <div className="text-center p-12 text-slate-500">Yükleniyor...</div>;
+  if (isError) return <div className="bg-red-50 text-red-600 p-6 rounded-xl border border-red-200">Eğitim modülleri yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.</div>;
+  if (!modules || modules.length === 0) return <div className="text-center p-12 bg-white rounded-xl border border-gray-200 text-slate-500">Henüz eğitim modülü bulunmuyor.</div>;
 
   if (activeLesson) {
     return (

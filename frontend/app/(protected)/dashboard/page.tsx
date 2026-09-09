@@ -15,13 +15,6 @@ import {
 import { useNetwork } from "@/components/NetworkProvider";
 import { fetchApi } from "@/lib/api";
 
-function fetchDashboardData() {
-  return Promise.all([
-    fetchApi('/api/v1/portfolios/'),
-    fetchApi('/api/v1/instruments?size=4')
-  ]);
-}
-
 function QuoteCard({ symbol, name }: { symbol: string; name: string }) {
   const { isOnline } = useNetwork();
   const { data: quote, isLoading, isError } = useQuery({
@@ -35,7 +28,7 @@ function QuoteCard({ symbol, name }: { symbol: string; name: string }) {
       <div className="flex justify-between items-start mb-4">
         <div>
           <h3 className="font-bold text-navy-900 text-lg">{symbol}</h3>
-          <p className="text-sm text-navy-700/60 truncate max-w-[140px]">{name}</p>
+          {name !== symbol && <p className="text-sm text-navy-700/60 truncate max-w-[140px]">{name}</p>}
         </div>
         {Boolean(quote) && (
           <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${
@@ -78,12 +71,15 @@ function QuoteCard({ symbol, name }: { symbol: string; name: string }) {
 export default function Dashboard() {
   const { isOnline } = useNetwork();
   
-  const { data, isLoading } = useQuery({
-    queryKey: ["dashboard"],
-    queryFn: fetchDashboardData,
+  const { data: portfoliosData, isLoading: isPortfoliosLoading, isError: isPortfoliosError } = useQuery({
+    queryKey: ["portfolios"],
+    queryFn: () => fetchApi('/api/v1/portfolios/'),
   });
 
-  const [portfoliosData, instrumentsData] = data || [null, null];
+  const { data: instrumentsData, isLoading: isInstrumentsLoading, isError: isInstrumentsError } = useQuery({
+    queryKey: ["dashboard_instruments"],
+    queryFn: () => fetchApi('/api/v1/instruments?size=4'),
+  });
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -113,8 +109,12 @@ export default function Dashboard() {
           </Link>
         </div>
         
-        {isLoading ? (
+        {isPortfoliosLoading ? (
           <div className="h-32 bg-slate-100 animate-pulse rounded-xl border border-slate-200"></div>
+        ) : isPortfoliosError ? (
+          <div className="bg-red-50 text-red-600 rounded-xl p-5 border border-red-200 text-sm flex items-center gap-2">
+            <AlertCircle size={18} /> Portföyler yüklenemedi.
+          </div>
         ) : (portfoliosData as any)?.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {(portfoliosData as any).map((p: any) => (
@@ -149,9 +149,13 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {isLoading ? (
+        {isInstrumentsLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-slate-100 animate-pulse rounded-xl border border-slate-200"></div>)}
+          </div>
+        ) : isInstrumentsError ? (
+          <div className="bg-red-50 text-red-600 rounded-xl p-5 border border-red-200 text-sm flex items-center gap-2">
+            <AlertCircle size={18} /> Gözlem listesi yüklenemedi.
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

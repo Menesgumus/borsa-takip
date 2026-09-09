@@ -39,9 +39,9 @@ export default function InstrumentDetail() {
   });
 
   // 2. Fetch History
-  const { data: history, isLoading: isHistoryLoading } = useQuery({
+  const { data: history, isLoading: isHistoryLoading, isError: isHistoryError } = useQuery({
     queryKey: ['instrument', symbol, 'history', period],
-    queryFn: () => fetchApi(`/api/v1/instruments/${symbol}/hist?period=${period}`),
+    queryFn: () => fetchApi(`/api/v1/instruments/${symbol}/history?period=${period}`),
     enabled: isOnline,
   });
 
@@ -85,7 +85,7 @@ export default function InstrumentDetail() {
       <div className="bg-surface rounded-xl p-6 border border-navy-800/10 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <h1 className="text-3xl font-bold text-navy-900 tracking-tight">{symbol}</h1>
-          <p className="text-navy-700/80 text-lg mt-1">{inst?.name || '---'}</p>
+          {inst?.name && inst.name !== symbol && <p className="text-navy-700/80 text-lg mt-1">{inst.name}</p>}
           <div className="text-xs font-medium text-navy-700/60 mt-2 flex items-center gap-2">
             BIST &middot; STOCK
           </div>
@@ -99,7 +99,7 @@ export default function InstrumentDetail() {
             isPositive ? 'text-success-600' : 'text-danger-600'
           }`}>
             {isPositive ? '+' : ''}
-            {quote ? `${Number(q.change).toFixed(2)} (${Number(q.change_pct).toFixed(2)}%)` : '---'}
+            {quote ? `${(Number(q.price) - Number(q.previous_close)).toFixed(2)} (${Number(q.change_pct).toFixed(2)}%)` : '---'}
           </div>
           <div className="mt-3 flex flex-wrap md:justify-end gap-2 items-center text-xs">
             {Boolean(quote) && (
@@ -148,13 +148,19 @@ export default function InstrumentDetail() {
         <div className="h-[400px] w-full border border-slate-100 rounded-lg overflow-hidden bg-slate-50 relative">
           {isHistoryLoading ? (
             <div className="absolute inset-0 flex items-center justify-center text-slate-400">Yükleniyor...</div>
+          ) : isHistoryError ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-danger-500">
+              <AlertCircle size={32} className="text-danger-300 mb-2" />
+              <p>Veri çekilemedi.</p>
+              <p className="text-xs mt-1 text-slate-500">Geçmiş veriler alınırken bir hata oluştu.</p>
+            </div>
           ) : hist?.length > 0 ? (
             <CandlestickChart data={history as any} />
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
               <AlertCircle size={32} className="text-slate-300 mb-2" />
               <p>Grafik verisi bulunamadı.</p>
-              <p className="text-xs mt-1">Bu sembol için henüz fiyat geçmişi senkronize edilmemiş olabilir.</p>
+              <p className="text-xs mt-1">Bu sembol için belirtilen dönemde işlem verisi bulunmuyor.</p>
             </div>
           )}
         </div>
@@ -216,15 +222,18 @@ export default function InstrumentDetail() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-navy-700/70">RSI (14)</span>
                   <span className="font-medium text-navy-900">
-                    {(technical as any)?.indicators?.find((i: any) => i.name === 'RSI_14')?.value?.toFixed(2) || 'Yetersiz Veri'}
+                    {tech?.indicators?.length > 0 && tech.indicators[tech.indicators.length - 1].rsi_14 != null
+                      ? tech.indicators[tech.indicators.length - 1].rsi_14.toFixed(2)
+                      : 'Yetersiz Veri'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-navy-700/70">MACD Trend</span>
                   <span className="font-medium text-navy-900">
                     {(() => {
-                      const macdVal = (technical as any)?.indicators?.find((i: any) => i.name === 'MACD_12_26_9')?.value;
-                      if (macdVal === undefined || macdVal === null) return 'Yetersiz Veri';
+                      if (!tech?.indicators || tech.indicators.length === 0) return 'Yetersiz Veri';
+                      const macdVal = tech.indicators[tech.indicators.length - 1].macd_hist;
+                      if (macdVal == null) return 'Yetersiz Veri';
                       return macdVal > 0 ? 'Pozitif' : (macdVal < 0 ? 'Negatif' : 'Nötr');
                     })()}
                   </span>
@@ -237,11 +246,13 @@ export default function InstrumentDetail() {
               {decision ? (
                 <div className="text-center mt-6">
                   <div className={`inline-block px-4 py-2 rounded-lg font-bold text-lg mb-2 ${
+                    (decision as any).decision_state === 'INSUFFICIENT_DATA' ? 'bg-yellow-50 text-yellow-700' :
                     ['STRONG_BUY', 'BUY'].includes((decision as any).market_view) ? 'bg-success-50 text-success-700' :
                     ['STRONG_SELL', 'SELL'].includes((decision as any).market_view) ? 'bg-danger-50 text-danger-700' :
                     'bg-slate-100 text-slate-700'
                   }`}>
-                    {(decision as any).market_view === 'STRONG_BUY' ? 'GÜÇLÜ AL' : 
+                    {(decision as any).decision_state === 'INSUFFICIENT_DATA' ? 'YETERSİZ VERİ (BEKLE)' :
+                     (decision as any).market_view === 'STRONG_BUY' ? 'GÜÇLÜ AL' : 
                      (decision as any).market_view === 'BUY' ? 'KADEMELİ AL' : 
                      (decision as any).market_view === 'HOLD' ? 'BEKLE' : 
                      (decision as any).market_view === 'SELL' ? 'KADEMELİ SAT' : 'SAT'}
@@ -271,13 +282,40 @@ export default function InstrumentDetail() {
           <div className="bg-surface rounded-xl p-6 border border-navy-800/10 shadow-sm">
             <h3 className="text-lg font-semibold text-navy-900 mb-6">Teknik Göstergeler</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {(technical as any)?.indicators?.map((ind: any) => (
-                <div key={ind.name} className="flex flex-col border-b border-slate-100 pb-3">
-                  <span className="text-xs font-medium text-navy-700/60">{ind.name.replace(/_/g, ' ')}</span>
-                  <span className="text-lg font-bold text-navy-900 mt-1">{ind.value?.toFixed(2) || 'Yetersiz Veri'}</span>
-                  <span className="text-xs text-navy-700 mt-1">{ind.signal || 'Nötr'}</span>
-                </div>
-              )) || (
+              {tech?.indicators?.length > 0 ? (() => {
+                const latest = tech.indicators[tech.indicators.length - 1];
+                const formatVal = (val: number | null | undefined) => val != null ? val.toFixed(2) : 'Yetersiz Veri';
+                
+                return (
+                  <>
+                    <div className="flex flex-col border-b border-slate-100 pb-3">
+                      <span className="text-xs font-medium text-navy-700/60">RSI (14)</span>
+                      <span className="text-lg font-bold text-navy-900 mt-1">{formatVal(latest.rsi_14)}</span>
+                      <span className="text-xs text-navy-700 mt-1">{latest.rsi_14 ? (latest.rsi_14 > 70 ? 'Aşırı Alım' : latest.rsi_14 < 30 ? 'Aşırı Satım' : 'Nötr') : ''}</span>
+                    </div>
+                    <div className="flex flex-col border-b border-slate-100 pb-3">
+                      <span className="text-xs font-medium text-navy-700/60">SMA 20</span>
+                      <span className="text-lg font-bold text-navy-900 mt-1">{formatVal(latest.sma_20)}</span>
+                    </div>
+                    <div className="flex flex-col border-b border-slate-100 pb-3">
+                      <span className="text-xs font-medium text-navy-700/60">EMA 20</span>
+                      <span className="text-lg font-bold text-navy-900 mt-1">{formatVal(latest.ema_20)}</span>
+                    </div>
+                    <div className="flex flex-col border-b border-slate-100 pb-3">
+                      <span className="text-xs font-medium text-navy-700/60">MACD</span>
+                      <span className="text-lg font-bold text-navy-900 mt-1">{formatVal(latest.macd_line)}</span>
+                    </div>
+                    <div className="flex flex-col border-b border-slate-100 pb-3">
+                      <span className="text-xs font-medium text-navy-700/60">MACD Signal</span>
+                      <span className="text-lg font-bold text-navy-900 mt-1">{formatVal(latest.macd_signal)}</span>
+                    </div>
+                    <div className="flex flex-col border-b border-slate-100 pb-3">
+                      <span className="text-xs font-medium text-navy-700/60">MACD Histogram</span>
+                      <span className="text-lg font-bold text-navy-900 mt-1">{formatVal(latest.macd_hist)}</span>
+                    </div>
+                  </>
+                );
+              })() : (
                 <div className="col-span-3 text-center text-slate-500 py-8">Yetersiz veri.</div>
               )}
             </div>
