@@ -12,6 +12,7 @@ from app.db.session import get_db_session
 from app.schemas.portfolio import (
     PortfolioCreate,
     PortfolioRead,
+    PortfolioOverviewDTO,
     PortfolioSummaryDTO,
     PositionDTO,
     TradeJournalCreate,
@@ -42,13 +43,45 @@ async def create_portfolio(
     await db.refresh(portfolio)
     return portfolio
 
-@router.get("", response_model=list[PortfolioRead])
+@router.get("", response_model=list[PortfolioOverviewDTO])
 async def list_portfolios(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ) -> Any:
     result = await db.execute(select(Portfolio).where(Portfolio.user_id == current_user.id))
-    return result.scalars().all()
+    portfolios = result.scalars().all()
+    
+    overview_dtos = []
+    for p in portfolios:
+        txs_result = await db.execute(select(PortfolioTransaction).where(PortfolioTransaction.portfolio_id == p.id))
+        db_txs = txs_result.scalars().all()
+        
+        ledger_txs = [
+            TransactionData(
+                id=t.id,
+                transaction_type=t.transaction_type,
+                instrument_id=t.instrument_id,
+                quantity=t.quantity,
+                price=t.price,
+                fee=t.fee,
+                executed_at=t.executed_at
+            ) for t in db_txs
+        ]
+        state = fold_transactions(ledger_txs)
+        
+        overview_dtos.append(PortfolioOverviewDTO(
+            id=p.id,
+            user_id=p.user_id,
+            name=p.name,
+            portfolio_type=p.portfolio_type,
+            currency=p.currency,
+            created_at=p.created_at,
+            updated_at=p.updated_at,
+            total_realized_pnl=state.total_realized_pnl,
+            total_market_value=None  # We don't fetch live quotes in the list view for MVP
+        ))
+        
+    return overview_dtos
 
 @router.post("/{portfolio_id}/transactions", response_model=TransactionRead)
 async def create_transaction(

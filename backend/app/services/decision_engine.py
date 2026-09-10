@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import Any
 
 from app.db.models import DecisionAction
 from app.schemas.decision import (
@@ -200,3 +201,92 @@ def evaluate_decision(
         missing_data=(dq_score < Decimal("50")),
         engine_version=ENGINE_VERSION
     )
+
+async def resolve_and_evaluate_decision(
+    instrument: Any,
+    symbol: str,
+    db: Any,
+    current_user: Any,
+    horizon: Horizon = Horizon.MEDIUM,
+    portfolio_id: int | None = None
+) -> DecisionResult:
+    """Helper to evaluate a decision by fetching context, saving snapshot, and returning result."""
+    from app.api.v1.endpoints.instruments import get_instrument_context
+    from app.services.technical_data import get_technical_analysis
+    from app.services.provider_resolver import resolve_provider
+    from app.market.registry import registry
+
+    context = await get_instrument_context(symbol, db, current_user)
+
+    # 1. Technical Inputs
+    try:
+        tech_response = await get_technical_analysis(db, symbol)
+        if not tech_response.indicators:
+            tech = TechnicalInputs(current_price=None, rsi_14=None, macd_line=None, macd_signal=None, sma_50=None, sma_200=None)
+        else:
+            latest = tech_response.indicators[-1]
+            base_price = Decimal(str(latest.close)) if latest.close is not None else None
+            tech = TechnicalInputs(
+                current_price=base_price,
+                rsi_14=Decimal(str(latest.rsi_14)) if latest.rsi_14 is not None else None,
+                macd_line=Decimal(str(latest.macd_line)) if latest.macd_line is not None else None,
+                macd_signal=Decimal(str(latest.macd_signal)) if latest.macd_signal is not None else None,
+                sma_50=Decimal(str(latest.sma_50)) if latest.sma_50 is not None else None,
+                sma_200=Decimal(str(latest.sma_200)) if latest.sma_200 is not None else None
+            )
+
+            try:
+                resolved = resolve_provider(instrument)
+                quote = await registry.get_quote(resolved.provider_name, resolved.provider_symbol)
+                if quote and quote.price is not None:
+                    tech = tech.model_copy(update={
+                        "current_price": quote.price,
+                        "is_stale": quote.data_state not in ("LIVE", "DELAYED"),
+                    })
+            except Exception:
+                pass
+    except Exception:
+        tech = TechnicalInputs(current_price=None, rsi_14=None, macd_line=None, macd_signal=None, sma_50=None, sma_200=None)
+
+    # 2. Fundamental Inputs
+    fund = FundamentalInputs(instrument_type=instrument.instrument_type.value)
+    if hasattr(context, 'fundamentals') and context.fundamentals:
+        metrics = context.fundamentals.metrics or {}
+        fk = metrics.get('f_k') or metrics.get('pe_ratio')
+        pddd = metrics.get('pd_dd') or metrics.get('pb_ratio')
+        if fk:
+            fund.pe_ratio = Decimal(str(fk))
+        if pddd:
+            fund.pb_ratio = Decimal(str(pddd))
+
+    # 3. News Inputs
+    news_input = NewsInputs(is_mock=False, news_count=0)
+    if hasattr(context, 'news') and context.news:
+        news_input.news_count = len(context.news)
+        news_input.sentiment_score = Decimal("60")
+        news_input.is_mock = any('mock' in getattr(n, 'source', '').lower() for n in context.news)
+
+    # 4. Portfolio Fit
+    pf = None
+    if portfolio_id:
+        from sqlalchemy import select
+        from app.db.models import Portfolio
+        p_res = await db.execute(select(Portfolio).where(Portfolio.id == portfolio_id, Portfolio.user_id == current_user.id))
+        p = p_res.scalars().first()
+        if p:
+            pf = PortfolioFitInputs(current_weight=Decimal("10"), max_weight_limit=Decimal("30"))
+
+    decision = evaluate_decision(instrument.id, horizon, tech, fund, news_input, pf)
+
+    from app.db.models import DecisionSnapshot
+    snap = DecisionSnapshot(
+        instrument_id=instrument.id,
+        action=decision.market_view,
+        score=decision.overall_market_score,
+        engine_version=decision.engine_version,
+        reason_codes=",".join(decision.reason_codes)
+    )
+    db.add(snap)
+    await db.commit()
+
+    return decision

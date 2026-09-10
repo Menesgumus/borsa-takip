@@ -1,4 +1,4 @@
-﻿from decimal import Decimal
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -101,7 +101,17 @@ async def send_message(
                 .limit(1)
             )
             decision = d_res.scalars().first()
-            if decision:
+
+            if not decision:
+                # If no snapshot exists, we calculate it dynamically using the deterministic engine.
+                from app.services.decision_engine import resolve_and_evaluate_decision
+                from app.schemas.decision import Horizon
+                decision_res = await resolve_and_evaluate_decision(inst, inst.symbol, db, current_user, Horizon.MEDIUM, None)
+                ctx.deterministic_action = decision_res.market_view
+                ctx.deterministic_score = decision_res.overall_market_score
+                ctx.reason_codes = decision_res.reason_codes
+                ctx.missing_data = "INSUFFICIENT_DATA" in ctx.reason_codes
+            else:
                 ctx.deterministic_action = decision.action
                 ctx.deterministic_score = decision.score
                 ctx.reason_codes = decision.reason_codes.split(",") if decision.reason_codes else []

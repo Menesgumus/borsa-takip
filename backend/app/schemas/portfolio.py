@@ -20,6 +20,10 @@ class PortfolioRead(PortfolioCreate):
     class Config:
         from_attributes = True
 
+class PortfolioOverviewDTO(PortfolioRead):
+    total_realized_pnl: Decimal
+    total_market_value: Decimal | None = None
+
 class TransactionCreate(BaseModel):
     transaction_type: TransactionType
     instrument_id: int | None = None

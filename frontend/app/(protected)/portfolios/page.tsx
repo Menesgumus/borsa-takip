@@ -163,13 +163,13 @@ export default function PortfolioOverviewPage() {
               <div className="space-y-1">
                 <span className="text-xs text-navy-700/60 font-medium">Toplam Değer</span>
                 <div className="text-2xl font-bold text-navy-900">
-                  {p.total_market_value ? `${Number(p.total_market_value).toLocaleString('tr-TR')} ₺` : '0,00 ₺'}
+                  {p.total_market_value != null ? `${Number(p.total_market_value).toLocaleString('tr-TR')} ₺` : 'Yetersiz Veri'}
                 </div>
               </div>
               
               <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-sm">
                 <span className="text-navy-700">Gerçekleşen K/Z</span>
-                <span className={`font-semibold ${Number(p.total_realized_pnl) >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
+                <span className={`font-semibold ${Number(p.total_realized_pnl) > 0 ? 'text-success-600' : Number(p.total_realized_pnl) < 0 ? 'text-danger-600' : 'text-slate-600'}`}>
                   {Number(p.total_realized_pnl) > 0 ? '+' : ''}{Number(p.total_realized_pnl).toLocaleString('tr-TR')} ₺
                 </span>
               </div>
