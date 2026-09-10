@@ -9,7 +9,6 @@ from app.db.models import User
 from app.db.session import async_session_maker
 from app.main import app
 
-
 user_mock_data = {}
 async def override_get_current_user():
     async with async_session_maker() as db_session:

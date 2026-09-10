@@ -5,10 +5,13 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.db.models import Instrument, Portfolio, PortfolioTransaction, TradeJournal, User
 from app.db.session import get_db_session
+from app.market.exceptions import ProviderUnavailableError
+from app.market.registry import registry
 from app.schemas.portfolio import (
     PortfolioCreate,
     PortfolioOverviewDTO,
@@ -28,10 +31,7 @@ from app.services.portfolio_ledger import (
     TransactionData,
     fold_transactions,
 )
-from app.market.registry import registry
 from app.services.provider_resolver import resolve_provider
-from app.market.exceptions import ProviderUnavailableError
-from sqlalchemy.orm import selectinload
 
 router = APIRouter()
 
@@ -169,7 +169,7 @@ async def get_portfolio_transactions(
         .where(PortfolioTransaction.portfolio_id == portfolio_id)
         .order_by(PortfolioTransaction.executed_at.desc())
     )
-    
+
     txs = txs_result.scalars().all()
     results = []
     for tx in txs:
@@ -280,7 +280,7 @@ async def get_portfolio_summary(
             market_value = pos.quantity * current_price
             cost_basis = pos.quantity * pos.average_cost
             unrealized_pnl = market_value - cost_basis
-            
+
             total_market_value += market_value
             total_unrealized += unrealized_pnl
         else:

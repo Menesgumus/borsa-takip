@@ -24,7 +24,7 @@ interface Drawing {
   color?: string;
 }
 
-export default function CandlestickChart({ data, symbol }: { data: OHLCV[], symbol?: string }) {
+export default function CandlestickChart({ data, symbol, userId = 'local_user' }: { data: OHLCV[], symbol?: string, userId?: string }) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -42,8 +42,8 @@ export default function CandlestickChart({ data, symbol }: { data: OHLCV[], symb
 
   // Load from local storage
   useEffect(() => {
-    if (symbol) {
-      const stored = localStorage.getItem(`drawings_test@test.com_${symbol}`);
+    if (symbol && userId) {
+      const stored = localStorage.getItem(`borsa-takip:drawings:v1:${userId}:${symbol}`);
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
@@ -53,14 +53,14 @@ export default function CandlestickChart({ data, symbol }: { data: OHLCV[], symb
         } catch(e) {}
       }
     }
-  }, [symbol]);
+  }, [symbol, userId]);
 
   // Save to local storage
   useEffect(() => {
-    if (symbol && historyIndex >= 0) {
-      localStorage.setItem(`drawings_test@test.com_${symbol}`, JSON.stringify(drawings));
+    if (symbol && userId && historyIndex >= 0) {
+      localStorage.setItem(`borsa-takip:drawings:v1:${userId}:${symbol}`, JSON.stringify(drawings));
     }
-  }, [drawings, symbol, historyIndex]);
+  }, [drawings, symbol, userId, historyIndex]);
 
   const saveState = (newDrawings: Drawing[]) => {
     const newHistory = history.slice(0, historyIndex + 1);

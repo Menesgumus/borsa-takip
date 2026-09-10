@@ -57,6 +57,12 @@ export default function InstrumentDetail() {
     queryFn: () => fetchApi(`/api/v1/instruments/${symbol}/decision`),
   });
 
+  // 5. Fetch User Profile
+  const { data: profile } = useQuery({
+    queryKey: ['user', 'me'],
+    queryFn: () => fetchApi(`/api/v1/users/me`),
+  });
+
   if (isContextLoading) {
     return <div className="animate-pulse space-y-4 p-4">Yükleniyor...</div>;
   }
@@ -155,7 +161,7 @@ export default function InstrumentDetail() {
               <p className="text-xs mt-1 text-slate-500">Geçmiş veriler alınırken bir hata oluştu.</p>
             </div>
           ) : hist?.length > 0 ? (
-            <CandlestickChart data={history as any} symbol={symbol} />
+            <CandlestickChart data={history as any} symbol={symbol} userId={(profile as any)?.email} />
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
               <AlertCircle size={32} className="text-slate-300 mb-2" />

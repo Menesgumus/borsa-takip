@@ -5,6 +5,7 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from sqlalchemy.future import select
+
 from app.db.models import EducationalLesson, EducationalModule
 from app.db.session import async_session_maker
 
