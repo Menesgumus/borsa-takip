@@ -155,7 +155,7 @@ export default function InstrumentDetail() {
               <p className="text-xs mt-1 text-slate-500">Geçmiş veriler alınırken bir hata oluştu.</p>
             </div>
           ) : hist?.length > 0 ? (
-            <CandlestickChart data={history as any} />
+            <CandlestickChart data={history as any} symbol={symbol} />
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
               <AlertCircle size={32} className="text-slate-300 mb-2" />
