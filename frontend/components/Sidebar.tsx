@@ -25,7 +25,6 @@ export const navigation = [
   { name: 'Fırsatlar', href: '/opportunities', icon: Target },
   { name: 'Alarmlar', href: '/alerts', icon: Bell },
   { name: 'Eğitim', href: '/education', icon: BookOpen },
-  { name: 'Mentor', href: '/mentor', icon: BookOpen }, // Could use a different icon
   { name: 'Ayarlar', href: '/settings', icon: Settings },
 ];
 

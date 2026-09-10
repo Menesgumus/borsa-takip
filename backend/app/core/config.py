@@ -33,11 +33,6 @@ class Settings(BaseSettings):
     # Mock Data
     ENABLE_MOCK_MARKET_DATA: bool = False
 
-    # OpenAI / AI Mentor
-    OPENAI_API_KEY: str | None = None
-    OPENAI_MENTOR_MODEL: str = "gpt-4o-2024-08-06"
-    USE_MOCK_MENTOR: bool = True
-
     # Session TTL (days) — used by auth endpoint; can be overridden in .env
     SESSION_TTL_DAYS: int = 7
 

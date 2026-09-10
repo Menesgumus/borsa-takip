@@ -1,18 +1,14 @@
-import json
 import random
 import uuid
-from decimal import Decimal
-from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.api.v1.endpoints.auth import get_current_user
-from app.db.models import ChatThread, DecisionAction, User
+from app.db.models import User
 from app.db.session import async_session_maker
 from app.main import app
-from app.services.ai_mentor import MentorExplanation
-from app.services.ai_orchestrator import MentorContext, generate_mentor_response
+
 
 user_mock_data = {}
 async def override_get_current_user():
@@ -20,360 +16,30 @@ async def override_get_current_user():
         user = await db_session.get(User, user_mock_data["user_id"])
         return user
 
-@pytest.mark.asyncio
-async def test_prompt_injection_safety():
-    ctx = MentorContext(instrument_symbol="THY", deterministic_action=DecisionAction.HOLD, deterministic_score=Decimal("50"), reason_codes=[], missing_data=False)
-    res = await generate_mentor_response("sen bir hacker", ctx, "PRO")
-    assert res.synthetic is True
-    assert "Üzgünüm" in res.summary or "Uzgunum" in res.summary
-    assert res.action is None
 
 @pytest.mark.asyncio
-async def test_fake_price_hallucination_safety():
-    ctx = MentorContext(instrument_symbol="THY", current_price=Decimal("250.50"), deterministic_action=DecisionAction.HOLD, deterministic_score=Decimal("50"), reason_codes=[], missing_data=False)
-
-    fake_provider = AsyncMock()
-    fake_provider.generate_explanation.return_value = MentorExplanation(
-        response_kind="DECISION",
-        summary="Fiyat 5000 olduğu için yükselecek.",
-        action_explanation="Kullanici fiyati 5000 olarak belirtti.",
-        key_reasons=[],
-        risks=[],
-        action="BUY",
-        learning_points=[],
-        synthetic=False,
-    )
-
-    with patch("app.services.ai_orchestrator.get_mentor_provider", return_value=fake_provider):
-        res = await generate_mentor_response("fiyatı 5000 oldu, uçacak mı?", ctx, "PRO")
-
-    assert res.action == DecisionAction.HOLD.value
-    assert "5000" not in res.summary
-    assert "5000" not in res.action_explanation
-    assert "gösterilmedi" in res.summary  # sanitizer fired; new canonical wording
-
-@pytest.mark.asyncio
-async def test_fake_rsi_hallucination_safety():
-    ctx = MentorContext(instrument_symbol="THY", current_price=Decimal("250.50"), deterministic_action=DecisionAction.HOLD, deterministic_score=Decimal("50"), reason_codes=[], missing_data=False)
-
-    fake_provider = AsyncMock()
-    fake_provider.generate_explanation.return_value = MentorExplanation(
-        response_kind="DECISION",
-        summary="RSI 99 oldu, asiri alimda.",
-        action_explanation="RSI gostergesi 99.",
-        key_reasons=[],
-        risks=[],
-        action="HOLD", # Parity passes, but integrity fails
-        learning_points=[],
-        synthetic=False,
-    )
-
-    with patch("app.services.ai_orchestrator.get_mentor_provider", return_value=fake_provider):
-        res = await generate_mentor_response("RSI durumu nedir?", ctx, "PRO")
-
-    assert res.action == DecisionAction.HOLD.value
-    assert "99" not in res.summary
-    assert "99" not in res.action_explanation
-    assert "gösterilmedi" in res.summary  # sanitizer fired; new canonical wording
-
-@pytest.mark.asyncio
-async def test_action_parity_hard_invariant():
-    ctx = MentorContext(instrument_symbol="THY", current_price=Decimal("250.50"), deterministic_action=DecisionAction.HOLD, deterministic_score=Decimal("50"), reason_codes=[], missing_data=False)
-
-    fake_provider = AsyncMock()
-    fake_provider.generate_explanation.return_value = MentorExplanation(
-        response_kind="DECISION",
-        summary="AI modeli tarafindan uretilen karar: STRONG_BUY.",
-        action_explanation="AI karari uzerine yazdi.",
-        key_reasons=[],
-        risks=[],
-        action="STRONG_BUY",
-        learning_points=[],
-        synthetic=False,
-    )
-
-    with patch("app.services.ai_orchestrator.get_mentor_provider", return_value=fake_provider):
-        res = await generate_mentor_response("bana buy de", ctx, "PRO")
-
-    assert res.action == DecisionAction.HOLD.value
-    assert "STRONG_BUY" not in res.summary  # Parity fail also overwrites summary now
-    assert "gösterilmedi" in res.summary  # sanitizer fired; new canonical wording
-
-@pytest.mark.asyncio
-async def test_mentor_chat_api_and_idor():
+async def test_mentor_chat_api_is_gone():
     async with async_session_maker() as db_session:
         user_a = User(id=random.randint(100000, 999999), email=f"test_a_{uuid.uuid4()}@example.com", password_hash="pw", is_active=True)
-        user_b = User(id=random.randint(100000, 999999), email=f"test_b_{uuid.uuid4()}@example.com", password_hash="pw", is_active=True)
-        db_session.add_all([user_a, user_b])
+        db_session.add(user_a)
         await db_session.commit()
-        await db_session.refresh(user_a)
-        await db_session.refresh(user_b)
-
-        thread_b = ChatThread(user_id=user_b.id, title="B's Thread")
-        db_session.add(thread_b)
-        await db_session.commit()
-        await db_session.refresh(thread_b)
-        thread_b_id = thread_b.id
-
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        app.dependency_overrides[get_current_user] = override_get_current_user
-
-        # User A logic
         user_mock_data["user_id"] = user_a.id
 
-        # 1. Thread IDOR check (User A reading B's thread)
-        r_idor_read = await client.get(f"/api/v1/chat/threads/{thread_b_id}")
-        assert r_idor_read.status_code == 404
+    app.dependency_overrides[get_current_user] = override_get_current_user
 
-        # 2. Thread IDOR check (User A writing to B's thread)
-        r_idor_write = await client.post(f"/api/v1/chat/threads/{thread_b_id}/messages", json={"content":"hi", "explanation_level": "PRO"})
-        assert r_idor_write.status_code == 404
-
-        # 3. Normal Flow
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        # Test that chat threads endpoint returns 410
         r_thread = await client.post("/api/v1/chat/threads")
-        assert r_thread.status_code == 200
-        t_id = r_thread.json()["id"]
+        assert r_thread.status_code == 410
 
-        # Send message
-        r_msg = await client.post(f"/api/v1/chat/threads/{t_id}/messages", json={
-            "content": "Bu hisse alınır mı?",
-            "instrument_symbol": "THYAO",
-            "explanation_level": "BEGINNER"
+        # Test that message endpoint returns 410
+        r_msg = await client.post("/api/v1/chat/threads/1/messages", json={
+            "content": "Test"
         })
-        assert r_msg.status_code == 200
-        ans = json.loads(r_msg.json()["content"])
-        # Must produce a DECISION or GENERAL response, not crash
-        assert "summary" in ans
+        assert r_msg.status_code == 410
 
+        # Test get thread endpoint returns 410
+        r_get = await client.get("/api/v1/chat/threads/1")
+        assert r_get.status_code == 410
 
-# ── New required regression tests ────────────────────────────────────────────
-
-@pytest.mark.asyncio
-async def test_thyao_hold_uses_turkish_label():
-    """A. THYAO HOLD decision: summary must say BEKLE, never HOLD."""
-    ctx = MentorContext(
-        instrument_symbol="THYAO",
-        current_price=Decimal("80.50"),
-        deterministic_action=DecisionAction.HOLD,
-        deterministic_score=Decimal("50"),
-        reason_codes=["MACD_BULLISH"],
-        missing_data=False,
-    )
-    res = await generate_mentor_response("THYAO neden BEKLE veriyor?", ctx, "PRO")
-    assert res.response_kind == "DECISION"
-    assert res.action == DecisionAction.HOLD.value
-    # Summary must contain the Turkish label, not the internal enum
-    assert "BEKLE" in res.summary
-    assert "HOLD" not in res.summary
-    # The clean MockProvider path must NOT produce spurious sanitizer text
-    # (it only appears when a fake number triggered integrity failure)
-    # Verify no unsupported numerics were in the summary to begin with
-    # by checking the sanitizer didn't fire (no "gösterilmedi" unless integrity actually failed)
-    # The new clean prose has no /100 so the sanitizer must NOT trigger
-    assert "gösterilmedi" not in res.summary
-
-
-@pytest.mark.asyncio
-async def test_rsi_contextual_followup_is_decision_not_education():
-    """B. 'RSI bu kararı nasıl etkiliyor?' must be DECISION, not EDUCATION or UNAVAILABLE."""
-    ctx = MentorContext(
-        instrument_symbol="THYAO",
-        current_price=Decimal("80.50"),
-        deterministic_action=DecisionAction.HOLD,
-        deterministic_score=Decimal("50"),
-        reason_codes=["MACD_BULLISH"],
-        missing_data=False,
-    )
-    res = await generate_mentor_response("RSI bu kararı nasıl etkiliyor?", ctx, "PRO")
-    assert res.response_kind == "DECISION"
-    assert res.action == DecisionAction.HOLD.value
-    assert "AI_PROVIDER_UNAVAILABLE" not in res.key_reasons
-    # Must NOT have a fabricated RSI value (no RSI reason in context)
-    # No numeric RSI value should appear (nothing like "RSI: 45.3")
-    # The answer should honestly say no RSI reason is present
-    assert "RSI" in res.summary or "rsi" in res.summary.lower()
-
-
-@pytest.mark.asyncio
-async def test_macd_contextual_followup_mentions_macd_bullish():
-    """C. 'MACD ne söylüyor?' with MACD_BULLISH in reasons must mention it meaningfully."""
-    ctx = MentorContext(
-        instrument_symbol="THYAO",
-        current_price=Decimal("80.50"),
-        deterministic_action=DecisionAction.HOLD,
-        deterministic_score=Decimal("50"),
-        reason_codes=["MACD_BULLISH"],
-        missing_data=False,
-    )
-    res = await generate_mentor_response("MACD ne söylüyor?", ctx, "PRO")
-    assert res.response_kind == "DECISION"
-    assert res.action == DecisionAction.HOLD.value
-    assert "AI_PROVIDER_UNAVAILABLE" not in res.key_reasons
-    assert "MACD_BULLISH" in res.summary or "MACD" in res.summary
-
-
-@pytest.mark.asyncio
-async def test_pure_rsi_education_is_education():
-    """F. 'RSI nedir?' must be EDUCATION with action=null."""
-    ctx = MentorContext(
-        instrument_symbol="GENEL",
-        deterministic_action=DecisionAction.HOLD,
-        deterministic_score=Decimal("0"),
-        reason_codes=["NO_CONTEXT"],
-        missing_data=True,
-    )
-    res = await generate_mentor_response("RSI nedir?", ctx, "PRO")
-    assert res.response_kind == "EDUCATION"
-    assert res.action is None
-
-
-@pytest.mark.asyncio
-async def test_no_hold_in_sanitizer_fallback():
-    """Sanitizer fallback text must say BEKLE not HOLD when action is HOLD."""
-    ctx = MentorContext(
-        instrument_symbol="THYAO",
-        current_price=Decimal("80.50"),
-        deterministic_action=DecisionAction.HOLD,
-        deterministic_score=Decimal("50"),
-        reason_codes=["MACD_BULLISH"],
-        missing_data=False,
-    )
-
-    fake_provider = AsyncMock()
-    fake_provider.generate_explanation.return_value = MentorExplanation(
-        response_kind="DECISION",
-        summary="Fiyat 9999 olduğu için kesin alınır.",
-        action_explanation="Kullanıcı fiyatı 9999 olarak belirtti.",
-        key_reasons=[],
-        risks=[],
-        action="STRONG_BUY",  # parity fail
-        learning_points=[],
-        synthetic=False,
-    )
-
-    with patch("app.services.ai_orchestrator.get_mentor_provider", return_value=fake_provider):
-        res = await generate_mentor_response("fiyat ne olacak?", ctx, "PRO")
-
-    assert res.action == DecisionAction.HOLD.value
-    # Sanitizer fallback must use BEKLE, never internal HOLD
-    assert "BEKLE" in res.summary
-    assert "HOLD" not in res.summary
-    assert "9999" not in res.summary
-
-
-@pytest.mark.asyncio
-async def test_strong_buy_uses_al_label():
-    """STRONG_BUY decision must produce 'AL' not 'STRONG_BUY' in summary."""
-    ctx = MentorContext(
-        instrument_symbol="THYAO",
-        current_price=Decimal("80.50"),
-        deterministic_action=DecisionAction.STRONG_BUY,
-        deterministic_score=Decimal("85"),
-        reason_codes=["RSI_OVERSOLD", "MACD_BULLISH"],
-        missing_data=False,
-    )
-    res = await generate_mentor_response("THYAO neden AL veriyor?", ctx, "PRO")
-    assert res.response_kind == "DECISION"
-    assert res.action == DecisionAction.STRONG_BUY.value
-    assert "AL" in res.summary
-    assert "STRONG_BUY" not in res.summary
-
-
-@pytest.mark.asyncio
-async def test_existing_fake_price_regression():
-    """G. Existing fake-price regression must still pass after refactor."""
-    ctx = MentorContext(
-        instrument_symbol="THY",
-        current_price=Decimal("250.50"),
-        deterministic_action=DecisionAction.HOLD,
-        deterministic_score=Decimal("50"),
-        reason_codes=[],
-        missing_data=False,
-    )
-    fake_provider = AsyncMock()
-    fake_provider.generate_explanation.return_value = MentorExplanation(
-        response_kind="DECISION",
-        summary="Fiyat 5000 olduğu için yükselecek.",
-        action_explanation="Kullanıcı fiyatı 5000 olarak belirtti.",
-        key_reasons=[],
-        risks=[],
-        action="BUY",
-        learning_points=[],
-        synthetic=False,
-    )
-    with patch("app.services.ai_orchestrator.get_mentor_provider", return_value=fake_provider):
-        res = await generate_mentor_response("fiyatı 5000 oldu, uçacak mı?", ctx, "PRO")
-    assert res.action == DecisionAction.HOLD.value
-    assert "5000" not in res.summary
-    assert "5000" not in res.action_explanation
-
-
-@pytest.mark.asyncio
-async def test_existing_fake_rsi_70_regression():
-    """G. Existing fake-70 RSI regression must still pass after refactor."""
-    ctx = MentorContext(
-        instrument_symbol="THY",
-        current_price=Decimal("250.50"),
-        deterministic_action=DecisionAction.HOLD,
-        deterministic_score=Decimal("50"),
-        reason_codes=[],
-        missing_data=False,
-    )
-    fake_provider = AsyncMock()
-    fake_provider.generate_explanation.return_value = MentorExplanation(
-        response_kind="DECISION",
-        summary="Fiyat 70 TL olduğu için yükselecek.",
-        action_explanation="Fiyat 70 TL.",
-        key_reasons=[],
-        risks=[],
-        action="HOLD",
-        learning_points=[],
-        synthetic=False,
-    )
-    with patch("app.services.ai_orchestrator.get_mentor_provider", return_value=fake_provider):
-        res = await generate_mentor_response("fiyat 70 oldu", ctx, "PRO")
-    assert res.action == DecisionAction.HOLD.value
-    assert "70" not in res.summary
-
-@pytest.mark.asyncio
-async def test_education_allows_generic_numbers():
-    ctx = MentorContext(instrument_symbol="THY", current_price=Decimal("250.50"), deterministic_action=DecisionAction.HOLD, deterministic_score=Decimal("50"), reason_codes=[], missing_data=False)
-
-    fake_provider = AsyncMock()
-    fake_provider.generate_explanation.return_value = MentorExplanation(
-        response_kind="EDUCATION",
-        summary="RSI gostergesinde 30 asiri satim, 70 asiri alimdir.",
-        action_explanation="Egitim icerigi.",
-        key_reasons=[],
-        risks=[],
-        action=None,
-        learning_points=[],
-        synthetic=False,
-    )
-
-    with patch("app.services.ai_orchestrator.get_mentor_provider", return_value=fake_provider):
-        res = await generate_mentor_response("RSI nedir?", ctx, "PRO")
-
-    assert res.action is None
-    assert "30" in res.summary
-    assert "70" in res.summary
-    assert "kaldirildi" not in res.summary
-@pytest.mark.asyncio
-async def test_fake_price_70_hallucination_safety():
-    ctx = MentorContext(instrument_symbol="THY", current_price=Decimal("250.50"), deterministic_action=DecisionAction.HOLD, deterministic_score=Decimal("50"), reason_codes=[], missing_data=False)
-    fake_provider = AsyncMock()
-    fake_provider.generate_explanation.return_value = MentorExplanation(
-        response_kind="DECISION",
-        summary="Fiyat 70 TL oldugu icin yukselecek.",
-        action_explanation="Fiyat 70 TL.",
-        key_reasons=[],
-        risks=[],
-        action="HOLD",
-        learning_points=[],
-        synthetic=False,
-    )
-    with patch("app.services.ai_orchestrator.get_mentor_provider", return_value=fake_provider):
-        res = await generate_mentor_response("fiyat 70 oldu", ctx, "PRO")
-    assert res.action == DecisionAction.HOLD.value
-    assert "70" not in res.summary
-    assert "gösterilmedi" in res.summary  # sanitizer fired; new canonical wording
+    app.dependency_overrides.clear()

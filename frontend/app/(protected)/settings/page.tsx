@@ -71,12 +71,6 @@ export default function SettingsPage() {
           >
             <Shield size={18} /> Güvenlik ve Risk
           </button>
-          <button 
-            onClick={() => document.getElementById('mentor')?.scrollIntoView({ behavior: 'smooth' })}
-            className="w-full text-left p-4 text-navy-700 font-medium flex items-center gap-2 hover:bg-slate-50 rounded-xl cursor-pointer border border-transparent transition-colors focus:ring-2 focus:ring-primary-500 focus:outline-none"
-          >
-            <GraduationCap size={18} /> Mentor Tercihleri
-          </button>
         </div>
 
         <div className="md:col-span-2 space-y-6">
@@ -114,26 +108,6 @@ export default function SettingsPage() {
                 <p className="text-xs text-slate-500 mt-1">
                   Karar motoru portföy uyumu hesaplarken bu değeri dikkate alacaktır.
                 </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Mentor Preferences */}
-          <div id="mentor" className="bg-surface rounded-xl p-6 border border-navy-800/10 shadow-sm scroll-mt-6">
-            <h3 className="text-lg font-bold text-navy-900 mb-4 border-b pb-2">Finansal Mentor</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-navy-700 mb-1">Varsayılan Açıklama Seviyesi</label>
-                <select
-                  value={explanationLevel}
-                  onChange={(e) => setExplanationLevel(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500"
-                >
-                  <option value="BEGINNER">Başlangıç (Eğitim Odaklı)</option>
-                  <option value="INTERMEDIATE">Orta Seviye</option>
-                  <option value="PRO">Profesyonel (Sadece Veri)</option>
-                </select>
-                <p className="text-xs text-slate-500 mt-1">Yapay zeka asistanının size nasıl yanıt vereceğini belirler.</p>
               </div>
             </div>
           </div>
