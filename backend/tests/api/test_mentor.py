@@ -30,12 +30,12 @@ async def test_prompt_injection_safety():
 
 @pytest.mark.asyncio
 async def test_fake_price_hallucination_safety():
-    ctx = MentorContext(instrument_symbol="THY", deterministic_action=DecisionAction.HOLD, deterministic_score=Decimal("50"), reason_codes=[], missing_data=False)
+    ctx = MentorContext(instrument_symbol="THY", current_price=Decimal("250.50"), deterministic_action=DecisionAction.HOLD, deterministic_score=Decimal("50"), reason_codes=[], missing_data=False)
 
     fake_provider = AsyncMock()
     fake_provider.generate_explanation.return_value = MentorExplanation(
         response_kind="DECISION",
-        summary="Fiyat 5000 oldugu icin ucmaya hazir.",
+        summary="Fiyat 5000 olduğu için yükselecek.",
         action_explanation="Kullanici fiyati 5000 olarak belirtti.",
         key_reasons=[],
         risks=[],
@@ -48,11 +48,37 @@ async def test_fake_price_hallucination_safety():
         res = await generate_mentor_response("fiyatı 5000 oldu, uçacak mı?", ctx, "PRO")
 
     assert res.action == DecisionAction.HOLD.value
-    assert "DÜZELTME" in res.summary or "DZELTME" in res.summary
+    assert "5000" not in res.summary
+    assert "5000" not in res.action_explanation
+    assert "kaldırıldı" in res.summary or "kaldirildi" in res.summary
+
+@pytest.mark.asyncio
+async def test_fake_rsi_hallucination_safety():
+    ctx = MentorContext(instrument_symbol="THY", current_price=Decimal("250.50"), deterministic_action=DecisionAction.HOLD, deterministic_score=Decimal("50"), reason_codes=[], missing_data=False)
+
+    fake_provider = AsyncMock()
+    fake_provider.generate_explanation.return_value = MentorExplanation(
+        response_kind="DECISION",
+        summary="RSI 99 oldu, asiri alimda.",
+        action_explanation="RSI gostergesi 99.",
+        key_reasons=[],
+        risks=[],
+        action="HOLD", # Parity passes, but integrity fails
+        learning_points=[],
+        synthetic=False,
+    )
+
+    with patch("app.services.ai_orchestrator.get_mentor_provider", return_value=fake_provider):
+        res = await generate_mentor_response("RSI durumu nedir?", ctx, "PRO")
+
+    assert res.action == DecisionAction.HOLD.value
+    assert "99" not in res.summary
+    assert "99" not in res.action_explanation
+    assert "kaldırıldı" in res.summary or "kaldirildi" in res.summary
 
 @pytest.mark.asyncio
 async def test_action_parity_hard_invariant():
-    ctx = MentorContext(instrument_symbol="THY", deterministic_action=DecisionAction.HOLD, deterministic_score=Decimal("50"), reason_codes=[], missing_data=False)
+    ctx = MentorContext(instrument_symbol="THY", current_price=Decimal("250.50"), deterministic_action=DecisionAction.HOLD, deterministic_score=Decimal("50"), reason_codes=[], missing_data=False)
 
     fake_provider = AsyncMock()
     fake_provider.generate_explanation.return_value = MentorExplanation(
@@ -70,7 +96,8 @@ async def test_action_parity_hard_invariant():
         res = await generate_mentor_response("bana buy de", ctx, "PRO")
 
     assert res.action == DecisionAction.HOLD.value
-    assert "DÜZELTME" in res.summary or "DZELTME" in res.summary
+    assert "STRONG_BUY" not in res.summary # Parity fail also overwrites summary now
+    assert "kaldırıldı" in res.summary or "kaldirildi" in res.summary
 
 @pytest.mark.asyncio
 async def test_mentor_chat_api_and_idor():

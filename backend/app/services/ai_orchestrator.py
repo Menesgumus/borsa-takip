@@ -50,17 +50,51 @@ async def generate_mentor_response(
             synthetic=True,
         )
 
-    # ■ ACTION PARITY - HARD INVARIANT ■
-    # LLM may NEVER override the deterministic Decision Engine action for DECISIONs
+    # ■ FINANCIAL INTEGRITY & ACTION PARITY - HARD INVARIANTS ■
     if explanation.response_kind == "DECISION":
-        if explanation.action != context.deterministic_action.value:
+        import re
+
+        def _extract_numbers(text: str) -> set[float]:
+            if not text:
+                return set()
+            matches = re.findall(r'\b\d+(?:\.\d+)?\b', text.replace(',', '.'))
+            return {float(m) for m in matches}
+
+        authoritative = set()
+        if context.current_price is not None:
+            authoritative.add(float(context.current_price))
+        if context.deterministic_score is not None:
+            authoritative.add(float(context.deterministic_score))
+        for reason in context.reason_codes:
+            matches = re.findall(r'\b\d+(?:\.\d+)?\b', reason.replace(',', '.'))
+            for m in matches:
+                authoritative.add(float(m))
+
+        safe_numbers = {0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 12.0, 14.0, 20.0, 26.0, 30.0, 50.0, 70.0, 100.0, 200.0, 365.0}
+
+        full_text = f"{explanation.summary} {explanation.action_explanation}"
+        found_numbers = _extract_numbers(full_text)
+        has_unsupported_claim = False
+        for num in found_numbers:
+            if num not in safe_numbers and num not in authoritative:
+                has_unsupported_claim = True
+                break
+
+        action_parity_failed = explanation.action != context.deterministic_action.value
+
+        if action_parity_failed or has_unsupported_claim:
             logger.warning(
-                f"ACTION PARITY FAILURE: LLM={explanation.action}, "
-                f"Engine={context.deterministic_action.value}. Sanitizing."
+                f"INTEGRITY FAILURE: Action Parity={not action_parity_failed}, Supported Claims={not has_unsupported_claim}. Sanitizing."
+            )
+            safe_summary = (
+                f"{context.instrument_symbol} için deterministik karar motoru "
+                f"{context.deterministic_action.value} sonucunu verdi. "
+                f"Mevcut doğrulanmış verilere dayanmayan sayısal ifadeler kaldırıldı."
             )
             explanation = explanation.model_copy(update={
                 "action": context.deterministic_action.value,
-                "summary": f"[DÜZELTME]: {explanation.summary}",
+                "summary": safe_summary,
+                "action_explanation": "Deterministik karar motoru skorlarına göre bu sonuç üretilmiştir.",
             })
     else:
         # Non-DECISION responses must not have an action
