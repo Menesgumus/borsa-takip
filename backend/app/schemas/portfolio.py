@@ -44,6 +44,15 @@ class TransactionRead(TransactionCreate):
     class Config:
         from_attributes = True
 
+from typing import Literal
+
+
+class PortfolioTradeCreate(BaseModel):
+    side: Literal["BUY", "SELL"]
+    instrument_id: int
+    quantity: Decimal | None = None
+    budget_amount: Decimal | None = None
+
 class PositionDTO(BaseModel):
     instrument_id: int
     symbol: str

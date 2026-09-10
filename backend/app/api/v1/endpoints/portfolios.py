@@ -458,3 +458,114 @@ async def portfolio_what_if(
     resp.before_risk.portfolio_id = portfolio_id
     resp.after_risk.portfolio_id = portfolio_id
     return resp
+
+import math
+
+from app.db.models import PortfolioType, TransactionType
+from app.schemas.portfolio import PortfolioTradeCreate
+
+
+@router.post("/{portfolio_id}/trade", response_model=TransactionRead)
+async def execute_trade(
+    portfolio_id: int,
+    trade_in: PortfolioTradeCreate,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user)
+) -> Any:
+    # 1. Verify portfolio ownership & type
+    result = await db.execute(select(Portfolio).where(Portfolio.id == portfolio_id, Portfolio.user_id == current_user.id))
+    portfolio = result.scalars().first()
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+    if portfolio.portfolio_type != PortfolioType.PAPER:
+        raise HTTPException(status_code=400, detail="Endpoint only supports PAPER portfolios")
+
+    # 2. Load instrument
+    inst = await db.get(Instrument, trade_in.instrument_id, options=[selectinload(Instrument.provider_mappings)])
+    if not inst:
+        raise HTTPException(status_code=404, detail="Instrument not found")
+
+    # 3. Resolve canonical provider
+    try:
+        resolved = resolve_provider(inst)
+    except ProviderUnavailableError:
+        raise HTTPException(status_code=400, detail="No provider mapping configured")
+
+    # 4. Fetch quote
+    try:
+        results = await registry.get_quotes(resolved.provider_name, [resolved.provider_symbol])
+        if not results:
+            raise ProviderUnavailableError(resolved.provider_name, "Empty quote result")
+        quote = results[0]
+    except ProviderUnavailableError:
+        raise HTTPException(status_code=400, detail="Fiyat alınamadı (Provider Unavailable)")
+
+    # 5. Validate quote state
+    if quote.data_state in ["UNAVAILABLE", "PROVIDER_ERROR", "TIMEOUT", "NOT_FOUND"]:
+        raise HTTPException(status_code=400, detail="Fiyat alınamadı veya veriler çok eski")
+    if quote.price is None or quote.price <= 0:
+        raise HTTPException(status_code=400, detail="Geçersiz fiyat verisi")
+
+    execution_price = Decimal(str(quote.price))
+    quantity = Decimal("0")
+
+    # 6. Determine quantity if budget mode
+    if trade_in.side == "BUY":
+        if trade_in.budget_amount is not None and trade_in.budget_amount > 0:
+            qty_float = math.floor(float(trade_in.budget_amount) / float(execution_price))
+            if qty_float < 1:
+                raise HTTPException(status_code=400, detail="Bu tutarla en az 1 adet hisse alınamıyor.")
+            quantity = Decimal(str(qty_float))
+        elif trade_in.quantity is not None and trade_in.quantity > 0:
+            quantity = trade_in.quantity
+        else:
+            raise HTTPException(status_code=400, detail="Adet veya tutar belirtilmelidir")
+    else: # SELL
+        if trade_in.quantity is None or trade_in.quantity <= 0:
+            raise HTTPException(status_code=400, detail="Satış için adet belirtilmelidir")
+        quantity = trade_in.quantity
+
+    # 7. Validate cash/position via fold_transactions
+    tx_type = TransactionType.BUY if trade_in.side == "BUY" else TransactionType.SELL
+
+    txs_result = await db.execute(select(PortfolioTransaction).where(PortfolioTransaction.portfolio_id == portfolio_id))
+    db_txs = txs_result.scalars().all()
+    ledger_txs = [
+        TransactionData(
+            id=t.id, transaction_type=t.transaction_type, instrument_id=t.instrument_id,
+            quantity=t.quantity, price=t.price, fee=t.fee, executed_at=t.executed_at
+        ) for t in db_txs
+    ]
+
+    sim_tx = TransactionData(
+        id=999999, transaction_type=tx_type, instrument_id=trade_in.instrument_id,
+        quantity=quantity, price=execution_price, fee=Decimal("0"), executed_at=datetime.now(UTC)
+    )
+    ledger_txs.append(sim_tx)
+
+    try:
+        fold_transactions(ledger_txs)
+    except InsufficientCashError:
+        raise HTTPException(status_code=400, detail="Yetersiz bakiye")
+    except InsufficientPositionError:
+        raise HTTPException(status_code=400, detail="Yetersiz hisse senedi")
+    except InvalidTransactionError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # 8. Create Transaction
+    new_tx = PortfolioTransaction(
+        portfolio_id=portfolio_id,
+        transaction_type=tx_type,
+        instrument_id=trade_in.instrument_id,
+        quantity=quantity,
+        price=execution_price,
+        fee=Decimal("0"),
+        executed_at=datetime.now(UTC)
+    )
+    db.add(new_tx)
+    await db.commit()
+    await db.refresh(new_tx)
+
+    # Manually attach symbol for response
+    new_tx.instrument_symbol = inst.symbol
+    return new_tx
