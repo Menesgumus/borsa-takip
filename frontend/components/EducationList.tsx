@@ -1,14 +1,26 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { CheckCircle, Circle, BookOpen, Clock } from "lucide-react";
-import { useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+
+// Image mapper based on slug
+const IMAGE_MAP: Record<string, string> = {
+  "rsi-nedir": "/education/rsi.png",
+  "macd-nedir": "/education/macd.png",
+  "bollinger-bantlari": "/education/bollinger.svg",
+  "sma-ema-nedir": "/education/moving-average.png",
+  "destek-direnc": "/education/support-resistance.png"
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  "TECHNICAL_ANALYSIS": "Teknik Analiz",
+  "FUNDAMENTALS": "Temel Analiz",
+  "PORTFOLIO": "Portföy ve Risk"
+};
 
 export function EducationList() {
-  const queryClient = useQueryClient();
-  const [activeLesson, setActiveLesson] = useState<any | null>(null);
-  const [level, setLevel] = useState<"BEGINNER"|"DETAILED">("BEGINNER");
-
   const { data: modules, isLoading, isError } = useQuery({
     queryKey: ["education-modules"],
     queryFn: async () => {
@@ -18,110 +30,66 @@ export function EducationList() {
     }
   });
 
-  const progressMutation = useMutation({
-    mutationFn: async ({ id, is_completed }: { id: number, is_completed: boolean }) => {
-      const res = await fetch(`/api/v1/education/lessons/${id}/progress`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_completed, last_position: "end" })
-      });
-      if (!res.ok) throw new Error("Failed to update progress");
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["education-modules"] });
-    }
-  });
-
   if (isLoading) return <div className="text-center p-12 text-slate-500">Yükleniyor...</div>;
   if (isError) return <div className="bg-red-50 text-red-600 p-6 rounded-xl border border-red-200">Eğitim modülleri yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.</div>;
   if (!modules || modules.length === 0) return <div className="text-center p-12 bg-white rounded-xl border border-gray-200 text-slate-500">Henüz eğitim modülü bulunmuyor.</div>;
 
-  if (activeLesson) {
-    return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <button onClick={() => setActiveLesson(null)} className="text-blue-600 mb-4 hover:underline">&larr; Geri Dön</button>
-        
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <h2 className="text-2xl font-bold">{activeLesson.title}</h2>
-            <p className="text-gray-500 mt-1">{activeLesson.summary}</p>
-          </div>
-          <div className="flex bg-gray-100 rounded-lg p-1">
-            <button 
-              onClick={() => setLevel("BEGINNER")}
-              className={`px-3 py-1 rounded text-sm ${level === "BEGINNER" ? "bg-white shadow-sm font-bold" : "text-gray-500"}`}
-            >
-              Basit Anlatım
-            </button>
-            <button 
-              onClick={() => setLevel("DETAILED")}
-              className={`px-3 py-1 rounded text-sm ${level === "DETAILED" ? "bg-white shadow-sm font-bold" : "text-gray-500"}`}
-            >
-              Detaylı Anlatım
-            </button>
-          </div>
-        </div>
-
-        <div className="prose max-w-none text-gray-800 mb-8 border-l-4 border-blue-500 pl-4 py-2 bg-blue-50 rounded-r-lg">
-          {level === "BEGINNER" ? activeLesson.content_beginner : activeLesson.content_detailed}
-        </div>
-
-        {activeLesson.key_points && (
-          <div className="mb-8">
-            <h3 className="font-bold mb-2">Önemli Noktalar</h3>
-            <div className="flex flex-wrap gap-2">
-              {activeLesson.key_points.split(",").map((kp: string, i: number) => (
-                <span key={i} className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">{kp.trim()}</span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="border-t border-gray-200 pt-6 flex justify-end">
-          <button
-            onClick={() => progressMutation.mutate({ id: activeLesson.id, is_completed: !activeLesson.is_completed })}
-            className={`flex items-center gap-2 px-6 py-2 rounded-lg font-bold text-white transition-colors ${
-              activeLesson.is_completed ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"
-            }`}
-          >
-            {activeLesson.is_completed ? <CheckCircle /> : <Circle />}
-            {activeLesson.is_completed ? "Tamamlandı Olarak İşaretli" : "Tamamlandı İşaretle"}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-8">
-      {modules?.map((mod: any) => (
-        <div key={mod.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="bg-gray-50 p-4 border-b border-gray-200">
-            <h2 className="font-bold text-lg text-gray-800">{mod.title}</h2>
-            <p className="text-sm text-gray-500">{mod.description}</p>
+    <div className="space-y-12">
+      {modules.map((m: any) => (
+        <div key={m.id}>
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-navy-900">{m.title}</h2>
+            {m.description && <p className="text-slate-600 mt-1">{m.description}</p>}
           </div>
-          <div className="divide-y divide-gray-100">
-            {mod.lessons.map((lesson: any) => (
-              <div 
-                key={lesson.id} 
-                className="p-4 flex items-center justify-between hover:bg-gray-50 cursor-pointer transition-colors"
-                onClick={() => { setActiveLesson(lesson); setLevel("BEGINNER"); }}
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`${lesson.is_completed ? "text-green-500" : "text-gray-300"}`}>
-                    {lesson.is_completed ? <CheckCircle size={24} /> : <Circle size={24} />}
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-800">{lesson.title}</h3>
-                    <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
-                      <span className="flex items-center gap-1"><Clock size={12} /> {lesson.estimated_minutes} dk</span>
-                      {lesson.related_terms && <span className="flex items-center gap-1"><BookOpen size={12} /> {lesson.related_terms}</span>}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {m.lessons.map((lesson: any) => {
+              const imageSrc = IMAGE_MAP[lesson.slug] || "/education/support-resistance.png"; // Fallback to support-resistance since it's dummy anyway for missing ones
+              return (
+                <Link key={lesson.id} href={`/education/${lesson.slug}`} className="flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden group">
+                  {/* Image Thumbnail */}
+                  <div className="relative h-48 bg-slate-100 overflow-hidden">
+                    <img 
+                      src={imageSrc} 
+                      alt={lesson.title} 
+                      className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute top-3 right-3 bg-white/90 backdrop-blur text-xs font-bold px-2 py-1 rounded shadow-sm text-navy-800">
+                      {CATEGORY_LABELS[m.category] || m.category}
                     </div>
                   </div>
-                </div>
-                <button className="text-blue-600 font-semibold text-sm">Oku</button>
-              </div>
-            ))}
+
+                  {/* Content */}
+                  <div className="p-5 flex flex-col flex-1">
+                    <div className="flex items-start justify-between gap-4 mb-2">
+                      <h3 className="font-bold text-lg text-navy-900 leading-tight group-hover:text-primary-600 transition-colors">
+                        {lesson.title}
+                      </h3>
+                      {lesson.is_completed ? (
+                        <CheckCircle className="text-success-500 shrink-0 w-5 h-5" />
+                      ) : (
+                        <Circle className="text-slate-300 shrink-0 w-5 h-5" />
+                      )}
+                    </div>
+                    
+                    <p className="text-sm text-slate-600 mb-4 line-clamp-2 flex-1">
+                      {lesson.summary}
+                    </p>
+
+                    <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-100">
+                      <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                        <Clock className="w-4 h-4" />
+                        <span>{lesson.estimated_minutes} dk</span>
+                      </div>
+                      <span className="text-primary-600 font-semibold text-sm flex items-center gap-1 group-hover:gap-2 transition-all">
+                        {lesson.is_completed ? "Tekrar İncele" : "Oku"} <span>→</span>
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </div>
       ))}
