@@ -57,7 +57,7 @@ async def generate_mentor_response(
         def _extract_numbers(text: str) -> set[float]:
             if not text:
                 return set()
-            matches = re.findall(r'\b\d+(?:\.\d+)?\b', text.replace(',', '.'))
+            matches = re.findall(r'\d+(?:\.\d+)?', text.replace(',', '.'))
             return {float(m) for m in matches}
 
         authoritative = set()
@@ -66,17 +66,15 @@ async def generate_mentor_response(
         if context.deterministic_score is not None:
             authoritative.add(float(context.deterministic_score))
         for reason in context.reason_codes:
-            matches = re.findall(r'\b\d+(?:\.\d+)?\b', reason.replace(',', '.'))
+            matches = re.findall(r'\d+(?:\.\d+)?', reason.replace(',', '.'))
             for m in matches:
                 authoritative.add(float(m))
-
-        safe_numbers = {0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 12.0, 14.0, 20.0, 26.0, 30.0, 50.0, 70.0, 100.0, 200.0, 365.0}
 
         full_text = f"{explanation.summary} {explanation.action_explanation}"
         found_numbers = _extract_numbers(full_text)
         has_unsupported_claim = False
         for num in found_numbers:
-            if num not in safe_numbers and num not in authoritative:
+            if num not in authoritative:
                 has_unsupported_claim = True
                 break
 

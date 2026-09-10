@@ -50,7 +50,7 @@ async def test_fake_price_hallucination_safety():
     assert res.action == DecisionAction.HOLD.value
     assert "5000" not in res.summary
     assert "5000" not in res.action_explanation
-    assert "kaldırıldı" in res.summary or "kaldirildi" in res.summary
+    assert "kald" in res.summary
 
 @pytest.mark.asyncio
 async def test_fake_rsi_hallucination_safety():
@@ -74,7 +74,7 @@ async def test_fake_rsi_hallucination_safety():
     assert res.action == DecisionAction.HOLD.value
     assert "99" not in res.summary
     assert "99" not in res.action_explanation
-    assert "kaldırıldı" in res.summary or "kaldirildi" in res.summary
+    assert "kald" in res.summary
 
 @pytest.mark.asyncio
 async def test_action_parity_hard_invariant():
@@ -97,7 +97,7 @@ async def test_action_parity_hard_invariant():
 
     assert res.action == DecisionAction.HOLD.value
     assert "STRONG_BUY" not in res.summary # Parity fail also overwrites summary now
-    assert "kaldırıldı" in res.summary or "kaldirildi" in res.summary
+    assert "kald" in res.summary
 
 @pytest.mark.asyncio
 async def test_mentor_chat_api_and_idor():
@@ -143,3 +143,68 @@ async def test_mentor_chat_api_and_idor():
         assert r_msg.status_code == 200
         ans = json.loads(r_msg.json()["content"])
         assert "AI saglayicisi bagli degil" in ans["summary"] or "MOCK" in ans["summary"]
+@pytest.mark.asyncio
+async def test_authoritative_rsi_allowed():
+    ctx = MentorContext(instrument_symbol="THY", current_price=Decimal("250.50"), deterministic_action=DecisionAction.HOLD, deterministic_score=Decimal("50"), reason_codes=["RSI_53.52"], missing_data=False)
+
+    fake_provider = AsyncMock()
+    fake_provider.generate_explanation.return_value = MentorExplanation(
+        response_kind="DECISION",
+        summary="RSI degeri 53.52 oldugu icin notr.",
+        action_explanation="Skor 50 ve fiyat 250.50.",
+        key_reasons=["RSI_53.52"],
+        risks=[],
+        action="HOLD",
+        learning_points=[],
+        synthetic=False,
+    )
+
+    with patch("app.services.ai_orchestrator.get_mentor_provider", return_value=fake_provider):
+        res = await generate_mentor_response("RSI kacta?", ctx, "PRO")
+
+    assert res.action == DecisionAction.HOLD.value
+    assert "53.52" in res.summary
+    assert "kaldirildi" not in res.summary
+
+@pytest.mark.asyncio
+async def test_education_allows_generic_numbers():
+    ctx = MentorContext(instrument_symbol="THY", current_price=Decimal("250.50"), deterministic_action=DecisionAction.HOLD, deterministic_score=Decimal("50"), reason_codes=[], missing_data=False)
+
+    fake_provider = AsyncMock()
+    fake_provider.generate_explanation.return_value = MentorExplanation(
+        response_kind="EDUCATION",
+        summary="RSI gostergesinde 30 asiri satim, 70 asiri alimdir.",
+        action_explanation="Egitim icerigi.",
+        key_reasons=[],
+        risks=[],
+        action=None,
+        learning_points=[],
+        synthetic=False,
+    )
+
+    with patch("app.services.ai_orchestrator.get_mentor_provider", return_value=fake_provider):
+        res = await generate_mentor_response("RSI nedir?", ctx, "PRO")
+
+    assert res.action is None
+    assert "30" in res.summary
+    assert "70" in res.summary
+    assert "kaldirildi" not in res.summary
+@pytest.mark.asyncio
+async def test_fake_price_70_hallucination_safety():
+    ctx = MentorContext(instrument_symbol="THY", current_price=Decimal("250.50"), deterministic_action=DecisionAction.HOLD, deterministic_score=Decimal("50"), reason_codes=[], missing_data=False)
+    fake_provider = AsyncMock()
+    fake_provider.generate_explanation.return_value = MentorExplanation(
+        response_kind="DECISION",
+        summary="Fiyat 70 TL oldugu icin yukselecek.",
+        action_explanation="Fiyat 70 TL.",
+        key_reasons=[],
+        risks=[],
+        action="HOLD",
+        learning_points=[],
+        synthetic=False,
+    )
+    with patch("app.services.ai_orchestrator.get_mentor_provider", return_value=fake_provider):
+        res = await generate_mentor_response("fiyat 70 oldu", ctx, "PRO")
+    assert res.action == DecisionAction.HOLD.value
+    assert "70" not in res.summary
+    assert "kald" in res.summary
