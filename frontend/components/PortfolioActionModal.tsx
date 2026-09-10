@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { X, Search } from "lucide-react";
 import { fetchApi } from "@/lib/api";
@@ -22,19 +22,24 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary }: 
   
   const [amount, setAmount] = useState("");
   const [symbolQuery, setSymbolQuery] = useState("");
+  const [debouncedSymbolQuery, setDebouncedSymbolQuery] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSymbolQuery(symbolQuery), 250);
+    return () => clearTimeout(timer);
+  }, [symbolQuery]);
   const [selectedInstrument, setSelectedInstrument] = useState<any>(null);
   
   const [quantity, setQuantity] = useState("");
   const [budgetAmount, setBudgetAmount] = useState("");
 
-  const { data: searchResults } = useQuery({
-    queryKey: ["instrument-search", symbolQuery],
+  const { data: searchResults, isLoading: isSearchLoading, isError: isSearchError } = useQuery({
+    queryKey: ["instrument-search", debouncedSymbolQuery],
     queryFn: async () => {
-      if (symbolQuery.length < 2) return [];
-      const data = await fetchApi(`/api/v1/instruments?query=${symbolQuery}`) as any;
+      if (debouncedSymbolQuery.trim().length < 2) return [];
+      const data = await fetchApi(`/api/v1/instruments?search=${encodeURIComponent(debouncedSymbolQuery.trim())}&size=20`) as any;
       return data.items || [];
     },
-    enabled: symbolQuery.length >= 2,
+    enabled: debouncedSymbolQuery.trim().length >= 2,
   });
 
   const { data: quote, isError: quoteError } = useQuery({
@@ -139,7 +144,7 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary }: 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-900/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl sm:max-w-2xl flex flex-col max-h-[95vh] lg:max-h-[min(90vh,760px)] animate-in zoom-in-95 duration-200">
         <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50 rounded-t-2xl">
           <h2 className="font-bold text-navy-900">Yeni İşlem</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
@@ -196,32 +201,47 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary }: 
           ) : (
             <div className="space-y-4">
               {!selectedInstrument ? (
-                <div className="relative">
-                  <Search className="absolute left-3 top-2.5 text-slate-400 w-5 h-5" />
-                  <input
-                    type="text"
-                    value={symbolQuery}
-                    onChange={(e) => setSymbolQuery(e.target.value)}
-                    className="w-full border border-slate-200 rounded-lg pl-10 p-2.5 focus:ring-primary-500 focus:border-primary-500"
-                    placeholder="Hisse Sembolü (örn. THYAO)"
-                  />
-                  {searchResults && searchResults.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-20 max-h-72 overflow-y-auto">
-                      {searchResults.map((inst: any) => (
-                        <button
-                          key={inst.id}
-                          onClick={() => { setSelectedInstrument(inst); setSymbolQuery(""); }}
-                          className="w-full text-left px-4 py-3 hover:bg-slate-50 focus:bg-slate-50 flex flex-col border-b border-slate-100 last:border-0"
-                        >
-                          <span className="font-bold text-navy-900">{inst.symbol}</span>
-                          <span className="text-xs text-slate-500">{inst.name}</span>
-                        </button>
-                      ))}
+                  <div className="flex flex-col min-h-[520px]">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Hisse Seç</label>
+                    <div className="relative shrink-0">
+                      <Search className="absolute left-3 top-3 text-slate-400" size={18} />
+                      <input
+                        type="text"
+                        value={symbolQuery}
+                        onChange={(e) => setSymbolQuery(e.target.value)}
+                        className="w-full border border-slate-200 rounded-lg pl-10 p-2.5 focus:ring-primary-500 focus:border-primary-500"
+                        placeholder="Hisse ara..."
+                        aria-label="Hisse Arama"
+                      />
                     </div>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-4">
+                    
+                    <div className="mt-4 flex-1 bg-white border border-slate-200 rounded-lg overflow-y-auto min-h-[320px] max-h-[420px]">
+                      {debouncedSymbolQuery.trim().length < 2 ? (
+                        <div className="p-4 text-center text-sm text-slate-500 mt-4">Hisse aramak için en az 2 karakter yazın.</div>
+                      ) : isSearchLoading ? (
+                        <div className="p-4 text-center text-sm text-slate-500 mt-4">Aranıyor...</div>
+                      ) : isSearchError ? (
+                        <div className="p-4 text-center text-sm text-danger-600 mt-4">Hisseler aranırken bir hata oluştu.</div>
+                      ) : searchResults && searchResults.length === 0 ? (
+                        <div className="p-4 text-center text-sm text-slate-500 mt-4">Sonuç bulunamadı.</div>
+                      ) : (
+                        <div className="flex flex-col">
+                          {searchResults && searchResults.map((inst: any) => (
+                            <button
+                              key={inst.id}
+                              onClick={() => { setSelectedInstrument(inst); setSymbolQuery(""); setDebouncedSymbolQuery(""); }}
+                              className="w-full text-left px-4 py-3 min-h-[64px] hover:bg-slate-50 focus:bg-slate-100 flex flex-col justify-center border-b border-slate-100 last:border-0 cursor-pointer group"
+                            >
+                              <span className="font-bold text-navy-900">{inst.symbol}</span>
+                              <span className="text-sm text-slate-600 truncate">{inst.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
                   <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-100">
                     <div>
                       <div className="font-bold text-navy-900">{selectedInstrument.symbol}</div>
