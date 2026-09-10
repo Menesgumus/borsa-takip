@@ -263,6 +263,7 @@ export default function MentorPage() {
       },
     ]);
     setThreadId(null);
+    setActiveSymbol(null); // Clear symbol context — new thread must not inherit previous symbol
     initThread();
   };
 

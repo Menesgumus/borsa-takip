@@ -212,9 +212,9 @@ async def resolve_and_evaluate_decision(
 ) -> DecisionResult:
     """Helper to evaluate a decision by fetching context, saving snapshot, and returning result."""
     from app.api.v1.endpoints.instruments import get_instrument_context
-    from app.services.technical_data import get_technical_analysis
-    from app.services.provider_resolver import resolve_provider
     from app.market.registry import registry
+    from app.services.provider_resolver import resolve_provider
+    from app.services.technical_data import get_technical_analysis
 
     context = await get_instrument_context(symbol, db, current_user)
 
@@ -270,6 +270,7 @@ async def resolve_and_evaluate_decision(
     pf = None
     if portfolio_id:
         from sqlalchemy import select
+
         from app.db.models import Portfolio
         p_res = await db.execute(select(Portfolio).where(Portfolio.id == portfolio_id, Portfolio.user_id == current_user.id))
         p = p_res.scalars().first()

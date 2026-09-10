@@ -11,8 +11,8 @@ from app.db.models import Instrument, Portfolio, PortfolioTransaction, TradeJour
 from app.db.session import get_db_session
 from app.schemas.portfolio import (
     PortfolioCreate,
-    PortfolioRead,
     PortfolioOverviewDTO,
+    PortfolioRead,
     PortfolioSummaryDTO,
     PositionDTO,
     TradeJournalCreate,
@@ -50,12 +50,12 @@ async def list_portfolios(
 ) -> Any:
     result = await db.execute(select(Portfolio).where(Portfolio.user_id == current_user.id))
     portfolios = result.scalars().all()
-    
+
     overview_dtos = []
     for p in portfolios:
         txs_result = await db.execute(select(PortfolioTransaction).where(PortfolioTransaction.portfolio_id == p.id))
         db_txs = txs_result.scalars().all()
-        
+
         ledger_txs = [
             TransactionData(
                 id=t.id,
@@ -68,7 +68,7 @@ async def list_portfolios(
             ) for t in db_txs
         ]
         state = fold_transactions(ledger_txs)
-        
+
         overview_dtos.append(PortfolioOverviewDTO(
             id=p.id,
             user_id=p.user_id,
@@ -80,7 +80,7 @@ async def list_portfolios(
             total_realized_pnl=state.total_realized_pnl,
             total_market_value=None  # We don't fetch live quotes in the list view for MVP
         ))
-        
+
     return overview_dtos
 
 @router.post("/{portfolio_id}/transactions", response_model=TransactionRead)

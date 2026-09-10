@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from decimal import Decimal
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -17,11 +16,7 @@ from app.market.exceptions import ProviderUnavailableError
 from app.market.registry import registry
 from app.schemas.decision import (
     DecisionResult,
-    FundamentalInputs,
     Horizon,
-    NewsInputs,
-    PortfolioFitInputs,
-    TechnicalInputs,
 )
 from app.schemas.instrument import (
     BatchQuoteItem,
@@ -31,7 +26,6 @@ from app.schemas.instrument import (
     OHLCVDailyResponse,
 )
 from app.schemas.technical import TechnicalAnalysisResponse
-from app.services.decision_engine import evaluate_decision
 from app.services.technical_data import get_technical_analysis
 
 router = APIRouter()

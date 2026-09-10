@@ -1,3 +1,4 @@
+import re
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -12,6 +13,39 @@ from app.schemas.chat import ChatMessageCreate, ChatMessageResponse, ChatThreadR
 from app.services.ai_orchestrator import MentorContext, generate_mentor_response
 
 router = APIRouter()
+
+# Matches 4-5 uppercase ASCII letters that look like a stock ticker
+_TICKER_RE = re.compile(r'\b([A-Z]{4,5})\b')
+
+
+async def _recover_thread_symbol(
+    thread_id: int,
+    db: AsyncSession,
+) -> str | None:
+    """Scan recent user messages in this thread backwards to find the most recent
+    valid instrument symbol. Validates against the Instrument table.
+    Returns None if no valid symbol found.
+    """
+    hist_res = await db.execute(
+        select(ChatMessage)
+        .where(ChatMessage.thread_id == thread_id, ChatMessage.role == "user")
+        .order_by(ChatMessage.created_at.desc())
+        .limit(20)
+    )
+    user_messages = hist_res.scalars().all()
+
+    for msg in user_messages:
+        matches = _TICKER_RE.findall(msg.content)
+        for candidate in matches:
+            inst_res = await db.execute(
+                select(Instrument)
+                .where(Instrument.symbol == candidate, Instrument.is_active.is_(True))
+            )
+            inst = inst_res.scalars().first()
+            if inst:
+                return candidate
+
+    return None
 
 
 @router.post("/threads", response_model=ChatThreadResponse)
@@ -75,21 +109,28 @@ async def send_message(
     db.add(user_msg)
     await db.flush()
 
+    # Resolve active instrument symbol:
+    # Priority 1: explicit message.instrument_symbol
+    # Priority 2: recover from recent thread history (backend-side)
+    resolved_symbol = message.instrument_symbol
+    if not resolved_symbol:
+        resolved_symbol = await _recover_thread_symbol(thread_id, db)
+
     # Build initial context (default: general question with no instrument data)
     from app.db.models import DecisionAction
     ctx = MentorContext(
-        instrument_symbol=message.instrument_symbol or "GENEL",
+        instrument_symbol=resolved_symbol or "GENEL",
         deterministic_action=DecisionAction.HOLD,
         deterministic_score=Decimal("0"),
         reason_codes=["NO_CONTEXT"],
         missing_data=True
     )
 
-    if message.instrument_symbol:
+    if resolved_symbol:
         i_res = await db.execute(
             select(Instrument)
             .options(selectinload(Instrument.provider_mappings))
-            .where(Instrument.symbol == message.instrument_symbol, Instrument.is_active.is_(True))
+            .where(Instrument.symbol == resolved_symbol, Instrument.is_active.is_(True))
         )
         inst = i_res.scalars().first()
         if inst:
@@ -103,9 +144,9 @@ async def send_message(
             decision = d_res.scalars().first()
 
             if not decision:
-                # If no snapshot exists, we calculate it dynamically using the deterministic engine.
-                from app.services.decision_engine import resolve_and_evaluate_decision
+                # If no snapshot exists, calculate it dynamically using the deterministic engine.
                 from app.schemas.decision import Horizon
+                from app.services.decision_engine import resolve_and_evaluate_decision
                 decision_res = await resolve_and_evaluate_decision(inst, inst.symbol, db, current_user, Horizon.MEDIUM, None)
                 ctx.deterministic_action = decision_res.market_view
                 ctx.deterministic_score = decision_res.overall_market_score

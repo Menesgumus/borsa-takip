@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Any
 
 from app.services.ai_mentor import (
@@ -7,6 +8,7 @@ from app.services.ai_mentor import (
     MentorExplanation,
     MockMentorProvider,
     OpenAIMentorProvider,
+    action_tr,
     logger,
 )
 
@@ -39,11 +41,16 @@ async def generate_mentor_response(
         )
     except Exception as e:
         logger.error(f"Mentor provider failed: {e}")
+        action_label = action_tr(context.deterministic_action)
         explanation = MentorExplanation(
-            summary="Yapay Zeka asistanina su an ulasilmiyor. Deterministik motor kararini sunuyoruz.",
-            action_explanation="Karar motoru skorlarina gore bu sonuc uretilmistir.",
+            summary=(
+                f"{context.instrument_symbol} için deterministik karar motoru "
+                f"{action_label} sonucunu verdi. "
+                f"Güvenilir şekilde doğrulanamayan sayısal ifadeler gösterilmedi."
+            ),
+            action_explanation="Karar motoru skorlarına göre bu sonuç üretilmiştir.",
             key_reasons=context.reason_codes,
-            risks=["Sistem hatasi - lutfen daha sonra tekrar deneyin."],
+            risks=["Sistem hatası - lütfen daha sonra tekrar deneyin."],
             data_quality_note="AI_MENTOR_UNAVAILABLE",
             learning_points=[],
             action=context.deterministic_action.value,
@@ -52,7 +59,6 @@ async def generate_mentor_response(
 
     # ■ FINANCIAL INTEGRITY & ACTION PARITY - HARD INVARIANTS ■
     if explanation.response_kind == "DECISION":
-        import re
 
         def _extract_numbers(text: str) -> set[float]:
             if not text:
@@ -60,7 +66,7 @@ async def generate_mentor_response(
             matches = re.findall(r'\d+(?:\.\d+)?', text.replace(',', '.'))
             return {float(m) for m in matches}
 
-        authoritative = set()
+        authoritative: set[float] = set()
         if context.current_price is not None:
             authoritative.add(float(context.current_price))
         if context.deterministic_score is not None:
@@ -72,22 +78,20 @@ async def generate_mentor_response(
 
         full_text = f"{explanation.summary} {explanation.action_explanation}"
         found_numbers = _extract_numbers(full_text)
-        has_unsupported_claim = False
-        for num in found_numbers:
-            if num not in authoritative:
-                has_unsupported_claim = True
-                break
+        has_unsupported_claim = any(num not in authoritative for num in found_numbers)
 
         action_parity_failed = explanation.action != context.deterministic_action.value
 
         if action_parity_failed or has_unsupported_claim:
+            action_label = action_tr(context.deterministic_action)
             logger.warning(
-                f"INTEGRITY FAILURE: Action Parity={not action_parity_failed}, Supported Claims={not has_unsupported_claim}. Sanitizing."
+                f"INTEGRITY FAILURE: Action Parity={not action_parity_failed}, "
+                f"Supported Claims={not has_unsupported_claim}. Sanitizing."
             )
             safe_summary = (
                 f"{context.instrument_symbol} için deterministik karar motoru "
-                f"{context.deterministic_action.value} sonucunu verdi. "
-                f"Mevcut doğrulanmış verilere dayanmayan sayısal ifadeler kaldırıldı."
+                f"{action_label} sonucunu verdi. "
+                f"Güvenilir şekilde doğrulanamayan sayısal ifadeler gösterilmedi."
             )
             explanation = explanation.model_copy(update={
                 "action": context.deterministic_action.value,
