@@ -5,14 +5,7 @@ import { CheckCircle, Circle, BookOpen, Clock } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 
-// Image mapper based on slug
-const IMAGE_MAP: Record<string, string> = {
-  "rsi-nedir": "/education/rsi.png",
-  "macd-nedir": "/education/macd.png",
-  "bollinger-bantlari": "/education/bollinger.svg",
-  "sma-ema-nedir": "/education/moving-average.png",
-  "destek-direnc": "/education/support-resistance.png"
-};
+import { EDUCATION_ASSETS } from "@/lib/educationAssets";
 
 const CATEGORY_LABELS: Record<string, string> = {
   "TECHNICAL_ANALYSIS": "Teknik Analiz",
@@ -45,15 +38,16 @@ export function EducationList() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {m.lessons.map((lesson: any) => {
-              const imageSrc = IMAGE_MAP[lesson.slug] || "/education/support-resistance.png"; // Fallback to support-resistance since it's dummy anyway for missing ones
+              const asset = EDUCATION_ASSETS[lesson.slug];
+              const imageSrc = asset ? asset.src : "/education/support-resistance.png"; // Safest fallback
               return (
                 <Link key={lesson.id} href={`/education/${lesson.slug}`} className="flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden group">
                   {/* Image Thumbnail */}
-                  <div className="relative h-48 bg-slate-100 overflow-hidden">
+                  <div className="relative h-[200px] bg-slate-50 flex items-center justify-center border-b border-slate-100 overflow-hidden">
                     <img 
                       src={imageSrc} 
-                      alt={lesson.title} 
-                      className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-300"
+                      alt={asset ? asset.alt : lesson.title} 
+                      className="w-full h-full object-contain p-6 group-hover:scale-105 transition-transform duration-300"
                     />
                     <div className="absolute top-3 right-3 bg-white/90 backdrop-blur text-xs font-bold px-2 py-1 rounded shadow-sm text-navy-800">
                       {CATEGORY_LABELS[m.category] || m.category}
