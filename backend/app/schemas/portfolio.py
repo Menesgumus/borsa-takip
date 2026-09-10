@@ -39,6 +39,7 @@ class TransactionRead(TransactionCreate):
     portfolio_id: int
     executed_at: datetime
     created_at: datetime
+    instrument_symbol: str | None = None
 
     class Config:
         from_attributes = True

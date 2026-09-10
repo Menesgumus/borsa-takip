@@ -4,12 +4,16 @@ import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { fetchApi } from "@/lib/api";
-import { ArrowLeft, AlertCircle, DollarSign } from "lucide-react";
+import { ArrowLeft, AlertCircle, DollarSign, Plus } from "lucide-react";
+import { useState } from "react";
+import { PortfolioActionModal } from "@/components/PortfolioActionModal";
+import { PortfolioCharts } from "@/components/PortfolioCharts";
 
 export default function PortfolioDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const router = useRouter();
+  const [isActionModalOpen, setIsActionModalOpen] = useState(false);
 
   const { data: summary, isLoading, isError, error } = useQuery<any>({
     queryKey: ["portfolio", id, "summary"],
@@ -50,7 +54,7 @@ export default function PortfolioDetailPage() {
   if (!summary) return null;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 max-w-6xl mx-auto">
+    <div className="space-y-6 animate-in fade-in duration-500 max-w-6xl mx-auto pb-12">
       <div className="flex items-center gap-4 mb-2">
         <button onClick={() => router.push('/portfolios')} className="text-slate-400 hover:text-navy-900 transition-colors">
           <ArrowLeft size={20} />
@@ -64,7 +68,10 @@ export default function PortfolioDetailPage() {
             <span className="text-slate-500">• Nakit: {Number(summary.cash_balance).toLocaleString('tr-TR')} ₺</span>
           </div>
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-3">
+          <button onClick={() => setIsActionModalOpen(true)} className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-2">
+            <Plus size={16} /> Yeni İşlem
+          </button>
           <Link href={`/portfolios/${id}/risk`} className="bg-navy-900 hover:bg-navy-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
             Risk Analizi
           </Link>
@@ -161,6 +168,15 @@ export default function PortfolioDetailPage() {
           </div>
         )}
       </div>
+
+      <PortfolioCharts portfolioId={id} summary={summary} />
+
+      <PortfolioActionModal 
+        portfolioId={id} 
+        isOpen={isActionModalOpen} 
+        onClose={() => setIsActionModalOpen(false)} 
+        summary={summary} 
+      />
     </div>
   );
 }
