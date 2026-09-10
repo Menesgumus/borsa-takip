@@ -166,17 +166,19 @@ export default function CandlestickChart({ data, symbol, userId = 'local_user' }
     volumeSeries.setData(volumeData as any);
     chart.timeScale().fitContent();
 
-    chart.timeScale().subscribeVisibleTimeRangeChange(() => {
+    const onViewportChange = () => {
       updateRenderedDrawings();
-    });
-    chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
-      updateRenderedDrawings();
-    });
+    };
+
+    chart.timeScale().subscribeVisibleTimeRangeChange(onViewportChange);
+    chart.timeScale().subscribeVisibleLogicalRangeChange(onViewportChange);
 
     window.addEventListener('resize', handleResize);
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      chart.timeScale().unsubscribeVisibleTimeRangeChange(onViewportChange);
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(onViewportChange);
       chart.remove();
     };
   }, [data]);
@@ -216,22 +218,36 @@ export default function CandlestickChart({ data, symbol, userId = 'local_user' }
     return { x, y };
   };
 
+  const drawingsRef = useRef(drawings);
+  const currentDrawingRef = useRef(currentDrawing);
+
+  useEffect(() => {
+    drawingsRef.current = drawings;
+  }, [drawings]);
+
+  useEffect(() => {
+    currentDrawingRef.current = currentDrawing;
+  }, [currentDrawing]);
+
   const updateRenderedDrawings = useCallback(() => {
     if (!chartRef.current || !seriesRef.current) return;
     
-    const allDrawings = currentDrawing ? [...drawings, currentDrawing] : drawings;
+    const d = drawingsRef.current;
+    const cd = currentDrawingRef.current;
+    const allDrawings = cd ? [...d, cd] : d;
     
     const rendered = allDrawings.map(d => {
+      // B7. Don't delete if outside viewport, just skip rendering points that can't be mapped
       const pxPoints = d.points.map(p => getPixelPoint(p)).filter(p => p !== null) as {x:number, y:number}[];
       return { ...d, pxPoints };
     });
     
     setRenderedDrawings(rendered);
-  }, [drawings, currentDrawing]);
+  }, []);
 
   useEffect(() => {
     updateRenderedDrawings();
-  }, [updateRenderedDrawings]);
+  }, [drawings, currentDrawing, updateRenderedDrawings]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (activeTool === 'cursor') {
