@@ -89,7 +89,7 @@ export function PortfolioCharts({ portfolioId, summary }: { portfolioId: string,
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {transactions.map((tx: any) => {
-                  const isCash = tx.transaction_type === 'DEPOSIT' || tx.transaction_type === 'WITHDRAW';
+                  const isCash = tx.transaction_type === 'DEPOSIT' || tx.transaction_type === 'WITHDRAWAL';
                   return (
                     <tr key={tx.id} className="hover:bg-slate-50/50">
                       <td className="px-4 py-3 text-slate-500 flex items-center gap-1">

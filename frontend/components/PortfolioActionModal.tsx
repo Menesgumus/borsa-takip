@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { X, Search } from "lucide-react";
 import { fetchApi } from "@/lib/api";
 
-type ActionType = "DEPOSIT" | "WITHDRAW" | "BUY" | "SELL";
+type ActionType = "DEPOSIT" | "WITHDRAWAL" | "BUY" | "SELL";
 type BuyMode = "QUANTITY" | "BUDGET";
 
 interface PortfolioActionModalProps {
@@ -50,7 +50,7 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary }: 
   const transactionMutation = useMutation({
     mutationFn: async (payload: any) => {
       // Use different endpoint for TRADE vs DEPOSIT/WITHDRAW
-      const endpoint = (payload.transaction_type === "DEPOSIT" || payload.transaction_type === "WITHDRAW")
+      const endpoint = (payload.transaction_type === "DEPOSIT" || payload.transaction_type === "WITHDRAWAL")
         ? `/api/v1/portfolios/${portfolioId}/transactions`
         : `/api/v1/portfolios/${portfolioId}/trade`;
         
@@ -104,11 +104,20 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary }: 
     }
   };
 
+  const DATA_STATE_LABELS: Record<string, string> = {
+    "LIVE": "CANLI",
+    "DELAYED": "GECİKMELİ",
+    "EOD": "GÜN SONU",
+    "STALE": "GÜNCEL DEĞİL",
+    "MOCK": "TEST VERİSİ",
+  };
+
   const cashBalance = Number(summary?.cash_balance || 0);
   
   const currentPrice = quote && quote.price && quote.price > 0 ? Number(quote.price) : 0;
-  const quoteStatus = quote?.status || "";
-  const isQuoteUnavailable = !currentPrice || ["UNAVAILABLE", "PROVIDER_ERROR", "TIMEOUT", "NOT_FOUND"].includes(quoteStatus);
+  const quoteDataState = quote?.data_state || "";
+  const isQuoteUnavailable = !currentPrice || ["UNAVAILABLE", "PROVIDER_ERROR", "TIMEOUT", "NOT_FOUND"].includes(quoteDataState);
+  const dataStateLabel = DATA_STATE_LABELS[quoteDataState] || quoteDataState;
 
   const maxPurchasable = currentPrice > 0 ? Math.floor(cashBalance / currentPrice) : 0;
   
@@ -125,6 +134,9 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary }: 
     budgetRemainder = parseFloat(budgetAmount) - budgetCost;
   }
 
+  const isQuantityBuyInsufficient = actionType === "BUY" && buyMode === "QUANTITY" && quantity && (parseFloat(quantity) * currentPrice > cashBalance);
+  const isBudgetBuyInsufficient = actionType === "BUY" && buyMode === "BUDGET" && budgetAmount && (parseFloat(budgetAmount) > cashBalance);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-900/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
@@ -135,7 +147,7 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary }: 
 
         <div className="p-5 overflow-y-auto">
           <div className="flex gap-2 mb-6 bg-slate-100 p-1 rounded-lg shrink-0">
-            {(["DEPOSIT", "WITHDRAW", "BUY", "SELL"] as ActionType[]).map((type) => (
+            {(["DEPOSIT", "WITHDRAWAL", "BUY", "SELL"] as ActionType[]).map((type) => (
               <button
                 key={type}
                 onClick={() => { setActionType(type); resetForm(); }}
@@ -143,7 +155,7 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary }: 
                   actionType === type ? 'bg-white shadow-sm text-navy-900' : 'text-slate-500 hover:text-navy-700'
                 }`}
               >
-                {type === "DEPOSIT" ? "Para Yatır" : type === "WITHDRAW" ? "Para Çek" : type === "BUY" ? "Al" : "Sat"}
+                {type === "DEPOSIT" ? "Para Yatır" : type === "WITHDRAWAL" ? "Para Çek" : type === "BUY" ? "Al" : "Sat"}
               </button>
             ))}
           </div>
@@ -154,7 +166,7 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary }: 
             </div>
           )}
 
-          {(actionType === "DEPOSIT" || actionType === "WITHDRAW") ? (
+          {(actionType === "DEPOSIT" || actionType === "WITHDRAWAL") ? (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Miktar (₺)</label>
@@ -168,7 +180,7 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary }: 
                   step="0.01"
                 />
               </div>
-              {actionType === "WITHDRAW" && (
+              {actionType === "WITHDRAWAL" && (
                 <div className="text-sm text-slate-500">
                   Kullanılabilir Nakit: {cashBalance.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})} ₺
                 </div>
@@ -218,13 +230,17 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary }: 
                     <button onClick={() => setSelectedInstrument(null)} className="text-sm text-primary-600 font-medium">Değiştir</button>
                   </div>
 
-                  <div className={`p-3 rounded-lg text-sm flex justify-between ${isQuoteUnavailable ? 'bg-danger-50 text-danger-800' : 'bg-primary-50 text-primary-800'}`}>
-                    <span>Piyasa Fiyatı:</span>
-                    <span className="font-bold">
-                      {isQuoteUnavailable ? "Fiyat alınamadı" : `${currentPrice.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})} ₺`}
-                      {quoteStatus === "DELAYED" && <span className="ml-2 text-xs font-normal opacity-80">(GECİKMELİ)</span>}
-                    </span>
-                  </div>
+                    <div className={`p-3 rounded-lg text-sm flex justify-between items-center ${isQuoteUnavailable ? 'bg-danger-50 text-danger-800' : 'bg-primary-50 text-primary-800'}`}>
+                      <span>Piyasa Fiyatı:</span>
+                      <div className="flex flex-col items-end">
+                        <span className="font-bold">
+                          {isQuoteUnavailable ? "Fiyat alınamadı" : `${currentPrice.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})} ₺`}
+                        </span>
+                        {!isQuoteUnavailable && dataStateLabel && (
+                          <span className="text-xs font-medium opacity-80 uppercase">{dataStateLabel}</span>
+                        )}
+                      </div>
+                    </div>
 
                   {actionType === "BUY" && (
                     <div className="flex gap-2 bg-slate-100 p-1 rounded-lg">
@@ -341,19 +357,33 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary }: 
                     </div>
                   )}
 
-                  <button
-                    onClick={handleTradeAction}
-                    disabled={
-                      isQuoteUnavailable || 
-                      transactionMutation.isPending || 
-                      (actionType === "BUY" && buyMode === "QUANTITY" && (!quantity || parseFloat(quantity) <= 0)) ||
-                      (actionType === "BUY" && buyMode === "BUDGET" && (!budgetAmount || budgetQuantity < 1)) ||
-                      (actionType === "SELL" && (!quantity || parseFloat(quantity) <= 0))
-                    }
-                    className="w-full py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 mt-4"
-                  >
-                    {transactionMutation.isPending ? "İşleniyor..." : "İşlemi Onayla"}
-                  </button>
+                  <div className="mt-4">
+                    {isQuantityBuyInsufficient && (
+                      <div className="text-danger-600 text-sm mb-2 p-2 bg-danger-50 rounded">
+                        Yetersiz nakit. En fazla {maxPurchasable} adet alabilirsiniz.
+                      </div>
+                    )}
+                    {isBudgetBuyInsufficient && (
+                      <div className="text-danger-600 text-sm mb-2 p-2 bg-danger-50 rounded">
+                        Girdiğiniz tutar kullanılabilir nakit bakiyesini aşıyor.
+                      </div>
+                    )}
+                    <button
+                      onClick={handleTradeAction}
+                      disabled={
+                        isQuoteUnavailable || 
+                        transactionMutation.isPending || 
+                        isQuantityBuyInsufficient ||
+                        isBudgetBuyInsufficient ||
+                        (actionType === "BUY" && buyMode === "QUANTITY" && (!quantity || parseFloat(quantity) <= 0)) ||
+                        (actionType === "BUY" && buyMode === "BUDGET" && (!budgetAmount || budgetQuantity < 1)) ||
+                        (actionType === "SELL" && (!quantity || parseFloat(quantity) <= 0))
+                      }
+                      className="w-full py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+                    >
+                      {transactionMutation.isPending ? "İşleniyor..." : "İşlemi Onayla"}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

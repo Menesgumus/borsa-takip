@@ -459,7 +459,6 @@ async def portfolio_what_if(
     resp.after_risk.portfolio_id = portfolio_id
     return resp
 
-import math
 
 from app.db.models import PortfolioType, TransactionType
 from app.schemas.portfolio import PortfolioTradeCreate
@@ -512,10 +511,9 @@ async def execute_trade(
     # 6. Determine quantity if budget mode
     if trade_in.side == "BUY":
         if trade_in.budget_amount is not None and trade_in.budget_amount > 0:
-            qty_float = math.floor(float(trade_in.budget_amount) / float(execution_price))
-            if qty_float < 1:
+            quantity = trade_in.budget_amount // execution_price
+            if quantity < 1:
                 raise HTTPException(status_code=400, detail="Bu tutarla en az 1 adet hisse alınamıyor.")
-            quantity = Decimal(str(qty_float))
         elif trade_in.quantity is not None and trade_in.quantity > 0:
             quantity = trade_in.quantity
         else:

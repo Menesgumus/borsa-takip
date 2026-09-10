@@ -39,7 +39,7 @@ export function EducationList() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {m.lessons.map((lesson: any) => {
               const asset = EDUCATION_ASSETS[lesson.slug];
-              const imageSrc = asset ? asset.src : "/education/support-resistance.png"; // Safest fallback
+              const imageSrc = asset ? asset.src : "/education/placeholder.svg"; // Safest fallback
               return (
                 <Link key={lesson.id} href={`/education/${lesson.slug}`} className="flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden group">
                   {/* Image Thumbnail */}

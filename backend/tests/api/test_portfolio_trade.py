@@ -1,13 +1,17 @@
-import random
 import uuid
+
 import pytest
-from decimal import Decimal
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
 from app.api.v1.endpoints.auth import get_current_user
-from app.db.models import Portfolio, PortfolioType, Instrument, User, ProviderMapping, InstrumentType
+from app.db.models import (
+    Instrument,
+    InstrumentType,
+    Portfolio,
+    PortfolioType,
+    ProviderMapping,
+    User,
+)
 from app.db.session import async_session_maker
 from app.main import app
 
@@ -24,8 +28,9 @@ def override_dependencies():
 
 @pytest.mark.asyncio
 async def test_paper_buy_authoritative_quote(monkeypatch):
+    from datetime import UTC, datetime
+
     from app.market.dto import QuoteDTO
-    from datetime import datetime, UTC
     async def mock_get_quotes(*args, **kwargs):
         return [QuoteDTO(
             symbol="AEFES.IS", price=15.50, data_state="LIVE",
@@ -43,7 +48,7 @@ async def test_paper_buy_authoritative_quote(monkeypatch):
 
         portfolio = Portfolio(user_id=user.id, name="Test Paper", portfolio_type=PortfolioType.PAPER, currency="TRY")
         db_session.add(portfolio)
-        
+
         inst = Instrument(symbol=f"TEST_{uuid.uuid4().hex[:4]}", name="Anadolu Efes", exchange="BIST", instrument_type=InstrumentType.STOCK)
         db_session.add(inst)
         await db_session.commit()
@@ -53,7 +58,7 @@ async def test_paper_buy_authoritative_quote(monkeypatch):
         mapping = ProviderMapping(instrument_id=inst.id, provider_name="yahoo", provider_symbol="AEFES.IS", is_primary=True)
         db_session.add(mapping)
         await db_session.commit()
-        
+
         p_id = portfolio.id
         inst_id = inst.id
 
@@ -75,8 +80,9 @@ async def test_paper_buy_authoritative_quote(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_paper_buy_budget_mode(monkeypatch):
+    from datetime import UTC, datetime
+
     from app.market.dto import QuoteDTO
-    from datetime import datetime, UTC
     async def mock_get_quotes(*args, **kwargs):
         return [QuoteDTO(
             symbol="AEFES.IS", price=20.00, data_state="LIVE",
@@ -94,7 +100,7 @@ async def test_paper_buy_budget_mode(monkeypatch):
 
         portfolio = Portfolio(user_id=user.id, name="Test Paper 2", portfolio_type=PortfolioType.PAPER, currency="TRY")
         db_session.add(portfolio)
-        
+
         inst = Instrument(symbol=f"GARAN_{uuid.uuid4().hex[:4]}", name="Garanti", exchange="BIST", instrument_type=InstrumentType.STOCK)
         db_session.add(inst)
         await db_session.commit()
@@ -104,7 +110,7 @@ async def test_paper_buy_budget_mode(monkeypatch):
         mapping = ProviderMapping(instrument_id=inst.id, provider_name="yahoo", provider_symbol="AEFES.IS", is_primary=True)
         db_session.add(mapping)
         await db_session.commit()
-        
+
         p_id = portfolio.id
         inst_id = inst.id
 

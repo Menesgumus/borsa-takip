@@ -8,12 +8,12 @@ export const EDUCATION_ASSETS: Record<string, EducationAsset> = {
   "mum-grafik-nedir": {
     src: "/education/candlestick.svg",
     alt: "Mum Grafik Anatomisi",
-    sourceLabel: "Wikimedia Commons"
+    sourceLabel: "İllüstrasyon (Temsili)"
   },
   "trend-nedir": {
     src: "/education/trend.svg",
     alt: "Trend Çizgisi",
-    sourceLabel: "Wikimedia Commons"
+    sourceLabel: "İllüstrasyon (Temsili)"
   },
   "destek-direnc": {
     src: "/education/support-resistance.png",
@@ -43,31 +43,31 @@ export const EDUCATION_ASSETS: Record<string, EducationAsset> = {
   "cift-tepe-cift-dip": {
     src: "/education/double-top-bottom.svg",
     alt: "Çift Tepe ve Çift Dip",
-    sourceLabel: "Wikimedia Commons"
+    sourceLabel: "İllüstrasyon (Temsili)"
   },
   "obo-tobo": {
     src: "/education/head-shoulders.svg",
     alt: "OBO ve TOBO",
-    sourceLabel: "Wikimedia Commons"
+    sourceLabel: "İllüstrasyon (Temsili)"
   },
-  "f-k-orani": {
+  "fk-nedir": {
     src: "/education/pe-ratio.svg",
     alt: "F/K Oranı",
-    sourceLabel: "Wikimedia Commons"
+    sourceLabel: "İllüstrasyon (Temsili)"
   },
   "kap-nedir": {
     src: "/education/kap.svg",
     alt: "KAP (Kamuyu Aydınlatma Platformu)",
-    sourceLabel: "Wikimedia Commons"
+    sourceLabel: "İllüstrasyon (Temsili)"
   },
-  "portfoy-cesitlendirme": {
+  "cesitlendirme": {
     src: "/education/diversification.svg",
     alt: "Portföy Çeşitlendirmesi",
-    sourceLabel: "Wikimedia Commons"
+    sourceLabel: "İllüstrasyon (Temsili)"
   },
   "stop-loss": {
     src: "/education/stop-loss.svg",
     alt: "Stop-Loss (Zarar Kes)",
-    sourceLabel: "Wikimedia Commons"
+    sourceLabel: "İllüstrasyon (Temsili)"
   }
 };

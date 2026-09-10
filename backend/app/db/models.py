@@ -308,6 +308,7 @@ class PortfolioTransaction(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     portfolio = relationship("Portfolio", back_populates="transactions")
+    instrument = relationship("Instrument")
 from sqlalchemy.sql import func
 
 

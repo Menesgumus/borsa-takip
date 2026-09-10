@@ -57,7 +57,7 @@ export default function EducationDetailClient({ slug }: { slug: string }) {
   );
 
   const asset = EDUCATION_ASSETS[lesson.slug];
-  const imageSrc = asset ? asset.src : "/education/support-resistance.png";
+  const imageSrc = asset ? asset.src : "/education/placeholder.svg";
   const imageAlt = asset ? asset.alt : lesson.title;
 
   return (
