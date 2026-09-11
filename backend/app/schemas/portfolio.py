@@ -21,8 +21,12 @@ class PortfolioRead(PortfolioCreate):
         from_attributes = True
 
 class PortfolioOverviewDTO(PortfolioRead):
+    cash_balance: Decimal
     total_realized_pnl: Decimal
+    total_unrealized_pnl: Decimal | None = None
     total_market_value: Decimal | None = None
+    data_freshness: str = "LIVE"
+    valuation_complete: bool = True
 
 class TransactionCreate(BaseModel):
     transaction_type: TransactionType
@@ -73,6 +77,7 @@ class PortfolioSummaryDTO(BaseModel):
     total_unrealized_pnl: Decimal | None = None
     total_market_value: Decimal | None = None
     market_data_freshness: str = "DELAYED"
+    valuation_complete: bool = True
     positions: list[PositionDTO]
 from datetime import datetime
 

@@ -1,6 +1,6 @@
 # Borsa Takip (v1.0.0)
 
-Borsa Takip is a localized, full-stack financial tracking and analysis platform for the Istanbul Stock Exchange (BIST). It provides technical screening, fundamental data aggregation, personal portfolio management, backtesting, and an AI-driven mentor.
+Borsa Takip is a localized, full-stack financial tracking and analysis platform for the Istanbul Stock Exchange (BIST). It provides technical screening, fundamental data aggregation, personal portfolio management and backtesting.
 
 **Status:** PERSONAL / LOCAL USE ONLY. Not approved for commercial market data redistribution or public deployment.
 
@@ -33,24 +33,6 @@ SECRET_KEY=generate_a_secure_random_string
 # Redis
 REDIS_URL=redis://redis:6379/0
 
-# Optional: OpenAI AI Mentor
-OPENAI_API_KEY=sk-...
-```
-
-**2. Start the application:**
-```bash
-docker compose up -d --build
-```
-- Frontend: `http://localhost:3000`
-- Backend API: `http://localhost:8001`
-- Swagger Docs: `http://localhost:8001/docs` (only available if `ENVIRONMENT=development`)
-
-**3. Stop the application:**
-```bash
-docker compose down
-```
-
----
 
 ## 📦 Database Migrations
 Migrations run automatically on container startup. To manage manually from the backend container:

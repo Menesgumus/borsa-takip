@@ -1,7 +1,7 @@
 ﻿{
   "name": "Borsa Takip",
   "short_name": "Borsa",
-  "description": "Borsa Takip ve Mentor Uygulaması",
+  "description": "Borsa Takip Uygulaması",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#ffffff",

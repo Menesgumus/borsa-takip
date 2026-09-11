@@ -17,7 +17,6 @@ from app.schemas.portfolio import (
     PortfolioOverviewDTO,
     PortfolioRead,
     PortfolioSummaryDTO,
-    PositionDTO,
     TradeJournalCreate,
     TradeJournalRead,
     TransactionCreate,
@@ -52,27 +51,18 @@ async def list_portfolios(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ) -> Any:
+    from app.services.portfolio_valuation import evaluate_portfolios
+
     result = await db.execute(select(Portfolio).where(Portfolio.user_id == current_user.id))
     portfolios = result.scalars().all()
 
+    valuations = await evaluate_portfolios(db, portfolios)
+
     overview_dtos = []
     for p in portfolios:
-        txs_result = await db.execute(select(PortfolioTransaction).where(PortfolioTransaction.portfolio_id == p.id))
-        db_txs = txs_result.scalars().all()
-
-        ledger_txs = [
-            TransactionData(
-                id=t.id,
-                transaction_type=t.transaction_type,
-                instrument_id=t.instrument_id,
-                quantity=t.quantity,
-                price=t.price,
-                fee=t.fee,
-                executed_at=t.executed_at
-            ) for t in db_txs
-        ]
-        state = fold_transactions(ledger_txs)
-
+        val = valuations.get(p.id)
+        if not val:
+            continue
         overview_dtos.append(PortfolioOverviewDTO(
             id=p.id,
             user_id=p.user_id,
@@ -81,8 +71,12 @@ async def list_portfolios(
             currency=p.currency,
             created_at=p.created_at,
             updated_at=p.updated_at,
-            total_realized_pnl=state.total_realized_pnl,
-            total_market_value=None  # We don't fetch live quotes in the list view for MVP
+            cash_balance=val.cash_balance,
+            total_realized_pnl=val.total_realized_pnl,
+            total_unrealized_pnl=val.total_unrealized_pnl,
+            total_market_value=val.total_market_value,
+            data_freshness=val.data_freshness,
+            valuation_complete=val.valuation_complete
         ))
 
     return overview_dtos
@@ -197,123 +191,30 @@ async def get_portfolio_summary(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ) -> Any:
+    from app.services.portfolio_valuation import evaluate_portfolios
+
     result = await db.execute(select(Portfolio).where(Portfolio.id == portfolio_id, Portfolio.user_id == current_user.id))
     portfolio = result.scalars().first()
     if not portfolio:
         raise HTTPException(status_code=404, detail="Portfolio not found")
 
-    txs_result = await db.execute(select(PortfolioTransaction).where(PortfolioTransaction.portfolio_id == portfolio_id))
-    db_txs = txs_result.scalars().all()
-
-    ledger_txs = [
-        TransactionData(
-            id=t.id,
-            transaction_type=t.transaction_type,
-            instrument_id=t.instrument_id,
-            quantity=t.quantity,
-            price=t.price,
-            fee=t.fee,
-            executed_at=t.executed_at
-        ) for t in db_txs
-    ]
-
-    state = fold_transactions(ledger_txs)
-
-    # We need to map instrument_id to actual instruments and fetch live quotes to calculate unrealized PNL
-    # For Phase 08 MVP, we'll fetch instruments from DB. Quotes integration will be minimal (skip live quotes if not readily available to keep this fast, or use a cached provider).
-    # Since we must output null for unavailable prices:
-
-    inst_ids = list(state.positions.keys())
-    instruments = {}
-    if inst_ids:
-        inst_res = await db.execute(
-            select(Instrument)
-            .options(selectinload(Instrument.provider_mappings))
-            .where(Instrument.id.in_(inst_ids))
-        )
-        for inst in inst_res.scalars().all():
-            instruments[inst.id] = inst
-
-    pos_dtos = []
-    total_unrealized = Decimal("0")
-    total_market_value = Decimal("0")
-    all_prices_live = True
-
-    # Batch gather quotes for performance if multiple symbols exist
-    # Group by provider
-    provider_symbols: dict[str, list[str]] = {}
-    symbol_to_inst_id: dict[str, int] = {}
-    for inst_id in inst_ids:
-        inst = instruments.get(inst_id)
-        if inst:
-            try:
-                resolved = resolve_provider(inst)
-                provider_symbols.setdefault(resolved.provider_name, []).append(resolved.provider_symbol)
-                symbol_to_inst_id[f"{resolved.provider_name}:{resolved.provider_symbol}"] = inst_id
-            except ProviderUnavailableError:
-                pass
-
-    quotes: dict[int, Decimal] = {}
-    for provider_name, symbols in provider_symbols.items():
-        try:
-            results = await registry.get_quotes(provider_name, symbols)
-            for quote in results:
-                inst_id = symbol_to_inst_id.get(f"{provider_name}:{quote.symbol}")
-                if inst_id is not None:
-                    quotes[inst_id] = Decimal(str(quote.price))
-        except ProviderUnavailableError:
-            pass
-
-    for inst_id, pos in state.positions.items():
-        if pos.quantity <= 0:
-            continue
-
-        inst = instruments.get(inst_id)
-        if not inst:
-            continue
-
-        current_price = quotes.get(inst_id)
-        market_value = None
-        unrealized_pnl = None
-
-        if current_price is not None:
-            market_value = pos.quantity * current_price
-            cost_basis = pos.quantity * pos.average_cost
-            unrealized_pnl = market_value - cost_basis
-
-            total_market_value += market_value
-            total_unrealized += unrealized_pnl
-        else:
-            all_prices_live = False
-
-        pos_dtos.append(PositionDTO(
-            instrument_id=inst_id,
-            symbol=inst.symbol,
-            name=inst.name,
-            quantity=pos.quantity,
-            average_cost=pos.average_cost,
-            realized_pnl=pos.realized_pnl,
-            current_price=current_price,
-            market_value=market_value,
-            unrealized_pnl=unrealized_pnl
-        ))
-
-    # Add cash to total market value
-    if all_prices_live:
-        total_market_value += state.cash_balance
+    valuations = await evaluate_portfolios(db, [portfolio])
+    val = valuations.get(portfolio.id)
+    if not val:
+        raise HTTPException(status_code=500, detail="Valuation failed")
 
     return PortfolioSummaryDTO(
-        portfolio_id=portfolio_id,
-        cash_balance=state.cash_balance,
-        total_deposits=state.total_deposits,
-        total_withdrawals=state.total_withdrawals,
-        total_realized_pnl=state.total_realized_pnl,
-        total_unrealized_pnl=None if not all_prices_live else total_unrealized,
-        total_market_value=None if not all_prices_live else total_market_value,
-        market_data_freshness="STALE" if not all_prices_live else "DELAYED",
-        positions=pos_dtos
+        portfolio_id=portfolio.id,
+        cash_balance=val.cash_balance,
+        total_deposits=val.total_deposits,
+        total_withdrawals=val.total_withdrawals,
+        total_realized_pnl=val.total_realized_pnl,
+        total_unrealized_pnl=val.total_unrealized_pnl,
+        total_market_value=val.total_market_value,
+        market_data_freshness=val.data_freshness,
+        valuation_complete=val.valuation_complete,
+        positions=val.positions
     )
-
 
 @router.post("/{portfolio_id}/journals", response_model=TradeJournalRead)
 async def create_trade_journal(
@@ -355,8 +256,13 @@ async def get_portfolio_risk(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ) -> Any:
+    from app.market.exceptions import ProviderUnavailableError
+    from app.market.registry import registry
+    from app.services.provider_resolver import resolve_provider
+
     result = await db.execute(select(Portfolio).where(Portfolio.id == portfolio_id, Portfolio.user_id == current_user.id))
-    if not result.scalars().first():
+    portfolio = result.scalars().first()
+    if not portfolio:
         raise HTTPException(status_code=404, detail="Portfolio not found")
 
     txs_result = await db.execute(select(PortfolioTransaction).where(PortfolioTransaction.portfolio_id == portfolio_id))
@@ -373,8 +279,6 @@ async def get_portfolio_risk(
             executed_at=t.executed_at
         ) for t in db_txs
     ]
-
-    from app.services.portfolio_ledger import fold_transactions
     state = fold_transactions(ledger_txs)
 
     inst_ids = list(state.positions.keys())
@@ -388,24 +292,20 @@ async def get_portfolio_risk(
         for inst in inst_res.scalars().all():
             instruments[inst.id] = inst
 
-    from app.market.exceptions import ProviderUnavailableError
-    from app.market.registry import registry
-    from app.services.provider_resolver import resolve_provider
-
-    # Fetch live quotes
+    current_prices = {}
+    symbols = {}
     provider_symbols: dict[str, list[str]] = {}
     symbol_to_inst_id: dict[str, int] = {}
-    for inst_id in inst_ids:
-        inst = instruments.get(inst_id)
-        if inst:
-            try:
-                resolved = resolve_provider(inst)
-                provider_symbols.setdefault(resolved.provider_name, []).append(resolved.provider_symbol)
-                symbol_to_inst_id[f"{resolved.provider_name}:{resolved.provider_symbol}"] = inst_id
-            except ProviderUnavailableError:
-                pass
 
-    current_prices: dict[int, Decimal] = {}
+    for inst_id, inst in instruments.items():
+        symbols[inst_id] = inst.symbol
+        try:
+            resolved = resolve_provider(inst)
+            provider_symbols.setdefault(resolved.provider_name, []).append(resolved.provider_symbol)
+            symbol_to_inst_id[f"{resolved.provider_name}:{resolved.provider_symbol}"] = inst_id
+        except ProviderUnavailableError:
+            pass
+
     for provider_name, symbols_list in provider_symbols.items():
         try:
             results = await registry.get_quotes(provider_name, symbols_list)
@@ -416,9 +316,11 @@ async def get_portfolio_risk(
         except ProviderUnavailableError:
             pass
 
-    symbols = {i_id: i.symbol for i_id, i in instruments.items()}
-
-    risk_metrics = calculate_portfolio_risk(state, current_prices, symbols)
+    risk_metrics = calculate_portfolio_risk(
+        state=state,
+        current_prices=current_prices,
+        symbols=symbols
+    )
     risk_metrics.portfolio_id = portfolio_id
     return risk_metrics
 

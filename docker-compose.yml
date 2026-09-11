@@ -40,8 +40,6 @@ services:
       - POSTGRES_DB=borsa_takip_dev
       - REDIS_URL=redis://redis:6379/0
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OPENAI_MENTOR_MODEL=${OPENAI_MENTOR_MODEL:-gpt-4o-2024-08-06}
-      - USE_MOCK_MENTOR=${USE_MOCK_MENTOR:-true}
     ports:
       - "127.0.0.1:8001:8000"
     volumes:

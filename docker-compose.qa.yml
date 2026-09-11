@@ -1,0 +1,57 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: qa_user
+      POSTGRES_PASSWORD: qa_password
+      POSTGRES_DB: qa_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - qa_postgres_data:/var/lib/postgresql/data
+      - ./init_test_db.sql:/docker-entrypoint-initdb.d/init_test_db.sql
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6381:6379"
+
+  backend:
+    build:
+      context: ./backend
+    command: sh -c "python -m app.scripts.bootstrap && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://qa_user:qa_password@db:5432/qa_db
+      - TEST_DATABASE_URL=postgresql+asyncpg://qa_user:qa_password@db:5432/borsa_takip_test
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=qa_user
+      - POSTGRES_PASSWORD=qa_password
+      - POSTGRES_DB=qa_db
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=qa_secret_key_123
+      - CORS_ORIGINS=http://localhost:3002
+      - ENVIRONMENT=development
+      - DEBUG=true
+    ports:
+      - "8002:8000"
+    depends_on:
+      - db
+      - redis
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8002
+      - INTERNAL_API_URL=http://backend:8000
+    ports:
+      - "3002:3000"
+    depends_on:
+      - backend
+
+volumes:
+  qa_postgres_data:

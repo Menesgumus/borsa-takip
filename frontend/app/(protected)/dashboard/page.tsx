@@ -34,6 +34,7 @@ import { fetchApi } from "@/lib/api";
 import { DataStateBadge } from "@/components/DataStateBadge";
 
 import { formatTry } from "@/lib/financialUi";
+import { QuoteDTO, PortfolioOverviewDTO } from "@/lib/types";
 
 
 
@@ -41,7 +42,7 @@ function QuoteCard({ symbol, name }: { symbol: string; name: string }) {
 
   const { isOnline } = useNetwork();
 
-  const { data: quote, isLoading, isError } = useQuery({
+  const { data: quote, isLoading, isError } = useQuery<QuoteDTO>({
 
     queryKey: ["quote", symbol],
 
@@ -71,15 +72,15 @@ function QuoteCard({ symbol, name }: { symbol: string; name: string }) {
 
           <span className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${
 
-            (quote as any).data_state === "DELAYED" ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
+            quote?.data_state === "DELAYED" ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
 
-            (quote as any).data_state === "EOD" ? "bg-slate-50 text-slate-600 border-slate-200" :
+            quote?.data_state === "EOD" ? "bg-slate-50 text-slate-600 border-slate-200" :
 
             "bg-primary-50 text-primary-700 border-primary-200"
 
           }`}>
 
-            {(quote as any).data_state || "DELAYED"}
+            {quote?.data_state || "DELAYED"}
 
           </span>
 
@@ -113,21 +114,21 @@ function QuoteCard({ symbol, name }: { symbol: string; name: string }) {
 
           <div className="text-2xl font-semibold text-navy-900 mb-1">
 
-            {Number((quote as any).price).toFixed(2)} ₺
+            {Number(quote?.price).toFixed(2)} ₺
 
           </div>
 
           <div className={`text-sm font-medium flex items-center gap-1 ${
 
-            Number((quote as any).change_pct) >= 0 ? "text-success-600" : "text-danger-600"
+            Number(quote?.change_pct) >= 0 ? "text-success-600" : "text-danger-600"
 
           }`}>
 
-            {Number((quote as any).change_pct) >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+            {Number(quote?.change_pct) >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
 
-            {Number((quote as any).change_pct) >= 0 ? "+" : ""}
+            {Number(quote?.change_pct) >= 0 ? "+" : ""}
 
-            {Number((quote as any).change_pct).toFixed(2)}%
+            {Number(quote?.change_pct).toFixed(2)}%
 
           </div>
 
@@ -165,7 +166,7 @@ export default function Dashboard() {
 
     queryKey: ["portfolios"],
 
-    queryFn: () => fetchApi('/api/v1/portfolios'),
+    queryFn: (): Promise<PortfolioOverviewDTO[]> => fetchApi('/api/v1/portfolios'),
 
   });
 
@@ -269,11 +270,11 @@ export default function Dashboard() {
 
           </div>
 
-        ) : (portfoliosData as any)?.length > 0 ? (
+        ) : (portfoliosData?.length || 0) > 0 ? (
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
-            {(portfoliosData as any).map((p: any) => (
+            {portfoliosData!.map((p: PortfolioOverviewDTO) => (
 
               <div key={p.id} className="bg-surface rounded-xl p-5 border border-navy-800/10 shadow-sm">
 
