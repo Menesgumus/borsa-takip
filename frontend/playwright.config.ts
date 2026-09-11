@@ -43,5 +43,10 @@ export default defineConfig({
     url: 'http://localhost:3000',
     reuseExistingServer: true,
     timeout: 60000,
+    env: {
+      INTERNAL_API_URL: 'http://127.0.0.1:8002',
+      NEXT_PUBLIC_API_URL: 'http://127.0.0.1:8002',
+      DISABLE_PWA: 'true'
+    }
   },
 });

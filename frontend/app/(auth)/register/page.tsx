@@ -36,18 +36,18 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <main role="main" id="main-content" className="min-h-screen bg-slate-50 flex">
       {/* Left panel - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-navy-900 flex-col justify-between p-12 text-white">
+      <aside aria-label="Branding" className="hidden lg:flex lg:w-1/2 bg-navy-900 flex-col justify-between p-12 text-white">
         <div>
           <div className="flex items-center gap-3 font-bold text-2xl tracking-tight mb-8">
             <div className="w-10 h-10 rounded bg-primary-500 flex items-center justify-center text-white">BT</div>
             Borsa Takip
           </div>
-          <h1 className="text-4xl font-bold leading-tight mt-20">
+          <h2 className="text-4xl font-bold leading-tight mt-20">
             Yatırım yolculuğunuza <br/>
             <span className="text-primary-400">bugün başlayın.</span>
-          </h1>
+          </h2>
           <p className="text-navy-300 mt-6 text-lg max-w-md">
             Hesabınızı ücretsiz oluşturun ve yapay zeka destekli yatırım asistanınızı hemen kullanmaya başlayın.
           </p>
@@ -55,17 +55,17 @@ export default function RegisterPage() {
         <div className="text-sm text-navy-400">
           &copy; {new Date().getFullYear()} Borsa Takip. Tüm hakları saklıdır.
         </div>
-      </div>
+      </aside>
 
       {/* Right panel - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
+      <section aria-label="Auth Form" className="w-full lg:w-1/2 flex items-center justify-center p-8">
         <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-100 p-8 sm:p-10">
           <div className="lg:hidden flex items-center gap-3 font-bold text-2xl tracking-tight mb-8 text-navy-900">
             <div className="w-8 h-8 rounded bg-primary-600 flex items-center justify-center text-white">BT</div>
             Borsa Takip
           </div>
 
-          <h2 className="text-2xl font-bold text-navy-900">Hesap Oluştur</h2>
+          <h1 className="text-2xl font-bold text-navy-900">Hesap Oluştur</h1>
           <p className="text-slate-500 mt-2 mb-8">Sadece birkaç adımda kaydınızı tamamlayın.</p>
 
           <form onSubmit={handleRegister} className="space-y-5">
@@ -124,7 +124,7 @@ export default function RegisterPage() {
             </p>
           </div>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
