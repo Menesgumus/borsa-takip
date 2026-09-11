@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { ArrowLeft, Clock, AlertCircle } from 'lucide-react';
 import { useNetwork } from '@/components/NetworkProvider';
 import dynamic from 'next/dynamic';
+import { DataStateBadge } from '@/components/DataStateBadge';
 
 const CandlestickChart = dynamic(() => import('@/components/CandlestickChart'), { ssr: false });
 const DecisionCard = dynamic(() => import('@/components/DecisionCard'), { ssr: false });
@@ -109,13 +110,7 @@ export default function InstrumentDetail() {
           </div>
           <div className="mt-3 flex flex-wrap md:justify-end gap-2 items-center text-xs">
             {Boolean(quote) && (
-              <span className={`px-2 py-1 font-semibold rounded border ${
-                q.data_state === 'DELAYED' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
-                q.data_state === 'EOD' ? 'bg-slate-50 text-slate-600 border-slate-200' :
-                'bg-primary-50 text-primary-700 border-primary-200'
-              }`}>
-                {String(q.data_state || 'DELAYED')}
-              </span>
+              <DataStateBadge state={q.data_state} />
             )}
             <span className="px-2 py-1 bg-slate-50 text-slate-600 border border-slate-200 rounded font-medium">
               Yahoo Finance

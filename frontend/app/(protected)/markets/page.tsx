@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { fetchApi } from "@/lib/api";
+import { DataStateBadge } from "@/components/DataStateBadge";
 import { Search, ChevronRight, RefreshCw, AlertCircle } from "lucide-react";
 import { useState } from "react";
 

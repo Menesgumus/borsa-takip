@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useNetwork } from "@/components/NetworkProvider";
 import { fetchApi } from "@/lib/api";
+import { DataStateBadge } from "@/components/DataStateBadge";
 
 function QuoteCard({ symbol, name }: { symbol: string; name: string }) {
   const { isOnline } = useNetwork();
