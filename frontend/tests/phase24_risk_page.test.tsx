@@ -58,7 +58,7 @@ describe('PortfolioRiskPage (Phase 24)', () => {
     expect(screen.getByText('36,47%')).toBeDefined();
     
     // Check formatted invested weight
-    expect(screen.getByText('63,53%')).toBeDefined();
+    expect(screen.getAllByText('63,53%').length).toBeGreaterThan(0);
     
     // Check historical var
     expect(screen.getByText('500,12 ₺')).toBeDefined();

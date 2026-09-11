@@ -388,9 +388,9 @@ async def get_portfolio_risk(
         for inst in inst_res.scalars().all():
             instruments[inst.id] = inst
 
+    from app.market.exceptions import ProviderUnavailableError
     from app.market.registry import registry
     from app.services.provider_resolver import resolve_provider
-    from app.market.exceptions import ProviderUnavailableError
 
     # Fetch live quotes
     provider_symbols: dict[str, list[str]] = {}

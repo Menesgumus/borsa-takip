@@ -89,7 +89,7 @@ export default function PortfolioDetailPage() {
           <div className="text-sm text-navy-700/70 font-medium mb-1">
              Toplam Değer
           </div>
-          <div className="text-2xl font-bold text-navy-900">
+          <div className="text-2xl font-bold text-navy-900 tracking-tight whitespace-nowrap tabular-nums overflow-hidden text-ellipsis">
             {summary.total_market_value != null ? formatTry(summary.total_market_value) : 'Yetersiz Veri'}
           </div>
         </div>
@@ -97,7 +97,7 @@ export default function PortfolioDetailPage() {
           <div className="text-sm text-navy-700/70 font-medium mb-1">
              Gerçekleşen K/Z
           </div>
-          <div className={`text-2xl font-bold ${getProfitLossColorClass(summary.total_realized_pnl)}`}>
+          <div className={`text-2xl font-bold tracking-tight whitespace-nowrap tabular-nums overflow-hidden text-ellipsis ${getProfitLossColorClass(summary.total_realized_pnl)}`}>
             {Number(summary.total_realized_pnl) > 0 ? '+' : ''}{formatTry(summary.total_realized_pnl)}
           </div>
         </div>
@@ -105,7 +105,7 @@ export default function PortfolioDetailPage() {
           <div className="text-sm text-navy-700/70 font-medium mb-1">
              Gerçekleşmeyen K/Z
           </div>
-          <div className={`text-2xl font-bold ${summary.total_unrealized_pnl != null ? getProfitLossColorClass(summary.total_unrealized_pnl) : 'text-slate-700'}`}>
+          <div className={`text-2xl font-bold tracking-tight whitespace-nowrap tabular-nums overflow-hidden text-ellipsis ${summary.total_unrealized_pnl != null ? getProfitLossColorClass(summary.total_unrealized_pnl) : 'text-slate-700'}`}>
              {summary.total_unrealized_pnl != null ? `${Number(summary.total_unrealized_pnl) > 0 ? '+' : ''}${formatTry(summary.total_unrealized_pnl)}` : 'Yetersiz Veri'}
           </div>
         </div>
@@ -113,8 +113,10 @@ export default function PortfolioDetailPage() {
           <div className="text-sm text-navy-700/70 font-medium mb-1">
              Yatırılan / Çekilen
           </div>
-          <div className="text-lg font-bold text-slate-700">
-             +{formatTry(summary.total_deposits)} / -{formatTry(summary.total_withdrawals)}
+          <div className="text-lg font-bold flex flex-wrap gap-x-1.5 gap-y-0 items-baseline">
+             <span className="text-emerald-600 whitespace-nowrap tabular-nums">+{formatTry(summary.total_deposits)}</span> 
+             <span className="text-slate-300">/</span> 
+             <span className="text-rose-600 whitespace-nowrap tabular-nums">-{formatTry(summary.total_withdrawals)}</span>
           </div>
         </div>
       </div>
