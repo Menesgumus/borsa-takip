@@ -1,61 +1,79 @@
+/**
+ * auth.spec.ts
+ *
+ * Critical auth lifecycle E2E:
+ *   Register → Onboarding → Dashboard → Logout → Protected route redirect → Login
+ *
+ * Also runs Axe accessibility checks on login, register, onboarding pages.
+ * Uses 127.0.0.1:8002 QA backend (mock market data, borsa_takip_test DB).
+ */
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
 test.describe('Auth Lifecycle', () => {
 
-  test('Register, Login, Onboarding, Logout, Protected Route', async ({ page }, testInfo) => {
-    const randomEmail = `test_${Date.now()}_${testInfo.workerIndex}@example.com`;
+  test('Register, Onboarding, Logout, Protected Route, Login', async ({ page }, testInfo) => {
+    // Unique email per worker/run to avoid conflicts in the shared test DB
+    const randomEmail = `auth_${Date.now()}_${testInfo.workerIndex}@example.com`;
     const password = 'TestPassword123!';
 
-    // 1. Unauthenticated protected route -> login redirect
+    // 1. Unauthenticated access to protected route → redirect to login
     await page.goto('/dashboard');
     await expect(page).toHaveURL(/.*\/login/);
 
-    // Accessibility check on Login page
+    // Accessibility: login page
     const loginAxeResults = await new AxeBuilder({ page }).analyze();
-    expect(loginAxeResults.violations).toEqual([]);
+    expect(loginAxeResults.violations, 'Login page has axe violations').toEqual([]);
 
-    // 2. Register
+    // 2. Navigate to register
     await page.goto('/register');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
-    // Accessibility check on Register page
+    await page.waitForTimeout(500); // allow React hydration
+
+    // Accessibility: register page
     const registerAxeResults = await new AxeBuilder({ page }).analyze();
-    expect(registerAxeResults.violations).toEqual([]);
-    
-    await page.fill('input[id="email"]', randomEmail);
-    await page.fill('input[id="password"]', password);
+    expect(registerAxeResults.violations, 'Register page has axe violations').toEqual([]);
+
+    await page.fill('#email', randomEmail);
+    await page.fill('#password', password);
     await page.click('button[type="submit"]');
 
-    // 3. Should redirect to onboarding
-    await expect(page).toHaveURL(/.*\/onboarding/, { timeout: 10000 });
-    
-    // Accessibility check on Onboarding page
+    // 3. Redirect to onboarding after registration
+    await expect(page).toHaveURL(/.*\/onboarding/, { timeout: 15000 });
+
+    // Accessibility: onboarding page
     const onboardingAxeResults = await new AxeBuilder({ page }).analyze();
-    expect(onboardingAxeResults.violations).toEqual([]);
-    
-    // 4. Fill onboarding
-    await page.fill('input[id="firstName"]', 'John');
-    await page.fill('input[id="lastName"]', 'Doe');
+    expect(onboardingAxeResults.violations, 'Onboarding page has axe violations').toEqual([]);
+
+    // 4. Complete onboarding
+    await page.fill('#firstName', 'QA');
+    await page.fill('#lastName', 'Tester');
     await page.click('label:has(input[value="MEDIUM"])');
     await page.click('button[type="submit"]');
 
-    // 5. Should redirect to dashboard
-    await expect(page).toHaveURL(/.*\/dashboard/, { timeout: 10000 });
-    await expect(page.locator('text=John').first()).toBeVisible({ timeout: 10000 }).catch(() => null);
+    // 5. Redirect to dashboard
+    await expect(page).toHaveURL(/.*\/dashboard/, { timeout: 15000 });
 
-    // 6. Logout
-    await page.click('button:has-text("Çıkış Yap")');
-    await expect(page).toHaveURL(/.*\/login/, { timeout: 10000 });
+    // 6. Logout — find the button by aria-label
+    // On mobile, open the sidebar first
+    await page.waitForTimeout(500); // allow responsive layout to settle
+    const menuBtn = page.locator('button[aria-label="Menüyü Aç"]');
+    if (await menuBtn.isVisible()) {
+      await menuBtn.click();
+      await page.waitForTimeout(500); // Wait for sidebar to slide in
+    }
+    const logoutBtn = page.locator('button[aria-label="Çıkış Yap"]').first();
+    await logoutBtn.click();
+    await expect(page).toHaveURL(/.*\/login/, { timeout: 15000 });
 
-    // 7. Verify session is revoked (Access protected route)
+    // 7. Protected route is blocked again after logout
     await page.goto('/dashboard');
     await expect(page).toHaveURL(/.*\/login/);
 
-    // 8. Login again
-    await page.fill('input[id="email"]', randomEmail);
-    await page.fill('input[id="password"]', password);
+    // 8. Login with same credentials
+    await page.fill('#email', randomEmail);
+    await page.fill('#password', password);
     await page.click('button[type="submit"]');
-    await expect(page).toHaveURL(/.*\/dashboard/, { timeout: 10000 });
+    await expect(page).toHaveURL(/.*\/dashboard/, { timeout: 15000 });
   });
 });

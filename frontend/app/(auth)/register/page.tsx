@@ -49,7 +49,7 @@ export default function RegisterPage() {
             <span className="text-primary-400">bugün başlayın.</span>
           </h2>
           <p className="text-navy-300 mt-6 text-lg max-w-md">
-            Hesabınızı ücretsiz oluşturun ve yapay zeka destekli yatırım asistanınızı hemen kullanmaya başlayın.
+            Portföy takip, piyasa analizi ve eğitim araçlarını kullanmaya başlayın.
           </p>
         </div>
         <div className="text-sm text-navy-400">

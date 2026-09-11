@@ -43,28 +43,33 @@ async def list_instruments(
     from app.core.redis import redis_client
 
     cache_key = f"instruments:paginated:{page}:{size}:{search or ''}"
-    cached_data = await redis_client.get(cache_key)
-    if cached_data:
-        from fastapi.responses import Response
-        return Response(content=cached_data, media_type="application/json")
+    try:
+        cached_data = await redis_client.get(cache_key)
+        if cached_data:
+            from fastapi.responses import Response
+            return Response(content=cached_data, media_type="application/json")
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Redis cache error: {e}")
 
     offset = (page - 1) * size
 
-    stmt = select(Instrument).where(Instrument.is_active.is_(True))
+    query = select(Instrument).where(Instrument.is_active == True)  # noqa: E712
     if search:
-        search_term = f"%{search.upper()}%"
-        stmt = stmt.where(
-            (func.upper(Instrument.symbol).like(search_term))
-            | (func.upper(Instrument.name).like(search_term))
+        search_pattern = f"%{search}%"
+        query = query.where(
+            (Instrument.symbol.ilike(search_pattern))
+            | (Instrument.name.ilike(search_pattern))
         )
 
     # Get total count
-    count_stmt = select(func.count()).select_from(stmt.subquery())
-    total = (await db.execute(count_stmt)).scalar_one()
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar_one()
 
     # Get items
-    stmt = stmt.order_by(Instrument.symbol).limit(size).offset(offset)
-    result = await db.execute(stmt)
+    query = query.order_by(Instrument.symbol).limit(size).offset(offset)
+    result = await db.execute(query)
     items = result.scalars().all()
 
     from app.schemas.instrument import InstrumentsPaginated
@@ -75,7 +80,12 @@ async def list_instruments(
         size=size
     )
 
-    await redis_client.set(cache_key, response_data.model_dump_json(), ex=60)
+    try:
+        await redis_client.set(cache_key, response_data.model_dump_json(), ex=60)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Redis cache set error: {e}")
+
     return response_data
 
 

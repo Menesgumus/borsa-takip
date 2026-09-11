@@ -39,7 +39,7 @@ export default function Sidebar({ userEmail, onLogout }: { userEmail: string; on
           <div className="w-8 h-8 rounded bg-primary-600 flex items-center justify-center text-white">BT</div>
           Borsa Takip
         </Link>
-        <button className="lg:hidden text-slate-300" onClick={() => setMobileMenuOpen(false)}>
+        <button className="lg:hidden text-slate-300" onClick={() => setMobileMenuOpen(false)} aria-label="Menüyü Kapat" title="Menüyü Kapat">
           <X className="w-6 h-6" />
         </button>
       </div>
@@ -74,7 +74,7 @@ export default function Sidebar({ userEmail, onLogout }: { userEmail: string; on
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-white truncate">{userEmail}</p>
           </div>
-          <button onClick={onLogout} className="p-1.5 text-slate-400 hover:text-white hover:bg-navy-800 rounded-md transition-colors">
+          <button onClick={onLogout} aria-label="Çıkış Yap" title="Çıkış Yap" className="p-1.5 text-slate-400 hover:text-white hover:bg-navy-800 rounded-md transition-colors">
             <LogOut className="w-4 h-4" />
           </button>
         </div>
@@ -85,18 +85,20 @@ export default function Sidebar({ userEmail, onLogout }: { userEmail: string; on
   return (
     <>
       {/* Mobile Header */}
-      <div className="lg:hidden sticky top-0 z-40 flex items-center h-16 shrink-0 px-4 bg-navy-900 border-b border-navy-800">
+      <header className="lg:hidden sticky top-0 z-40 flex items-center h-16 shrink-0 px-4 bg-navy-900 border-b border-navy-800">
         <button
           type="button"
           className="text-slate-300 focus:outline-none"
           onClick={() => setMobileMenuOpen(true)}
+          aria-label="Menüyü Aç"
+          title="Menüyü Aç"
         >
           <Menu className="h-6 w-6" />
         </button>
         <Link href="/dashboard" className="ml-4 font-bold text-lg text-white">
           Borsa Takip
         </Link>
-      </div>
+      </header>
 
       {/* Mobile Sidebar overlay */}
       {mobileMenuOpen && (
@@ -109,9 +111,9 @@ export default function Sidebar({ userEmail, onLogout }: { userEmail: string; on
       )}
 
       {/* Desktop Sidebar */}
-      <div className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 lg:border-r lg:border-navy-800 lg:bg-navy-900 z-50">
+      <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 lg:border-r lg:border-navy-800 lg:bg-navy-900 z-50">
         {navContent}
-      </div>
+      </aside>
     </>
   );
 }

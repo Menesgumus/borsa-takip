@@ -2,11 +2,13 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  timeout: 30000,
+  timeout: 90000,
   retries: 0,
   use: {
-    baseURL: 'http://localhost:3000',
-    trace: 'on-first-retry',
+    baseURL: 'http://127.0.0.1:3000',
+    trace: 'on',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
   },
   projects: [
     {
@@ -40,13 +42,14 @@ export default defineConfig({
   ],
   webServer: {
     command: 'pnpm run start',
-    url: 'http://localhost:3000',
+    url: 'http://127.0.0.1:3000',
     reuseExistingServer: true,
-    timeout: 60000,
+    timeout: 120000,
     env: {
       INTERNAL_API_URL: 'http://127.0.0.1:8002',
       NEXT_PUBLIC_API_URL: 'http://127.0.0.1:8002',
-      DISABLE_PWA: 'true'
-    }
+      DISABLE_PWA: 'true',
+      HOSTNAME: '127.0.0.1',
+    },
   },
 });

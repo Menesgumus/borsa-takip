@@ -72,8 +72,8 @@ export default function OnboardingPage() {
         <div className="w-16 h-16 bg-primary-100 text-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <ShieldCheck size={32} />
         </div>
-        <h1 className="text-3xl font-bold text-navy-900 tracking-tight">Profilinizi Tamamlayın</h1>
-        <p className="text-navy-700 mt-2 text-lg">Yapay zeka asistanının size uygun kararlar alabilmesi için birkaç bilgiye ihtiyacımız var.</p>
+        <h1 className="text-3xl font-bold text-navy-900 mb-2">Profilinizi Tamamlayın</h1>
+        <p className="text-slate-500 text-lg">Yatırım deneyiminizi size özel hale getirmemiz için birkaç bilgiye ihtiyacımız var.</p>
       </div>
 
       <form onSubmit={handleComplete} className="bg-surface rounded-2xl shadow-sm border border-navy-800/10 p-8 space-y-8">
