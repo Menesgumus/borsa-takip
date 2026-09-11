@@ -1,11 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from "recharts";
 import { fetchApi } from "@/lib/api";
 import { Clock } from "lucide-react";
-
-const COLORS = ['#0284c7', '#0369a1', '#0ea5e9', '#38bdf8', '#7dd3fc', '#bae6fd'];
+import { formatTry, formatPercent, formatQuantity, colorForSymbol, CASH_COLOR } from "@/lib/financialUi";
 
 export function PortfolioCharts({ portfolioId, summary }: { portfolioId: string, summary: any }) {
   const { data: transactions, isLoading: isTxsLoading } = useQuery<any[]>({
@@ -18,15 +17,69 @@ export function PortfolioCharts({ portfolioId, summary }: { portfolioId: string,
     ?.filter((p: any) => p.market_value && p.market_value > 0)
     .map((p: any) => ({
       name: p.symbol,
-      value: Number(p.market_value)
+      value: Number(p.market_value),
+      quantity: Number(p.quantity),
+      isCash: false
     })) || [];
 
   if (summary?.cash_balance > 0) {
     allocationData.push({
       name: "Nakit",
-      value: Number(summary.cash_balance)
+      value: Number(summary.cash_balance),
+      quantity: Number(summary.cash_balance),
+      isCash: true
     });
   }
+
+  // Calculate Total
+  const hasPartialData = summary?.positions?.some((p: any) => p.market_value === null || p.market_value === undefined);
+  const totalValue = allocationData.reduce((acc: number, curr: any) => acc + curr.value, 0);
+
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      const percentage = totalValue > 0 ? (data.value / totalValue) * 100 : 0;
+      
+      return (
+        <div className="bg-white p-3 border border-slate-200 shadow-md rounded-lg text-sm">
+          <p className="font-bold text-navy-900 mb-1">{data.name}</p>
+          {data.isCash ? (
+            <p className="text-slate-600">Tutar: <span className="font-medium text-navy-900">{formatTry(data.value)}</span></p>
+          ) : (
+            <>
+              <p className="text-slate-600">Piyasa Değeri: <span className="font-medium text-navy-900">{formatTry(data.value)}</span></p>
+              <p className="text-slate-600">Adet: <span className="font-medium text-navy-900">{formatQuantity(data.quantity)}</span></p>
+            </>
+          )}
+          <p className="text-slate-600">Portföy Payı: <span className="font-medium text-navy-900">{formatPercent(percentage)}</span></p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const CustomLegend = ({ payload }: any) => {
+    return (
+      <div className="flex flex-col gap-2 max-h-32 overflow-y-auto px-2">
+        {payload.map((entry: any, index: number) => {
+          const data = allocationData.find((d: any) => d.name === entry.value);
+          const percentage = data && totalValue > 0 ? (data.value / totalValue) * 100 : 0;
+          return (
+            <div key={`item-${index}`} className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
+                <span className="font-medium text-navy-900 truncate max-w-[80px]" title={entry.value}>{entry.value}</span>
+              </div>
+              <div className="flex items-center gap-3 text-right">
+                <span className="text-slate-600 w-20">{data ? formatTry(data.value) : '-'}</span>
+                <span className="font-medium text-slate-700 w-12">{formatPercent(percentage)}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
@@ -36,7 +89,7 @@ export function PortfolioCharts({ portfolioId, summary }: { portfolioId: string,
         <div className="flex-1 min-h-[300px]">
           {allocationData.length === 0 ? (
             <div className="h-full flex items-center justify-center text-slate-400 text-sm">
-              Veri yok
+              Portföy dağılımı için henüz pozisyon bulunmuyor.
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
@@ -49,15 +102,23 @@ export function PortfolioCharts({ portfolioId, summary }: { portfolioId: string,
                   outerRadius={90}
                   paddingAngle={2}
                   dataKey="value"
+                  stroke="#fff"
+                  strokeWidth={2}
                 >
                   {allocationData.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={`cell-${index}`} fill={colorForSymbol(entry.name)} />
                   ))}
                 </Pie>
-                <Tooltip 
-                  formatter={(value: any) => `${Number(value).toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺`}
-                />
-                <Legend verticalAlign="bottom" height={36} />
+                <RechartsTooltip content={<CustomTooltip />} />
+                <Legend content={<CustomLegend />} verticalAlign="bottom" />
+                <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="text-xs">
+                  <tspan x="50%" dy="-10" className="fill-slate-500 font-medium">
+                    {hasPartialData ? "Kısmi Veri" : "Toplam Değer"}
+                  </tspan>
+                  <tspan x="50%" dy="20" className="fill-navy-900 font-bold text-sm">
+                    {hasPartialData ? "-" : formatTry(totalValue)}
+                  </tspan>
+                </text>
               </PieChart>
             </ResponsiveContainer>
           )}
@@ -77,51 +138,94 @@ export function PortfolioCharts({ portfolioId, summary }: { portfolioId: string,
               Henüz işlem yapılmamış.
             </div>
           ) : (
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-600 sticky top-0">
-                <tr>
-                  <th className="px-4 py-2 font-medium">Tarih</th>
-                  <th className="px-4 py-2 font-medium">Tür</th>
-                  <th className="px-4 py-2 font-medium">Varlık</th>
-                  <th className="px-4 py-2 font-medium text-right">Adet / Tutar</th>
-                  <th className="px-4 py-2 font-medium text-right">Fiyat</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
+            <>
+              {/* Desktop Table */}
+              <table className="w-full text-left text-sm hidden md:table">
+                <thead className="bg-slate-50 text-slate-600 sticky top-0">
+                  <tr>
+                    <th className="px-4 py-2 font-medium">Tarih</th>
+                    <th className="px-4 py-2 font-medium">Tür</th>
+                    <th className="px-4 py-2 font-medium">Varlık</th>
+                    <th className="px-4 py-2 font-medium text-right">Adet / Tutar</th>
+                    <th className="px-4 py-2 font-medium text-right">Fiyat</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {transactions.map((tx: any) => {
+                    const isCash = tx.transaction_type === 'DEPOSIT' || tx.transaction_type === 'WITHDRAWAL';
+                    return (
+                      <tr key={tx.id} className="hover:bg-slate-50/50">
+                        <td className="px-4 py-3 text-slate-500 flex items-center gap-1">
+                          <Clock size={14} />
+                          {new Date(tx.executed_at).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' })}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs font-bold px-2 py-1 rounded ${
+                            tx.transaction_type === 'BUY' ? 'bg-blue-100 text-blue-700' :
+                            tx.transaction_type === 'SELL' ? 'bg-amber-100 text-amber-700' :
+                            tx.transaction_type === 'DEPOSIT' ? 'bg-emerald-100 text-emerald-700' :
+                            'bg-rose-100 text-rose-700'
+                          }`}>
+                            {tx.transaction_type === 'BUY' ? 'AL' :
+                             tx.transaction_type === 'SELL' ? 'SAT' :
+                             tx.transaction_type === 'DEPOSIT' ? 'YATIRMA' : 'ÇEKİM'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-medium text-navy-900">
+                          {tx.instrument_symbol || 'Nakit'}
+                        </td>
+                        <td className="px-4 py-3 text-right font-medium">
+                          {isCash ? formatTry(tx.quantity) : formatQuantity(tx.quantity)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-slate-600">
+                          {!isCash && tx.price ? formatTry(tx.price) : '-'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+              
+              {/* Mobile Cards */}
+              <div className="flex flex-col gap-3 md:hidden">
                 {transactions.map((tx: any) => {
                   const isCash = tx.transaction_type === 'DEPOSIT' || tx.transaction_type === 'WITHDRAWAL';
                   return (
-                    <tr key={tx.id} className="hover:bg-slate-50/50">
-                      <td className="px-4 py-3 text-slate-500 flex items-center gap-1">
-                        <Clock size={14} />
-                        {new Date(tx.executed_at).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' })}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs font-bold px-2 py-1 rounded ${
-                          tx.transaction_type === 'BUY' ? 'bg-blue-100 text-blue-700' :
-                          tx.transaction_type === 'SELL' ? 'bg-amber-100 text-amber-700' :
-                          tx.transaction_type === 'DEPOSIT' ? 'bg-emerald-100 text-emerald-700' :
-                          'bg-rose-100 text-rose-700'
-                        }`}>
-                          {tx.transaction_type === 'BUY' ? 'AL' :
-                           tx.transaction_type === 'SELL' ? 'SAT' :
-                           tx.transaction_type === 'DEPOSIT' ? 'YATIRMA' : 'ÇEKME'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 font-medium text-navy-900">
-                        {tx.instrument_symbol || 'Nakit'}
-                      </td>
-                      <td className="px-4 py-3 text-right font-medium">
-                        {isCash ? `${Number(tx.quantity).toLocaleString('tr-TR')} ₺` : Number(tx.quantity).toLocaleString('tr-TR')}
-                      </td>
-                      <td className="px-4 py-3 text-right text-slate-600">
-                        {!isCash && tx.price ? `${Number(tx.price).toLocaleString('tr-TR')} ₺` : '-'}
-                      </td>
-                    </tr>
-                  )
+                    <div key={tx.id} className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex flex-col gap-2">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                            tx.transaction_type === 'BUY' ? 'bg-blue-100 text-blue-700' :
+                            tx.transaction_type === 'SELL' ? 'bg-amber-100 text-amber-700' :
+                            tx.transaction_type === 'DEPOSIT' ? 'bg-emerald-100 text-emerald-700' :
+                            'bg-rose-100 text-rose-700'
+                          }`}>
+                            {tx.transaction_type === 'BUY' ? 'AL' :
+                             tx.transaction_type === 'SELL' ? 'SAT' :
+                             tx.transaction_type === 'DEPOSIT' ? 'YATIRMA' : 'ÇEKİM'}
+                          </span>
+                          <span className="font-bold text-navy-900 text-sm">{tx.instrument_symbol || 'Nakit'}</span>
+                        </div>
+                        <div className="text-xs text-slate-500 flex items-center gap-1">
+                          <Clock size={12} />
+                          {new Date(tx.executed_at).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' })}
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-end text-sm">
+                        <div className="flex flex-col">
+                          <span className="text-slate-500 text-xs">Adet / Tutar</span>
+                          <span className="font-medium text-navy-900">{isCash ? formatTry(tx.quantity) : formatQuantity(tx.quantity)}</span>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-slate-500 text-xs">Fiyat</span>
+                          <span className="font-medium text-slate-700">{!isCash && tx.price ? formatTry(tx.price) : '-'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
                 })}
-              </tbody>
-            </table>
+              </div>
+            </>
           )}
         </div>
       </div>

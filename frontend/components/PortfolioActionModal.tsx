@@ -1,4 +1,7 @@
 "use client";
+import { formatTry, formatQuantity } from "@/lib/financialUi";
+import { DataStateBadge } from "@/components/DataStateBadge";
+
 
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -108,21 +111,12 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary }: 
       });
     }
   };
-
-  const DATA_STATE_LABELS: Record<string, string> = {
-    "LIVE": "CANLI",
-    "DELAYED": "GECİKMELİ",
-    "EOD": "GÜN SONU",
-    "STALE": "GÜNCEL DEĞİL",
-    "MOCK": "TEST VERİSİ",
-  };
-
-  const cashBalance = Number(summary?.cash_balance || 0);
+const cashBalance = Number(summary?.cash_balance || 0);
   
   const currentPrice = quote && quote.price && quote.price > 0 ? Number(quote.price) : 0;
   const quoteDataState = quote?.data_state || "";
   const isQuoteUnavailable = !currentPrice || ["UNAVAILABLE", "PROVIDER_ERROR", "TIMEOUT", "NOT_FOUND"].includes(quoteDataState);
-  const dataStateLabel = DATA_STATE_LABELS[quoteDataState] || quoteDataState;
+  
 
   const maxPurchasable = currentPrice > 0 ? Math.floor(cashBalance / currentPrice) : 0;
   
@@ -187,7 +181,7 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary }: 
               </div>
               {actionType === "WITHDRAWAL" && (
                 <div className="text-sm text-slate-500">
-                  Kullanılabilir Nakit: {cashBalance.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})} ₺
+                  Kullanılabilir Nakit: {formatTry(cashBalance)}
                 </div>
               )}
               <button
@@ -250,14 +244,14 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary }: 
                     <button onClick={() => setSelectedInstrument(null)} className="text-sm text-primary-600 font-medium">Değiştir</button>
                   </div>
 
-                    <div className={`p-3 rounded-lg text-sm flex justify-between items-center ${isQuoteUnavailable ? 'bg-danger-50 text-danger-800' : 'bg-primary-50 text-primary-800'}`}>
-                      <span>Piyasa Fiyatı:</span>
-                      <div className="flex flex-col items-end">
-                        <span className="font-bold">
-                          {isQuoteUnavailable ? "Fiyat alınamadı" : `${currentPrice.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})} ₺`}
+                    <div className={`p-4 rounded-lg flex justify-between items-center border ${isQuoteUnavailable ? 'bg-danger-50 border-danger-100 text-danger-800' : 'bg-primary-50 border-primary-100 text-primary-900'}`}>
+                      <span className="font-medium text-sm">Piyasa Fiyatı</span>
+                      <div className="flex items-center gap-3">
+                        <span className="font-bold text-lg">
+                          {isQuoteUnavailable ? "Fiyat alınamadı" : formatTry(currentPrice)}
                         </span>
-                        {!isQuoteUnavailable && dataStateLabel && (
-                          <span className="text-xs font-medium opacity-80 uppercase">{dataStateLabel}</span>
+                        {!isQuoteUnavailable && quote?.data_state && (
+                          <DataStateBadge state={quote.data_state} />
                         )}
                       </div>
                     </div>
@@ -295,17 +289,17 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary }: 
                       <div className="text-sm text-slate-600 space-y-1">
                         <div className="flex justify-between">
                           <span>Tahmini işlem tutarı:</span>
-                          <span className="font-medium">{(currentPrice * parseFloat(quantity || "0")).toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})} ₺</span>
+                          <span className="font-medium">{formatTry(currentPrice * parseFloat(quantity || "0"))}</span>
                         </div>
                         <div className="flex justify-between">
                           <span>Kullanılabilir nakit:</span>
-                          <span>{cashBalance.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})} ₺</span>
+                          <span>{formatTry(cashBalance)}</span>
                         </div>
                         <div className="flex justify-between border-t border-slate-100 pt-1">
                           <span>İşlem sonrası tahmini nakit:</span>
-                          <span className="font-medium text-navy-900">{(cashBalance - (currentPrice * parseFloat(quantity || "0"))).toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})} ₺</span>
+                          <span className="font-medium text-navy-900">{formatTry(cashBalance - (currentPrice * parseFloat(quantity || "0")))}</span>
                         </div>
-                        <div className="text-xs text-primary-600 mt-2">Maksimum alınabilir: {maxPurchasable} adet</div>
+                        <div className="text-xs text-primary-600 mt-2">Maksimum alınabilir: {formatQuantity(maxPurchasable)} adet</div>
                       </div>
                     </div>
                   )}
@@ -326,15 +320,15 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary }: 
                       <div className="text-sm text-slate-600 space-y-1">
                         <div className="flex justify-between">
                           <span>Alınabilecek:</span>
-                          <span className="font-medium text-navy-900">{budgetQuantity} adet</span>
+                          <span className="font-medium text-navy-900">{formatQuantity(budgetQuantity)} adet</span>
                         </div>
                         <div className="flex justify-between">
                           <span>Tahmini kullanılacak:</span>
-                          <span>{budgetCost.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})} ₺</span>
+                          <span>{formatTry(budgetCost)}</span>
                         </div>
                         <div className="flex justify-between border-t border-slate-100 pt-1">
                           <span>Kalan bütçe (Nakit):</span>
-                          <span>{budgetRemainder.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})} ₺</span>
+                          <span>{formatTry(budgetRemainder)}</span>
                         </div>
                         {budgetAmount && parseFloat(budgetAmount) > 0 && budgetQuantity < 1 && (
                           <div className="text-danger-600 text-xs mt-2">Bu tutarla en az 1 adet hisse alınamıyor.</div>
@@ -347,7 +341,7 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary }: 
                     <div className="space-y-3">
                       <div className="flex justify-between mb-2">
                          <span className="text-sm text-slate-500">Mevcut Pozisyon:</span>
-                         <span className="text-sm font-medium text-navy-900">{maxSellable} adet</span>
+                         <span className="text-sm font-medium text-navy-900">{formatQuantity(maxSellable)} adet</span>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">Satılacak Adet</label>
@@ -371,7 +365,7 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary }: 
                       <div className="text-sm text-slate-600 space-y-1">
                         <div className="flex justify-between">
                           <span>Tahmini işlem tutarı:</span>
-                          <span className="font-medium">{(currentPrice * parseFloat(quantity || "0")).toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})} ₺</span>
+                          <span className="font-medium">{formatTry(currentPrice * parseFloat(quantity || "0"))}</span>
                         </div>
                       </div>
                     </div>
@@ -380,7 +374,7 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary }: 
                   <div className="mt-4">
                     {isQuantityBuyInsufficient && (
                       <div className="text-danger-600 text-sm mb-2 p-2 bg-danger-50 rounded">
-                        Yetersiz nakit. En fazla {maxPurchasable} adet alabilirsiniz.
+                        Yetersiz nakit. En fazla {formatQuantity(maxPurchasable)} adet alabilirsiniz.
                       </div>
                     )}
                     {isBudgetBuyInsufficient && (
