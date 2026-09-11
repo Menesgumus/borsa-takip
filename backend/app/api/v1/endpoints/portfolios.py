@@ -380,13 +380,42 @@ async def get_portfolio_risk(
     inst_ids = list(state.positions.keys())
     instruments = {}
     if inst_ids:
-        inst_res = await db.execute(select(Instrument).where(Instrument.id.in_(inst_ids)))
+        inst_res = await db.execute(
+            select(Instrument)
+            .options(selectinload(Instrument.provider_mappings))
+            .where(Instrument.id.in_(inst_ids))
+        )
         for inst in inst_res.scalars().all():
             instruments[inst.id] = inst
 
-    # For Phase 09, we assume current prices are None to test partial coverage / stale handling
-    # Unless we fetch them from a mock provider
-    current_prices = {}
+    from app.market.registry import registry
+    from app.services.provider_resolver import resolve_provider
+    from app.market.exceptions import ProviderUnavailableError
+
+    # Fetch live quotes
+    provider_symbols: dict[str, list[str]] = {}
+    symbol_to_inst_id: dict[str, int] = {}
+    for inst_id in inst_ids:
+        inst = instruments.get(inst_id)
+        if inst:
+            try:
+                resolved = resolve_provider(inst)
+                provider_symbols.setdefault(resolved.provider_name, []).append(resolved.provider_symbol)
+                symbol_to_inst_id[f"{resolved.provider_name}:{resolved.provider_symbol}"] = inst_id
+            except ProviderUnavailableError:
+                pass
+
+    current_prices: dict[int, Decimal] = {}
+    for provider_name, symbols_list in provider_symbols.items():
+        try:
+            results = await registry.get_quotes(provider_name, symbols_list)
+            for quote in results:
+                i_id = symbol_to_inst_id.get(f"{provider_name}:{quote.symbol}")
+                if i_id is not None:
+                    current_prices[i_id] = Decimal(str(quote.price))
+        except ProviderUnavailableError:
+            pass
+
     symbols = {i_id: i.symbol for i_id, i in instruments.items()}
 
     risk_metrics = calculate_portfolio_risk(state, current_prices, symbols)
@@ -427,11 +456,37 @@ async def portfolio_what_if(
 
     instruments = {}
     if inst_ids:
-        inst_res = await db.execute(select(Instrument).where(Instrument.id.in_(inst_ids)))
+        inst_res = await db.execute(
+            select(Instrument)
+            .options(selectinload(Instrument.provider_mappings))
+            .where(Instrument.id.in_(inst_ids))
+        )
         for inst in inst_res.scalars().all():
             instruments[inst.id] = inst
 
-    current_prices = {}
+    provider_symbols: dict[str, list[str]] = {}
+    symbol_to_inst_id: dict[str, int] = {}
+    for inst_id in inst_ids:
+        inst = instruments.get(inst_id)
+        if inst:
+            try:
+                resolved = resolve_provider(inst)
+                provider_symbols.setdefault(resolved.provider_name, []).append(resolved.provider_symbol)
+                symbol_to_inst_id[f"{resolved.provider_name}:{resolved.provider_symbol}"] = inst_id
+            except ProviderUnavailableError:
+                pass
+
+    current_prices: dict[int, Decimal] = {}
+    for provider_name, symbols_list in provider_symbols.items():
+        try:
+            results = await registry.get_quotes(provider_name, symbols_list)
+            for quote in results:
+                i_id = symbol_to_inst_id.get(f"{provider_name}:{quote.symbol}")
+                if i_id is not None:
+                    current_prices[i_id] = Decimal(str(quote.price))
+        except ProviderUnavailableError:
+            pass
+
     symbols = {i_id: i.symbol for i_id, i in instruments.items()}
 
     sim_tx = TransactionData(

@@ -92,14 +92,16 @@ export function PortfolioCharts({ portfolioId, summary }: { portfolioId: string,
               Portföy dağılımı için henüz pozisyon bulunmuyor.
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={allocationData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
+            <div className="relative w-full h-full min-h-[350px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={allocationData}
+                    cx="50%"
+                    cy="40%"
+                    innerRadius={70}
+                    outerRadius={95}
+
                   paddingAngle={2}
                   dataKey="value"
                   stroke="#fff"
@@ -111,16 +113,18 @@ export function PortfolioCharts({ portfolioId, summary }: { portfolioId: string,
                 </Pie>
                 <RechartsTooltip content={<CustomTooltip />} />
                 <Legend content={<CustomLegend />} verticalAlign="bottom" />
-                <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="text-xs">
-                  <tspan x="50%" dy="-10" className="fill-slate-500 font-medium">
-                    {hasPartialData ? "Kısmi Veri" : "Toplam Değer"}
-                  </tspan>
-                  <tspan x="50%" dy="20" className="fill-navy-900 font-bold text-sm">
-                    {hasPartialData ? "-" : formatTry(totalValue)}
-                  </tspan>
-                </text>
-              </PieChart>
-            </ResponsiveContainer>
+                
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none text-center w-[130px]">
+                <span className="text-[11px] text-slate-500 font-medium uppercase tracking-wide">
+                  {hasPartialData ? "Kısmi Veri" : "Toplam Değer"}
+                </span>
+                <span className="text-sm font-bold text-navy-900 leading-tight">
+                  {hasPartialData ? "-" : formatTry(totalValue)}
+                </span>
+              </div>
+            </div>
           )}
         </div>
       </div>
