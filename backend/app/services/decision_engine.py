@@ -263,7 +263,7 @@ async def resolve_and_evaluate_decision(
     news_input = NewsInputs(is_mock=False, news_count=0)
     if hasattr(context, 'news') and context.news:
         news_input.news_count = len(context.news)
-        news_input.sentiment_score = Decimal("60")
+        news_input.sentiment_score = None  # No real sentiment pipeline yet
         news_input.is_mock = any('mock' in getattr(n, 'source', '').lower() for n in context.news)
 
     # 4. Portfolio Fit
@@ -272,10 +272,21 @@ async def resolve_and_evaluate_decision(
         from sqlalchemy import select
 
         from app.db.models import Portfolio
+        from app.services.portfolio_valuation import evaluate_portfolios
         p_res = await db.execute(select(Portfolio).where(Portfolio.id == portfolio_id, Portfolio.user_id == current_user.id))
         p = p_res.scalars().first()
         if p:
-            pf = PortfolioFitInputs(current_weight=Decimal("10"), max_weight_limit=Decimal("30"))
+            valuations = await evaluate_portfolios(db, [p])
+            valuation = valuations.get(p.id)
+            if valuation:
+                current_weight = Decimal("0")
+                total_val = valuation.total_market_value or valuation.cash_balance
+                for pos in valuation.positions:
+                    if pos["instrument_id"] == instrument.id:
+                        if total_val > 0:
+                            current_weight = (pos["market_value"] / total_val) * Decimal("100")
+                        break
+                pf = PortfolioFitInputs(current_weight=current_weight, max_weight_limit=Decimal("30"))
 
     decision = evaluate_decision(instrument.id, horizon, tech, fund, news_input, pf)
 
