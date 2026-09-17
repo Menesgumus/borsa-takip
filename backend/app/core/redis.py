@@ -1,7 +1,10 @@
 import os
 from collections.abc import AsyncGenerator
+
 from redis.asyncio import Redis
+
 from app.core.config import settings
+
 
 class MockRedis:
     async def get(self, *args, **kwargs): return None
@@ -19,6 +22,6 @@ else:
 
 async def get_redis_client() -> AsyncGenerator[Redis, None]:
     try:
-        yield redis_client
+        yield redis_client  # type: ignore
     finally:
         pass
