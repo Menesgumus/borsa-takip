@@ -144,37 +144,39 @@ export default function PortfolioRiskPage() {
 
 
       {r.limit_violations?.length > 0 && (
-
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm">
-
-          <h3 className="text-red-800 font-bold flex items-center gap-2 mb-3">
-
+        <div className="bg-red-50 border-l-4 border-red-500 p-5 rounded-r-lg shadow-sm">
+          <h3 className="text-red-800 font-bold flex items-center gap-2 mb-4">
             <AlertCircle size={20} /> Kritik Limit İhlalleri
-
           </h3>
-
-          <ul className="space-y-2">
-
+          <div className="space-y-4">
             {r.limit_violations.map((v: any, i: number) => (
-
-              <li key={i} className="text-red-700 text-sm flex flex-col sm:flex-row sm:justify-between sm:items-center bg-red-100 p-3 rounded-md gap-2">
-
-                <span className="font-medium">{v.rule_name} ({v.reason_code})</span>
-
-                <span className="font-mono bg-red-50 px-2 py-1 rounded">
-
-                  Limit: <span className="font-bold">{formatPercent(v.limit_value)}</span>, Mevcut: <span className="font-bold">{formatPercent(v.actual_value)}</span>
-
-                </span>
-
-              </li>
-
+              <div key={i} className="bg-white p-4 rounded-md border border-red-100 shadow-sm">
+                <div className="flex justify-between items-start mb-2">
+                  <h4 className="font-bold text-navy-900 text-base">{v.user_title || v.rule_name}</h4>
+                  <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded border ${
+                    v.severity === "KRİTİK" ? "bg-red-100 text-red-800 border-red-200" :
+                    v.severity === "YÜKSEK RİSK" ? "bg-orange-100 text-orange-800 border-orange-200" :
+                    "bg-yellow-100 text-yellow-800 border-yellow-200"
+                  }`}>
+                    {v.severity || "UYARI"}
+                  </span>
+                </div>
+                <p className="text-sm text-slate-700 mb-3">{v.user_explanation || `Limit: ${formatPercent(v.limit_value)}, Mevcut: ${formatPercent(v.actual_value)}`}</p>
+                
+                {v.remediation_options && v.remediation_options.length > 0 && (
+                  <div className="bg-slate-50 p-3 rounded border border-slate-100">
+                    <span className="text-xs font-bold text-slate-500 uppercase mb-2 block">Ne Yapabilirsiniz?</span>
+                    <ul className="list-disc pl-5 text-sm text-slate-700 space-y-1">
+                      {v.remediation_options.map((opt: string, optIdx: number) => (
+                        <li key={optIdx}>{opt}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
             ))}
-
-          </ul>
-
+          </div>
         </div>
-
       )}
 
 

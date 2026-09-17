@@ -69,13 +69,38 @@ def calculate_portfolio_risk(
 
     # Check limits
     violations = []
+    limit_value_pct = MAX_SINGLE_POSITION_WEIGHT * Decimal("100")
     for exp in positions_exposure:
-        if exp.weight_percentage > (MAX_SINGLE_POSITION_WEIGHT * Decimal("100")):
+        if exp.weight_percentage > limit_value_pct:
+            excess_pct = exp.weight_percentage - limit_value_pct
+            excess_value = max(Decimal("0"), exp.market_value - (total_market_value * MAX_SINGLE_POSITION_WEIGHT))
+            price = current_prices.get(exp.instrument_id)
+            import math
+            reduce_qty = math.ceil(excess_value / price) if price and price > 0 else None
+            
+            # Severity logic
+            if excess_pct > Decimal("10"):
+                severity = "KRİTİK"
+            elif excess_pct > Decimal("5"):
+                severity = "YÜKSEK RİSK"
+            else:
+                severity = "UYARI"
+                
             violations.append(LimitViolation(
                 rule_name="MAX_SINGLE_POSITION_WEIGHT",
-                limit_value=MAX_SINGLE_POSITION_WEIGHT * Decimal("100"),
+                limit_value=limit_value_pct,
                 actual_value=exp.weight_percentage,
-                reason_code="POSITION_CONCENTRATION_LIMIT_EXCEEDED"
+                reason_code="POSITION_CONCENTRATION_LIMIT_EXCEEDED",
+                instrument_id=exp.instrument_id,
+                symbol=exp.symbol,
+                severity=severity,
+                excess_percentage_points=excess_pct,
+                current_market_value=exp.market_value,
+                estimated_excess_value=excess_value,
+                estimated_reduce_quantity=reduce_qty,
+                user_title=f"{exp.symbol} Tek Hissede Yüksek Yoğunluk",
+                user_explanation=f"{exp.symbol} portföyünüzün %{exp.weight_percentage:.2f}'sini oluşturuyor. Tek bir varlık için belirlenen üst sınır %{limit_value_pct:.2f}. Mevcut ağırlık sınırın {excess_pct:.2f} yüzde puan üzerinde.",
+                remediation_options=["Yeni alımı sınırla", f"Pozisyonu yaklaşık {reduce_qty} adet azalt" if reduce_qty else "Pozisyonu azalt", "Portföyün diğer varlıklara dağılımını artır"]
             ))
 
     coverage = (covered_cost_basis / total_cost_basis * Decimal("100")) if total_cost_basis > Decimal("0") else Decimal("100")

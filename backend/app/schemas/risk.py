@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 from decimal import Decimal
 
 from pydantic import BaseModel
@@ -16,6 +16,19 @@ class LimitViolation(BaseModel):
     limit_value: Decimal
     actual_value: Decimal
     reason_code: str
+    
+    instrument_id: int | None = None
+    symbol: str | None = None
+    severity: str | None = None
+    
+    excess_percentage_points: Decimal | None = None
+    current_market_value: Decimal | None = None
+    estimated_excess_value: Decimal | None = None
+    estimated_reduce_quantity: int | None = None
+    
+    user_title: str | None = None
+    user_explanation: str | None = None
+    remediation_options: list[str] | None = None
 
 class PortfolioRiskMetrics(BaseModel):
     portfolio_id: int
