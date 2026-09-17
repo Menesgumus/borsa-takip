@@ -15,7 +15,7 @@ def calculate_position_sizing(
     personal_action: DecisionAction | None,
     data_state: str,
     hard_limit: Decimal = Decimal("0.30"),
-    risk_tolerance: str = "MODERATE"
+    risk_tolerance: str = "MEDIUM"
 ) -> PositionSizingResult:
     """
     Given portfolio context, candidate price, and decision, calculate sizing.

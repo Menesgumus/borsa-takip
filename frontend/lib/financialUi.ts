@@ -103,3 +103,26 @@ export function getActionColorClass(action: string | null | undefined, missingDa
     default: return 'bg-slate-50 text-slate-600 border-slate-100';
   }
 }
+
+export function translateSizingState(state: string | null | undefined): string {
+  switch (state) {
+    case 'OK': return 'Alım Alanı Uygun';
+    case 'OVER_LIMIT': return 'Yoğunluk Limiti';
+    case 'NO_CASH': return 'Yetersiz Nakit';
+    case 'NOT_ACTIONABLE': return 'Ek Alım Önerilmiyor';
+    case 'VALUATION_INCOMPLETE': return 'Portföy Değeri Eksik';
+    default: return state || '-';
+  }
+}
+
+export function translateSizingReason(reason: string): string {
+  switch (reason) {
+    case 'NON_BUY_ACTION': return 'Mevcut karar ek alımı desteklemiyor.';
+    case 'PORTFOLIO_CONCENTRATION_LIMIT': return 'Bu hisse portföyünüzde izin verilen yoğunluk sınırına ulaştı.';
+    case 'INSUFFICIENT_CASH_FOR_ONE_SHARE': return 'Kullanılabilir nakit en az 1 adet alım için yeterli değil.';
+    case 'INSUFFICIENT_CAPACITY_FOR_ONE_SHARE': return 'Risk sınırları içinde en az 1 adetlik ek alım alanı bulunmuyor.';
+    case 'DELAYED_MARKET_DATA': return 'Hesaplama gecikmeli piyasa fiyatı kullanılarak yapılmıştır.';
+    case 'PORTFOLIO_VALUATION_INCOMPLETE': return 'Portföydeki bazı varlıklar fiyatlanamadığı için güvenilir alım miktarı hesaplanamıyor.';
+    default: return reason;
+  }
+}

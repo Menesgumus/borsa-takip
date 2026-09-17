@@ -1,5 +1,4 @@
-import asyncio
-import datetime
+from datetime import datetime, UTC
 from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,7 +21,6 @@ from app.services.portfolio_valuation import evaluate_portfolios
 from app.services.position_sizing import calculate_position_sizing
 from app.services.provider_resolver import resolve_provider
 from app.services.technical_data import get_technical_analysis
-
 
 
 async def scan_opportunities(db: AsyncSession, user: User, portfolio_id: int | None = None, limit: int = 10, symbols: list[str] | None = None) -> list[OpportunityResult]:
@@ -131,16 +129,13 @@ async def scan_opportunities(db: AsyncSession, user: User, portfolio_id: int | N
         current_weight = Decimal("0")
         current_quantity = 0
         current_position_value = Decimal("0")
-
-        if portfolio and portfolio_valuation:
-            total_val = portfolio_valuation.total_market_value or portfolio_valuation.cash_balance
-
-            # Find position
+        if portfolio and portfolio_valuation and portfolio_valuation.valuation_complete:
+            total_val = portfolio_valuation.total_market_value
             for pos in portfolio_valuation.positions:
                 if pos["instrument_id"] == inst.id:
                     current_quantity = pos["quantity"]
                     current_position_value = pos["market_value"]
-                    if total_val > 0:
+                    if total_val and total_val > 0 and current_position_value is not None:
                         current_weight = (current_position_value / total_val) * Decimal("100")
                     break
 
@@ -151,17 +146,39 @@ async def scan_opportunities(db: AsyncSession, user: User, portfolio_id: int | N
         # Build Sizing
         sizing = None
         if portfolio and portfolio_valuation and quote and quote.price is not None and not decision.missing_data:
-            sizing = calculate_position_sizing(
-                available_cash=portfolio_valuation.cash_balance,
-                total_portfolio_value=portfolio_valuation.total_market_value or portfolio_valuation.cash_balance,
-                current_price=Decimal(str(quote.price)),
-                current_quantity=current_quantity,
-                market_view=decision.market_view,
-                personal_action=decision.personal_action,
-                data_state=quote.data_state,
-                hard_limit=Decimal("0.30"),
-                risk_tolerance=risk_tolerance
-            )
+            if not portfolio_valuation.valuation_complete:
+
+                from app.schemas.opportunity import PositionSizingResult
+                sizing = PositionSizingResult(
+                    available_cash=portfolio_valuation.cash_balance,
+                    current_price=Decimal(str(quote.price)),
+                    current_quantity=current_quantity,
+                    current_position_value=Decimal("0"),
+                    current_weight_percentage=Decimal("0"),
+                    recommended_quantity=0,
+                    recommended_budget=Decimal("0"),
+                    recommended_target_weight=Decimal("0"),
+                    max_additional_quantity=0,
+                    max_additional_budget=Decimal("0"),
+                    hard_max_weight=Decimal("0.30"),
+                    estimated_post_trade_weight=Decimal("0"),
+                    sizing_state="VALUATION_INCOMPLETE",
+                    reason_codes=["PORTFOLIO_VALUATION_INCOMPLETE"],
+                    data_state=quote.data_state,
+                    calculated_at=datetime.now(UTC)
+                )
+            else:
+                sizing = calculate_position_sizing(
+                    available_cash=portfolio_valuation.cash_balance,
+                    total_portfolio_value=portfolio_valuation.total_market_value,
+                    current_price=Decimal(str(quote.price)),
+                    current_quantity=current_quantity,
+                    market_view=decision.market_view,
+                    personal_action=decision.personal_action,
+                    data_state=quote.data_state,
+                    hard_limit=Decimal("0.30"),
+                    risk_tolerance=risk_tolerance
+                )
 
         res = OpportunityResult(
             instrument_id=inst.id,
@@ -188,7 +205,7 @@ async def scan_opportunities(db: AsyncSession, user: User, portfolio_id: int | N
 
             missing_data=decision.missing_data,
             decision_state=decision.decision_state,
-            calculated_at=datetime.datetime.now(datetime.UTC),
+            calculated_at=datetime.now(UTC),
             engine_version=decision.engine_version,
 
             selected_portfolio_id=portfolio.id if portfolio else None,

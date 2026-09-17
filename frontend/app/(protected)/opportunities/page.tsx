@@ -140,6 +140,14 @@ export default function OpportunitiesPage() {
                    <span className="text-xs font-medium text-primary-800">Adet:</span>
                    <span className="text-xs font-bold text-primary-700">{inst.recommended_quantity} Lot</span>
                  </div>
+                 {(inst.max_additional_budget != null && inst.max_additional_budget > 0) && (
+                   <div className="flex justify-between items-center mb-1">
+                     <span className="text-xs font-medium text-primary-800">Azami ek alım:</span>
+                     <span className="text-xs font-medium text-primary-700">
+                       {formatTry(inst.max_additional_budget)} / {inst.max_additional_quantity} adet
+                     </span>
+                   </div>
+                 )}
                  <div className="flex justify-between items-center">
                    <span className="text-xs font-medium text-primary-800">İşlem Sonrası Pay:</span>
                    <span className="text-xs font-bold text-primary-700">{formatPercent(inst.estimated_post_trade_weight)}</span>
@@ -212,7 +220,9 @@ export default function OpportunitiesPage() {
           <div>
             <div className="text-xs text-slate-500 font-medium">Toplam Değer</div>
             <div className="font-bold text-navy-900">
-              {formatTry(Number(selectedPortfolio.total_market_value || 0) + Number(selectedPortfolio.cash_balance))}
+              {selectedPortfolio.total_market_value != null 
+                ? formatTry(Number(selectedPortfolio.total_market_value)) 
+                : "Kısmi Veri"}
             </div>
           </div>
         </div>

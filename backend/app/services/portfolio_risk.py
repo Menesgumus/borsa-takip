@@ -77,7 +77,7 @@ def calculate_portfolio_risk(
             price = current_prices.get(exp.instrument_id)
             import math
             reduce_qty = math.ceil(excess_value / price) if price and price > 0 else None
-            
+
             # Severity logic
             if excess_pct > Decimal("10"):
                 severity = "KRİTİK"
@@ -85,7 +85,7 @@ def calculate_portfolio_risk(
                 severity = "YÜKSEK RİSK"
             else:
                 severity = "UYARI"
-                
+
             violations.append(LimitViolation(
                 rule_name="MAX_SINGLE_POSITION_WEIGHT",
                 limit_value=limit_value_pct,

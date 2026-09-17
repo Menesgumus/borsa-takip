@@ -17,11 +17,12 @@ async def override_get_current_user():
 
 from unittest.mock import patch
 
+
 @pytest.mark.asyncio
 @patch('app.services.scanner.registry.get_quotes')
 async def test_opportunities_scanner_api(mock_get_quotes):
     mock_get_quotes.return_value = []
-    
+
     async with async_session_maker() as db_session:
         user = User(id=random.randint(100000, 999999), email=f"scan_{uuid.uuid4()}@example.com", password_hash="pw", is_active=True)
         db_session.add(user)

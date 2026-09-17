@@ -21,7 +21,7 @@ class PositionSizingResult(BaseModel):
     hard_max_weight: Decimal
 
     estimated_post_trade_weight: Decimal
-    sizing_state: Literal["OK", "NOT_ACTIONABLE", "NO_CASH", "OVER_LIMIT"]
+    sizing_state: Literal["OK", "NOT_ACTIONABLE", "NO_CASH", "OVER_LIMIT", "VALUATION_INCOMPLETE"]
     reason_codes: list[str]
     data_state: str
     calculated_at: datetime

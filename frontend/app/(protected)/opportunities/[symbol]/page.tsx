@@ -6,7 +6,7 @@ import Link from "next/link";
 import { fetchApi } from "@/lib/api";
 import { ArrowLeft, Target, ShieldAlert, Star, Activity, Briefcase, FileText, TrendingUp, AlertTriangle } from "lucide-react";
 import { OpportunityDetailResult } from "@/types/opportunity";
-import { formatTry, formatPercent, formatActionLabel, getActionColorClass, formatQuantity } from "@/lib/financialUi";
+import { formatTry, formatPercent, formatActionLabel, getActionColorClass, formatQuantity, translateSizingState, translateSizingReason } from "@/lib/financialUi";
 import { DataStateBadge } from "@/components/DataStateBadge";
 import { useState } from "react";
 import { PortfolioActionModal } from "@/components/PortfolioActionModal";
@@ -160,12 +160,12 @@ export default function OpportunityDetailPage() {
                   <div className="font-bold text-navy-900">{inst.max_additional_quantity} Lot</div>
                   <div className="text-xs text-slate-400">{formatTry(inst.max_additional_budget)}</div>
                 </div>
-                <div>
-                  <div className="text-xs text-slate-500 font-medium mb-1">Risk Durumu</div>
-                  <div className={`font-bold ${inst.sizing_state === 'OK' ? 'text-success-600' : 'text-danger-600'}`}>
-                    {inst.sizing_state}
+                  <div>
+                    <div className="text-xs text-slate-500 font-medium mb-1">Risk Durumu</div>
+                    <div className={`font-bold ${inst.sizing_state === 'OK' ? 'text-success-600' : 'text-danger-600'}`}>
+                      {translateSizingState(inst.sizing_state)}
+                    </div>
                   </div>
-                </div>
               </div>
               
               <p className="text-xs text-slate-500 italic bg-white p-3 rounded border border-slate-100">
@@ -269,7 +269,7 @@ export default function OpportunityDetailPage() {
                   {inst.sizing_reason_codes.map((rc, i) => (
                     <li key={i} className="flex items-start gap-2 bg-primary-50/50 p-2.5 rounded text-sm text-slate-700">
                       <div className="w-1.5 h-1.5 rounded-full bg-primary-500 mt-1.5 shrink-0"></div>
-                      <span>{translateReason(rc)}</span>
+                      <span>{translateSizingReason(rc)}</span>
                     </li>
                   ))}
                 </ul>

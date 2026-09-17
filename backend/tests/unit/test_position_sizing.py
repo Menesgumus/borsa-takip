@@ -1,7 +1,8 @@
 from decimal import Decimal
-import pytest
-from app.services.position_sizing import calculate_position_sizing
+
 from app.db.models import DecisionAction
+from app.services.position_sizing import calculate_position_sizing
+
 
 def test_position_sizing_no_cash():
     res = calculate_position_sizing(
@@ -246,7 +247,7 @@ def test_position_sizing_hard_capacity_blocks_buy():
         available_cash=Decimal("5000"),
         total_portfolio_value=Decimal("10000"),
         current_price=Decimal("100"),
-        current_quantity=0, 
+        current_quantity=0,
         market_view=DecisionAction.BUY,
         personal_action=DecisionAction.STRONG_BUY,
         data_state="LIVE",
