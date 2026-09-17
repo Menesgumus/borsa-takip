@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from app.db.models import FundamentalData, Instrument, Portfolio
+from app.db.models import FundamentalData, Instrument, Portfolio, User, UserProfile
 from app.market.exceptions import ProviderUnavailableError
 from app.market.registry import registry
 from app.schemas.decision import (
@@ -24,15 +24,8 @@ from app.services.provider_resolver import resolve_provider
 from app.services.technical_data import get_technical_analysis
 
 
-async def _fetch_technical_safe(db: AsyncSession, symbol: str, sem: asyncio.Semaphore):
-    async with sem:
-        try:
-            res = await get_technical_analysis(db, symbol)
-            return symbol, res
-        except Exception:
-            return symbol, None
 
-async def scan_opportunities(db: AsyncSession, portfolio_id: int | None = None, limit: int = 10, symbols: list[str] | None = None) -> list[OpportunityResult]:
+async def scan_opportunities(db: AsyncSession, user: User, portfolio_id: int | None = None, limit: int = 10, symbols: list[str] | None = None) -> list[OpportunityResult]:
     # 1. Fetch all active instruments (or specific ones)
     stmt = select(Instrument).options(selectinload(Instrument.provider_mappings)).where(Instrument.is_active == True)
     if symbols:
@@ -44,6 +37,11 @@ async def scan_opportunities(db: AsyncSession, portfolio_id: int | None = None, 
 
     if not instruments:
         return []
+
+    # Fetch user profile
+    p_res = await db.execute(select(UserProfile).where(UserProfile.user_id == user.id))
+    profile = p_res.scalars().first()
+    risk_tolerance = profile.risk_tolerance.value if profile and profile.risk_tolerance else "MEDIUM"
 
     # 2. Portfolio Valuation
     portfolio = None
@@ -89,11 +87,14 @@ async def scan_opportunities(db: AsyncSession, portfolio_id: int | None = None, 
         except ProviderUnavailableError:
             pass
 
-    # 5. Technical Analysis (Bounded Concurrency)
-    sem = asyncio.Semaphore(10)
-    tech_tasks = [_fetch_technical_safe(db, inst.symbol, sem) for inst in instruments]
-    tech_results = await asyncio.gather(*tech_tasks)
-    tech_map = {sym: res for sym, res in tech_results}
+    # 5. Technical Analysis (Sequential DB Fetch)
+    tech_map = {}
+    for inst in instruments:
+        try:
+            res = await get_technical_analysis(db, inst.symbol)
+            tech_map[inst.symbol] = res
+        except Exception:
+            tech_map[inst.symbol] = None
 
     results = []
 
@@ -158,7 +159,8 @@ async def scan_opportunities(db: AsyncSession, portfolio_id: int | None = None, 
                 market_view=decision.market_view,
                 personal_action=decision.personal_action,
                 data_state=quote.data_state,
-                hard_limit=Decimal("0.30")
+                hard_limit=Decimal("0.30"),
+                risk_tolerance=risk_tolerance
             )
 
         res = OpportunityResult(

@@ -15,16 +15,19 @@ interface PortfolioActionModalProps {
   portfolioId: string;
   isOpen: boolean;
   onClose: () => void;
-  summary: any;
+  summary?: any;
+  initialSymbol?: string;
+  initialQuantity?: number;
+  initialAction?: ActionType;
 }
 
-export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary }: PortfolioActionModalProps) {
+export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary, initialSymbol, initialQuantity, initialAction }: PortfolioActionModalProps) {
   const queryClient = useQueryClient();
-  const [actionType, setActionType] = useState<ActionType>("DEPOSIT");
+  const [actionType, setActionType] = useState<ActionType>(initialAction || "DEPOSIT");
   const [buyMode, setBuyMode] = useState<BuyMode>("QUANTITY");
   
-  const [amount, setAmount] = useState("");
-  const [symbolQuery, setSymbolQuery] = useState("");
+  const [amount, setAmount] = useState(initialQuantity ? initialQuantity.toString() : "");
+  const [symbolQuery, setSymbolQuery] = useState(initialSymbol || "");
   const [debouncedSymbolQuery, setDebouncedSymbolQuery] = useState("");
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSymbolQuery(symbolQuery), 250);

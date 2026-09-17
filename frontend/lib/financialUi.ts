@@ -79,3 +79,27 @@ export const DATA_STATE_CONFIG: Record<string, { label: string, colorClass: stri
   MOCK: { label: "TEST VERİSİ", colorClass: "bg-purple-100 text-purple-800" },
   UNAVAILABLE: { label: "VERİ YOK", colorClass: "bg-rose-100 text-rose-800" },
 };
+
+export function formatActionLabel(action: string | null | undefined, missingData: boolean = false): string {
+  if (missingData) return "VERİ YETERSİZ (BEKLE)";
+  switch (action) {
+    case 'STRONG_BUY': return 'AL';
+    case 'BUY': return 'KADEMELİ AL';
+    case 'HOLD': return 'BEKLE';
+    case 'SELL': return 'KADEMELİ SAT';
+    case 'STRONG_SELL': return 'SAT';
+    default: return action || 'BİLİNMİYOR';
+  }
+}
+
+export function getActionColorClass(action: string | null | undefined, missingData: boolean = false): string {
+  if (missingData) return 'bg-slate-100 text-slate-700 border-slate-200';
+  switch (action) {
+    case 'STRONG_BUY': return 'bg-success-100 text-success-800 border-success-200';
+    case 'BUY': return 'bg-success-50 text-success-700 border-success-100';
+    case 'HOLD': return 'bg-amber-50 text-amber-700 border-amber-100';
+    case 'SELL': return 'bg-danger-50 text-danger-700 border-danger-100';
+    case 'STRONG_SELL': return 'bg-danger-100 text-danger-800 border-danger-200';
+    default: return 'bg-slate-50 text-slate-600 border-slate-100';
+  }
+}

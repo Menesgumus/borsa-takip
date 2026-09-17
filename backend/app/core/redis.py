@@ -7,11 +7,20 @@ from app.core.config import settings
 
 
 class MockRedis:
-    async def get(self, *args, **kwargs): return None
-    async def set(self, *args, **kwargs): return True
-    async def delete(self, *args, **kwargs): return 0
+    def __init__(self):
+        self.store = {}
+    async def get(self, name, *args, **kwargs): return self.store.get(name)
+    async def set(self, name, value, *args, **kwargs):
+        self.store[name] = value
+        return True
+    async def delete(self, name, *args, **kwargs):
+        if name in self.store:
+            del self.store[name]
+            return 1
+        return 0
     async def incr(self, *args, **kwargs): return 1
     async def expire(self, *args, **kwargs): return True
+    async def ping(self): return True
 
 if os.environ.get("ENVIRONMENT") == "test" or os.environ.get("CI") == "true":
     redis_client = MockRedis()

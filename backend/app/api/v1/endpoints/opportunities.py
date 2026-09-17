@@ -33,7 +33,7 @@ async def get_opportunities(
     if cached_data:
         return Response(content=cached_data, media_type="application/json")
 
-    results = await scan_opportunities(db, portfolio_id=portfolio_id, limit=limit)
+    results = await scan_opportunities(db, user=current_user, portfolio_id=portfolio_id, limit=limit)
 
     # Cache for 60 seconds due to delayed market data
     try:
@@ -56,7 +56,7 @@ async def get_opportunity_detail(
         if not p_res.scalars().first():
             raise HTTPException(status_code=404, detail="Portfolio not found or unauthorized")
 
-    results = await scan_opportunities(db, portfolio_id=portfolio_id, limit=1, symbols=[symbol.upper()])
+    results = await scan_opportunities(db, user=current_user, portfolio_id=portfolio_id, limit=1, symbols=[symbol.upper()])
     if not results:
         raise HTTPException(status_code=404, detail="Instrument not found or not active")
     return results[0]

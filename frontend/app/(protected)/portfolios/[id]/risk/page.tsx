@@ -143,11 +143,14 @@ export default function PortfolioRiskPage() {
 
 
 
-      {r.limit_violations?.length > 0 && (
-        <div className="bg-red-50 border-l-4 border-red-500 p-5 rounded-r-lg shadow-sm">
-          <h3 className="text-red-800 font-bold flex items-center gap-2 mb-4">
-            <AlertCircle size={20} /> Kritik Limit İhlalleri
+      {r.limit_violations && r.limit_violations.length > 0 && (
+        <div className="bg-red-50 border-l-4 border-red-500 p-5 rounded-r-md">
+          <h3 className="text-red-800 font-bold text-lg mb-2 flex items-center gap-2">
+            <AlertCircle size={20} /> Portföy Risk Uyarıları
           </h3>
+          <p className="text-red-700 text-sm mb-4">
+            {r.limit_violations.length} varlık tek-hisse yoğunluk sınırını aşıyor.
+          </p>
           <div className="space-y-4">
             {r.limit_violations.map((v: any, i: number) => (
               <div key={i} className="bg-white p-4 rounded-md border border-red-100 shadow-sm">
@@ -161,18 +164,46 @@ export default function PortfolioRiskPage() {
                     {v.severity || "UYARI"}
                   </span>
                 </div>
-                <p className="text-sm text-slate-700 mb-3">{v.user_explanation || `Limit: ${formatPercent(v.limit_value)}, Mevcut: ${formatPercent(v.actual_value)}`}</p>
+                
+                <div className="grid grid-cols-3 gap-2 mb-3 bg-slate-50 p-2 rounded text-sm">
+                  <div>
+                    <div className="text-slate-500 text-xs">Mevcut Ağırlık</div>
+                    <div className="font-bold text-navy-900">{formatPercent(v.actual_value)}</div>
+                  </div>
+                  <div>
+                    <div className="text-slate-500 text-xs">Sınır</div>
+                    <div className="font-bold text-navy-900">{formatPercent(v.limit_value)}</div>
+                  </div>
+                  <div>
+                    <div className="text-slate-500 text-xs">Aşım Miktarı</div>
+                    <div className="font-bold text-danger-600">+{formatPercent(v.excess_percentage_points)}</div>
+                  </div>
+                </div>
+
+                <p className="text-sm text-slate-700 mb-3">{v.user_explanation || `Mevcut ağırlık sınırın üzerinde.`}</p>
                 
                 {v.remediation_options && v.remediation_options.length > 0 && (
-                  <div className="bg-slate-50 p-3 rounded border border-slate-100">
+                  <div className="bg-slate-50 p-3 rounded border border-slate-100 mb-3">
                     <span className="text-xs font-bold text-slate-500 uppercase mb-2 block">Ne Yapabilirsiniz?</span>
                     <ul className="list-disc pl-5 text-sm text-slate-700 space-y-1">
                       {v.remediation_options.map((opt: string, optIdx: number) => (
                         <li key={optIdx}>{opt}</li>
                       ))}
                     </ul>
+                    {v.estimated_reduce_quantity > 0 && (
+                      <div className="mt-2 text-xs text-slate-500 italic">
+                        * Azaltım tahmini gecikmeli piyasa fiyatına göre hesaplanmıştır. Yaklaşık {v.estimated_reduce_quantity} adet satım gerekebilir.
+                      </div>
+                    )}
                   </div>
                 )}
+                
+                <details className="text-sm">
+                  <summary className="text-primary-600 font-medium cursor-pointer hover:underline">Bu neden önemli?</summary>
+                  <p className="mt-2 text-slate-600 bg-slate-50 p-3 rounded">
+                    Tek bir varlığa çok fazla yoğunlaşmak, o varlıkta yaşanabilecek ani düşüşlerin tüm portföyünüz üzerinde orantısız derecede olumsuz bir etki yaratmasına neden olur. Çeşitlendirme (farklı varlıklara dağıtım), bu riski azaltmanın en temel yoludur.
+                  </p>
+                </details>
               </div>
             ))}
           </div>

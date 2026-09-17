@@ -158,8 +158,8 @@ def simulate_what_if(
 
     delta_invested = sim_risk.invested_exposure - base_risk.invested_exposure
 
-    base_violations = {v.reason_code: v for v in base_risk.limit_violations}
-    sim_violations = {v.reason_code: v for v in sim_risk.limit_violations}
+    base_violations = {(v.reason_code, getattr(v, 'instrument_id', None)): v for v in base_risk.limit_violations}
+    sim_violations = {(v.reason_code, getattr(v, 'instrument_id', None)): v for v in sim_risk.limit_violations}
 
     newly_triggered = [v for code, v in sim_violations.items() if code not in base_violations]
     resolved = [v for code, v in base_violations.items() if code not in sim_violations]

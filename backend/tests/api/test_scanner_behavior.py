@@ -1,14 +1,16 @@
 import uuid
-
 import pytest
-
 from app.db.models import Instrument, InstrumentType, Portfolio, User
 from app.db.session import async_session_maker
 from app.services.scanner import scan_opportunities
 
+from unittest.mock import patch
 
 @pytest.mark.asyncio
-async def test_scanner_same_instrument_different_portfolios():
+@patch('app.services.scanner.registry.get_quotes')
+async def test_scanner_same_instrument_different_portfolios(mock_get_quotes):
+    mock_get_quotes.return_value = []
+    
     import random
     user_id = random.randint(100000, 999999)
     async with async_session_maker() as db:
@@ -24,31 +26,34 @@ async def test_scanner_same_instrument_different_portfolios():
         await db.refresh(p1)
         await db.refresh(p2)
 
-        # We assume evaluate_decision will return different portfolio_fit if portfolios differ in risk, but we mock/check the scanner mechanics
-        # For scanner logic, even without modifying evaluate_decision outputs explicitly, we can ensure scanner doesn't crash
-        # and returns a valid OpportunityResult with raw_score and user_fit_score keys.
-        res1 = await scan_opportunities(db, portfolio_id=p1.id)
-        res2 = await scan_opportunities(db, portfolio_id=p2.id)
+        res1 = await scan_opportunities(db, user=user, portfolio_id=p1.id)
+        res2 = await scan_opportunities(db, user=user, portfolio_id=p2.id)
 
-        # Check raw score is invariant
-        target_inst_1 = next(x for x in res1 if x.instrument_symbol == inst.symbol)
-        target_inst_2 = next(x for x in res2 if x.instrument_symbol == inst.symbol)
+        target_inst_1 = next((x for x in res1 if x.symbol == inst.symbol), None)
+        target_inst_2 = next((x for x in res2 if x.symbol == inst.symbol), None)
 
-        assert target_inst_1.raw_score == target_inst_2.raw_score
-        assert hasattr(target_inst_1, 'user_fit_score')
-        assert hasattr(target_inst_2, 'user_fit_score')
+        assert target_inst_1 is not None
+        assert target_inst_2 is not None
+
+        assert target_inst_1.market_score == target_inst_2.market_score
+        assert hasattr(target_inst_1, 'personal_score')
+        assert hasattr(target_inst_2, 'personal_score')
 
 @pytest.mark.asyncio
-async def test_scanner_deterministic_ranking():
+@patch('app.services.scanner.registry.get_quotes')
+async def test_scanner_deterministic_ranking(mock_get_quotes):
+    mock_get_quotes.return_value = []
+    
     async with async_session_maker() as db:
-        res = await scan_opportunities(db)
-        # Should be sorted by missing_data ASC, raw_score DESC, symbol ASC
+        user = User(id=999999, email="test999@example.com", password_hash="xx")
+        res = await scan_opportunities(db, user=user)
+        # Should be sorted by missing_data ASC, market_score DESC, symbol ASC
         for i in range(len(res)-1):
             curr, nxt = res[i], res[i+1]
             if curr.missing_data == nxt.missing_data:
-                if curr.raw_score == nxt.raw_score:
-                    assert curr.instrument_symbol < nxt.instrument_symbol
+                if curr.market_score == nxt.market_score:
+                    assert curr.symbol < nxt.symbol
                 else:
-                    assert curr.raw_score > nxt.raw_score
+                    assert (curr.market_score or 0) >= (nxt.market_score or 0)
             else:
                 assert curr.missing_data is False and nxt.missing_data is True

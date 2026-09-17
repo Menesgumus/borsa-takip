@@ -15,8 +15,13 @@ async def override_get_current_user():
         user = await db_session.get(User, user_mock_data["user_id"])
         return user
 
+from unittest.mock import patch
+
 @pytest.mark.asyncio
-async def test_opportunities_scanner_api():
+@patch('app.services.scanner.registry.get_quotes')
+async def test_opportunities_scanner_api(mock_get_quotes):
+    mock_get_quotes.return_value = []
+    
     async with async_session_maker() as db_session:
         user = User(id=random.randint(100000, 999999), email=f"scan_{uuid.uuid4()}@example.com", password_hash="pw", is_active=True)
         db_session.add(user)
@@ -50,7 +55,7 @@ async def test_opportunities_scanner_api():
         assert res2.status_code == 200
         data2 = res2.json()
         # Ensure user_fit logic ran (even if missing_data fallback triggered)
-        assert "user_fit_score" in data2[0]
+        assert "personal_score" in data2[0]
 
         # 3. IDOR test portfolio
         res_idor = await client.get("/api/v1/opportunities?portfolio_id=9999999")

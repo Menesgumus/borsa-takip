@@ -49,12 +49,12 @@ def calculate_position_sizing(
 
     target_weights = {
         "LOW": {"BUY": Decimal("0.075"), "STRONG_BUY": Decimal("0.10")},
-        "MODERATE": {"BUY": Decimal("0.10"), "STRONG_BUY": Decimal("0.15")},
+        "MEDIUM": {"BUY": Decimal("0.10"), "STRONG_BUY": Decimal("0.15")},
         "HIGH": {"BUY": Decimal("0.15"), "STRONG_BUY": Decimal("0.20")}
     }
 
-    # Default risk tolerance to MODERATE if not matched
-    rt = risk_tolerance if risk_tolerance in target_weights else "MODERATE"
+    # Default risk tolerance to MEDIUM if not matched
+    rt = risk_tolerance if risk_tolerance in target_weights else "MEDIUM"
 
     # Use personal action if available, else market view
     action_str = personal_action.value if personal_action else market_view.value
@@ -79,6 +79,9 @@ def calculate_position_sizing(
         estimated_post_trade_weight = post_trade_value / total_portfolio_value
 
     reason_codes = []
+
+    if data_state == "DELAYED":
+        reason_codes.append("DELAYED_MARKET_DATA")
 
     if action_str not in ["BUY", "STRONG_BUY"]:
         sizing_state = "NOT_ACTIONABLE"
