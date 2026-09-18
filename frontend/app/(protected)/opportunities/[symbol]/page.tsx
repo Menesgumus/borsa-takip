@@ -145,27 +145,39 @@ export default function OpportunityDetailPage() {
                 Pozisyon Büyüklüğü ve Risk Sınırları
               </h3>
               
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
                 <div>
                   <div className="text-xs text-slate-500 font-medium mb-1">Mevcut Pay</div>
                   <div className="font-bold text-navy-900">{formatPercent(inst.current_position_weight_percentage)}</div>
-                  <div className="text-xs text-slate-400">{formatTry(inst.current_position_market_value)}</div>
+                  {inst.current_position_quantity != null && inst.current_position_quantity > 0 && (
+                    <div className="text-xs text-slate-400">
+                      {inst.current_position_quantity} Lot ({formatTry(inst.current_position_market_value)})
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <div className="text-xs text-slate-500 font-medium mb-1">Hedef Pay</div>
+                  <div className="font-bold text-navy-900">{formatPercent(inst.recommended_target_weight)}</div>
                 </div>
                 <div>
                   <div className="text-xs text-slate-500 font-medium mb-1">Önerilen Sonrası Pay</div>
                   <div className="font-bold text-navy-900">{formatPercent(inst.estimated_post_trade_weight)}</div>
                 </div>
                 <div>
+                  <div className="text-xs text-slate-500 font-medium mb-1">Tek-Hisse Üst Sınırı</div>
+                  <div className="font-bold text-navy-900">{formatPercent(inst.hard_max_weight)}</div>
+                </div>
+                <div>
                   <div className="text-xs text-slate-500 font-medium mb-1">Azami Ek Alım Kapasitesi</div>
-                  <div className="font-bold text-navy-900">{inst.max_additional_quantity} Lot</div>
+                  <div className="font-bold text-navy-900">{inst.max_additional_quantity ?? 0} Lot</div>
                   <div className="text-xs text-slate-400">{formatTry(inst.max_additional_budget)}</div>
                 </div>
-                  <div>
-                    <div className="text-xs text-slate-500 font-medium mb-1">Risk Durumu</div>
-                    <div className={`font-bold ${inst.sizing_state === 'OK' ? 'text-success-600' : 'text-danger-600'}`}>
-                      {translateSizingState(inst.sizing_state)}
-                    </div>
+                <div>
+                  <div className="text-xs text-slate-500 font-medium mb-1">Risk Durumu</div>
+                  <div className={`font-bold ${inst.sizing_state === 'OK' ? 'text-success-600' : 'text-danger-600'}`}>
+                    {translateSizingState(inst.sizing_state)}
                   </div>
+                </div>
               </div>
               
               <p className="text-xs text-slate-500 italic bg-white p-3 rounded border border-slate-100">

@@ -14,9 +14,9 @@ export function formatTry(value: number | string | null | undefined): string {
 }
 
 export function formatPercent(value: number | string | null | undefined): string {
-  if (value === null || value === undefined) return "-";
+  if (value === null || value === undefined) return "—";
   const num = typeof value === "string" ? parseFloat(value) : value;
-  if (isNaN(num)) return "-";
+  if (isNaN(num)) return "—";
   return new Intl.NumberFormat("tr-TR", {
     minimumFractionDigits: 1,
     maximumFractionDigits: 2,

@@ -158,6 +158,7 @@ export default function OpportunitiesPage() {
                  {inst.sizing_state === "OVER_LIMIT" ? "Portföy yoğunluk sınırı nedeniyle yeni alım uygun değil." :
                   inst.sizing_state === "NO_CASH" ? "Bu portföyde en az 1 adet alım için yeterli nakit yok." :
                   inst.sizing_state === "NOT_ACTIONABLE" ? "Mevcut karar ve risk koşullarında ek alım önerilmiyor." :
+                  inst.sizing_state === "VALUATION_INCOMPLETE" ? "Portföyünüzdeki bazı varlıkların fiyatı alınamadığı için güvenilir alım miktarı hesaplanamıyor." :
                   "Alım için uygun değil."}
                </div>
              )}

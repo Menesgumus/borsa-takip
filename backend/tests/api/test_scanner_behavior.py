@@ -11,11 +11,11 @@ from app.services.scanner import scan_opportunities
 @pytest.mark.asyncio
 @patch('app.services.scanner.registry.get_quotes')
 async def test_scanner_same_instrument_different_portfolios(mock_get_quotes):
-    from app.market.dto import QuoteDTO
-    from decimal import Decimal
-    from datetime import datetime, UTC
-
     import random
+    from datetime import UTC, datetime
+    from decimal import Decimal
+
+    from app.market.dto import QuoteDTO
     user_id = random.randint(100000, 999999)
     async with async_session_maker() as db:
         user = User(id=user_id, email=f"scan_{user_id}@example.com", password_hash="xx")
@@ -30,7 +30,7 @@ async def test_scanner_same_instrument_different_portfolios(mock_get_quotes):
         await db.refresh(inst)
         await db.refresh(p1)
         await db.refresh(p2)
-        
+
         mock_get_quotes.return_value = [
             QuoteDTO(
                 symbol=inst.symbol, price=Decimal("100"), timestamp=datetime.now(UTC),
@@ -38,7 +38,7 @@ async def test_scanner_same_instrument_different_portfolios(mock_get_quotes):
                 open=Decimal("100"), previous_close=Decimal("100"), source_name="MOCK", freshness_seconds=0
             )
         ]
-        
+
         from app.db.models import ProviderMapping
         pm = ProviderMapping(instrument_id=inst.id, provider_name="MOCK", provider_symbol=inst.symbol, is_primary=True)
         db.add(pm)
@@ -81,10 +81,11 @@ async def test_scanner_deterministic_ranking(mock_get_quotes):
 @patch('app.services.portfolio_valuation.registry.get_quotes')
 async def test_scanner_incomplete_portfolio_valuation(mock_val_quotes, mock_scan_quotes):
     import random
+    from datetime import UTC, datetime
     from decimal import Decimal
+
     from app.db.models import PortfolioTransaction
     from app.market.dto import QuoteDTO
-    from datetime import datetime, UTC
 
     user_id = random.randint(100000, 999999)
     async with async_session_maker() as db:
@@ -119,9 +120,9 @@ async def test_scanner_incomplete_portfolio_valuation(mock_val_quotes, mock_scan
 
         # Mock quotes: Only return quote for A
         quote_a = QuoteDTO(
-            symbol=inst_a.symbol, 
-            price=Decimal("110"), 
-            timestamp=datetime.now(UTC), 
+            symbol=inst_a.symbol,
+            price=Decimal("110"),
+            timestamp=datetime.now(UTC),
             data_state="LIVE",
             change_pct=Decimal("0.5"),
             high=Decimal("115"),
@@ -135,13 +136,83 @@ async def test_scanner_incomplete_portfolio_valuation(mock_val_quotes, mock_scan
         mock_scan_quotes.return_value = [quote_a]
 
         res = await scan_opportunities(db, user=user, portfolio_id=p.id)
-        
+
         target_inst_a = next((x for x in res if x.symbol == inst_a.symbol), None)
         assert target_inst_a is not None
-        
+
         # Check that valuation incomplete suppressed sizing and personal action
         assert target_inst_a.sizing_state == "VALUATION_INCOMPLETE"
         assert target_inst_a.sizing_reason_codes == ["PORTFOLIO_VALUATION_INCOMPLETE"]
-        assert target_inst_a.recommended_budget == Decimal("0")
+        assert target_inst_a.recommended_budget is None
         assert target_inst_a.recommended_quantity == 0
         assert target_inst_a.personal_action is None
+
+        # A. Real quantity preserved
+        assert target_inst_a.current_position_quantity == 1
+        # B. Candidate value known
+        assert target_inst_a.current_position_market_value == Decimal("110")
+        # B. Unknown weight null
+        assert target_inst_a.current_position_weight_percentage is None
+        # B. Unknown estimated post trade weight null
+        assert target_inst_a.estimated_post_trade_weight is None
+        # C. Hard max weight is Decimal("30"), NOT 0.30
+        assert target_inst_a.hard_max_weight == Decimal("30")
+
+@pytest.mark.asyncio
+@patch('app.services.scanner.registry.get_quotes')
+@patch('app.services.portfolio_valuation.registry.get_quotes')
+async def test_scanner_valid_sizing_exposes_target(mock_val_quotes, mock_scan_quotes):
+    import random
+    from datetime import UTC, datetime
+    from decimal import Decimal
+
+    from app.db.models import PortfolioTransaction
+    from app.market.dto import QuoteDTO
+
+    user_id = random.randint(100000, 999999)
+    async with async_session_maker() as db:
+        user = User(id=user_id, email=f"valid_{user_id}@example.com", password_hash="xx")
+        db.add(user)
+        await db.commit()
+
+        inst = Instrument(symbol=f"V_{uuid.uuid4().hex[:4]}", name="V", exchange="BIST", instrument_type=InstrumentType.STOCK)
+        p = Portfolio(user_id=user_id, name="Test Valid", portfolio_type="REAL")
+        db.add_all([inst, p])
+        await db.commit()
+        await db.refresh(p)
+        await db.refresh(inst)
+
+        from app.db.models import ProviderMapping
+        pm = ProviderMapping(instrument_id=inst.id, provider_name="MOCK", provider_symbol=inst.symbol, is_primary=True)
+        db.add(pm)
+        await db.commit()
+
+        # Add initial deposit of 20000 TRY
+        tx_dep = PortfolioTransaction(portfolio_id=p.id, transaction_type="DEPOSIT", quantity=Decimal("20000"), price=Decimal("1"), executed_at=datetime.now(UTC))
+        db.add(tx_dep)
+        await db.commit()
+
+        quote_v = QuoteDTO(
+            symbol=inst.symbol,
+            price=Decimal("100"),
+            timestamp=datetime.now(UTC),
+            data_state="LIVE",
+            change_pct=Decimal("0"),
+            high=Decimal("100"),
+            low=Decimal("100"),
+            open=Decimal("100"),
+            previous_close=Decimal("100"),
+            source_name="MOCK",
+            freshness_seconds=0
+        )
+        mock_val_quotes.return_value = [quote_v]
+        mock_scan_quotes.return_value = [quote_v]
+
+        res = await scan_opportunities(db, user=user, portfolio_id=p.id)
+
+        target = next((x for x in res if x.symbol == inst.symbol), None)
+        assert target is not None
+
+        # F. Valid sizing exposes recommended_target_weight and hard_max_weight
+        assert target.recommended_target_weight is not None
+        assert target.hard_max_weight == Decimal("30")

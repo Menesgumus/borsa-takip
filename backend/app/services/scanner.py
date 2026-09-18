@@ -1,4 +1,4 @@
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -46,8 +46,8 @@ async def scan_opportunities(db: AsyncSession, user: User, portfolio_id: int | N
     portfolio_valuation = None
     if portfolio_id:
         # Assumes IDOR check is done in endpoint
-        p_res = await db.execute(select(Portfolio).where(Portfolio.id == portfolio_id))
-        portfolio = p_res.scalars().first()
+        port_res = await db.execute(select(Portfolio).where(Portfolio.id == portfolio_id))
+        portfolio = port_res.scalars().first()
         if portfolio:
             valuations = await evaluate_portfolios(db, [portfolio])
             portfolio_valuation = valuations.get(portfolio.id)
@@ -94,7 +94,7 @@ async def scan_opportunities(db: AsyncSession, user: User, portfolio_id: int | N
         except Exception:
             tech_map[inst.symbol] = None
 
-    results = []
+    results: list[OpportunityResult] = []
 
     for inst in instruments:
         quote = quotes.get(inst.id)
@@ -126,20 +126,21 @@ async def scan_opportunities(db: AsyncSession, user: User, portfolio_id: int | N
 
         # Build Portfolio Fit
         p_fit = None
-        current_weight = Decimal("0")
+        current_weight = None
         current_quantity = 0
-        current_position_value = Decimal("0")
-        if portfolio and portfolio_valuation and portfolio_valuation.valuation_complete:
+        current_position_value = None
+        if portfolio and portfolio_valuation:
             total_val = portfolio_valuation.total_market_value
             for pos in portfolio_valuation.positions:
                 if pos["instrument_id"] == inst.id:
                     current_quantity = pos["quantity"]
                     current_position_value = pos["market_value"]
-                    if total_val and total_val > 0 and current_position_value is not None:
+                    if portfolio_valuation.valuation_complete and total_val and total_val > 0 and current_position_value is not None:
                         current_weight = (current_position_value / total_val) * Decimal("100")
                     break
 
-            p_fit = PortfolioFitInputs(current_weight=current_weight, max_weight_limit=Decimal("30"))
+            if portfolio_valuation.valuation_complete:
+                p_fit = PortfolioFitInputs(current_weight=current_weight or Decimal("0"), max_weight_limit=Decimal("30"))
 
         decision = evaluate_decision(inst.id, Horizon.MEDIUM, tech, fund, news, p_fit)
 
@@ -153,15 +154,15 @@ async def scan_opportunities(db: AsyncSession, user: User, portfolio_id: int | N
                     available_cash=portfolio_valuation.cash_balance,
                     current_price=Decimal(str(quote.price)),
                     current_quantity=current_quantity,
-                    current_position_value=Decimal("0"),
-                    current_weight_percentage=Decimal("0"),
+                    current_position_value=current_position_value if current_position_value is not None else Decimal("0"),
+                    current_weight_percentage=None,
                     recommended_quantity=0,
-                    recommended_budget=Decimal("0"),
-                    recommended_target_weight=Decimal("0"),
+                    recommended_budget=None,
+                    recommended_target_weight=None,
                     max_additional_quantity=0,
-                    max_additional_budget=Decimal("0"),
-                    hard_max_weight=Decimal("0.30"),
-                    estimated_post_trade_weight=Decimal("0"),
+                    max_additional_budget=None,
+                    hard_max_weight=Decimal("30"),
+                    estimated_post_trade_weight=None,
                     sizing_state="VALUATION_INCOMPLETE",
                     reason_codes=["PORTFOLIO_VALUATION_INCOMPLETE"],
                     data_state=quote.data_state,
@@ -216,9 +217,11 @@ async def scan_opportunities(db: AsyncSession, user: User, portfolio_id: int | N
 
             recommended_budget=sizing.recommended_budget if sizing else None,
             recommended_quantity=sizing.recommended_quantity if sizing else None,
+            recommended_target_weight=sizing.recommended_target_weight if sizing else None,
 
             max_additional_budget=sizing.max_additional_budget if sizing else None,
             max_additional_quantity=sizing.max_additional_quantity if sizing else None,
+            hard_max_weight=sizing.hard_max_weight if sizing else None,
 
             estimated_post_trade_weight=sizing.estimated_post_trade_weight if sizing else None,
 

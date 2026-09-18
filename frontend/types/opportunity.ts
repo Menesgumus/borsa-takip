@@ -35,9 +35,11 @@ export interface OpportunityListResult {
 
   recommended_budget: number | null;
   recommended_quantity: number | null;
+  recommended_target_weight: number | null;
 
   max_additional_budget: number | null;
   max_additional_quantity: number | null;
+  hard_max_weight: number | null;
 
   estimated_post_trade_weight: number | null;
 

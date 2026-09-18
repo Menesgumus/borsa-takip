@@ -10,18 +10,19 @@ class PositionSizingResult(BaseModel):
     current_price: Decimal
     current_quantity: int
     current_position_value: Decimal
-    current_weight_percentage: Decimal
+    current_weight_percentage: Decimal | None = None
 
-    recommended_budget: Decimal
+    recommended_budget: Decimal | None = None
     recommended_quantity: int
-    recommended_target_weight: Decimal
+    recommended_target_weight: Decimal | None = None
 
-    max_additional_budget: Decimal
+    max_additional_budget: Decimal | None = None
     max_additional_quantity: int
-    hard_max_weight: Decimal
+    hard_max_weight: Decimal | None = None
 
-    estimated_post_trade_weight: Decimal
-    sizing_state: Literal["OK", "NOT_ACTIONABLE", "NO_CASH", "OVER_LIMIT", "VALUATION_INCOMPLETE"]
+    estimated_post_trade_weight: Decimal | None = None
+
+    sizing_state: Literal["OK", "OVER_LIMIT", "NO_CASH", "NOT_ACTIONABLE", "VALUATION_INCOMPLETE"]
     reason_codes: list[str]
     data_state: str
     calculated_at: datetime
@@ -63,9 +64,11 @@ class OpportunityResult(BaseModel):
 
     recommended_budget: Decimal | None = None
     recommended_quantity: int | None = None
+    recommended_target_weight: Decimal | None = None
 
     max_additional_budget: Decimal | None = None
     max_additional_quantity: int | None = None
+    hard_max_weight: Decimal | None = None
 
     estimated_post_trade_weight: Decimal | None = None
 
