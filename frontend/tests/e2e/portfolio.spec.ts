@@ -34,15 +34,14 @@ async function registerAndOnboard(page: Page, email: string, password: string) {
   await firstNameInput.waitFor({ state: 'visible' });
   await firstNameInput.fill('QA');
   await page.locator('#lastName').fill('Portfolio');
-  await page.locator('label:has(input[value="MEDIUM"])').click();
   
-  // On mobile, React may take longer to hydrate; re-click the risk label to
-  // ensure the onChange fires and the form becomes valid before waiting
-  await page.waitForTimeout(500);
-  await page.locator('label:has(input[value="MEDIUM"])').click();
-  
+  // Use toPass to retry clicking the risk tolerance label until the submit button becomes enabled.
+  // This securely handles React hydration delays where early clicks are lost.
   const submitBtn = page.locator('button[type="submit"]');
-  await expect(submitBtn).toBeEnabled({ timeout: 20000 });
+  await expect(async () => {
+    await page.locator('label:has(input[value="MEDIUM"])').click({ force: true });
+    await expect(submitBtn).toBeEnabled({ timeout: 1000 });
+  }).toPass({ timeout: 20000 });
   await submitBtn.click();
   await expect(page).toHaveURL(/.*\/dashboard/, { timeout: 20000 });
 }

@@ -48,8 +48,14 @@ test.describe('Auth Lifecycle', () => {
     // 4. Complete onboarding
     await page.fill('#firstName', 'QA');
     await page.fill('#lastName', 'Tester');
-    await page.click('label:has(input[value="MEDIUM"])');
-    await page.click('button[type="submit"]');
+    
+    const submitBtn = page.locator('button[type="submit"]');
+    await expect(async () => {
+      await page.locator('label:has(input[value="MEDIUM"])').click({ force: true });
+      await expect(submitBtn).toBeEnabled({ timeout: 1000 });
+    }).toPass({ timeout: 20000 });
+    
+    await submitBtn.click();
 
     // 5. Redirect to dashboard
     await expect(page).toHaveURL(/.*\/dashboard/, { timeout: 15000 });
