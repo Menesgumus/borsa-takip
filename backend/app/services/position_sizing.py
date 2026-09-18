@@ -33,9 +33,10 @@ def calculate_position_sizing(
     else:
         current_weight_percentage = current_position_value / total_portfolio_value
 
-    hard_capacity = max(Decimal("0"), hard_limit * total_portfolio_value - current_position_value)
-    max_additional_budget = min(available_cash, hard_capacity)
-    max_additional_quantity = math.floor(max_additional_budget / current_price)
+    theoretical_capacity = max(Decimal("0"), hard_limit * total_portfolio_value - current_position_value)
+    theoretical_max_additional_budget = min(available_cash, theoretical_capacity)
+    max_executable_quantity = math.floor(theoretical_max_additional_budget / current_price)
+    max_executable_budget = Decimal(max_executable_quantity) * current_price
 
     # Determine target weight
     # Default policy:
@@ -66,7 +67,7 @@ def calculate_position_sizing(
     target_position_value = target_weight * total_portfolio_value
     desired_additional_value = max(Decimal("0"), target_position_value - current_position_value)
 
-    recommended_budget = min(desired_additional_value, available_cash, hard_capacity)
+    recommended_budget = min(desired_additional_value, available_cash, theoretical_capacity)
     recommended_quantity = math.floor(recommended_budget / current_price)
 
     # Recalculate actual recommended budget based on integer quantity
@@ -114,8 +115,9 @@ def calculate_position_sizing(
         recommended_budget=actual_recommended_budget,
         recommended_quantity=recommended_quantity,
         recommended_target_weight=target_weight * Decimal("100"),
-        max_additional_budget=max_additional_budget,
-        max_additional_quantity=max_additional_quantity,
+        max_executable_budget=max_executable_budget,
+        max_executable_quantity=max_executable_quantity,
+        theoretical_max_additional_budget=theoretical_capacity,
         hard_max_weight=hard_limit * Decimal("100"),
         estimated_post_trade_weight=estimated_post_trade_weight * Decimal("100"),
         sizing_state=sizing_state,

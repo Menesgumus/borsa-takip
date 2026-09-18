@@ -11,6 +11,7 @@ import { DataStateBadge } from "@/components/DataStateBadge";
 
 export default function OpportunitiesPage() {
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<number | null>(null);
+  const [isSelectionReady, setIsSelectionReady] = useState(false);
 
   const { data: portfolios, isLoading: isPortfoliosLoading } = useQuery({
     queryKey: ["portfolios"],
@@ -26,8 +27,12 @@ export default function OpportunitiesPage() {
       } else if (portfolios.length === 1) {
         setSelectedPortfolioId(portfolios[0].id);
       }
+      setIsSelectionReady(true);
+    } else if (!isPortfoliosLoading) {
+      // Failed or empty
+      setIsSelectionReady(true);
     }
-  }, [portfolios]);
+  }, [portfolios, isPortfoliosLoading]);
 
   const handlePortfolioChange = (id: number | null) => {
     setSelectedPortfolioId(id);
@@ -46,6 +51,7 @@ export default function OpportunitiesPage() {
         : `/api/v1/opportunities?limit=20`;
       return fetchApi(url);
     },
+    enabled: isSelectionReady,
   });
 
   const selectedPortfolio = portfolios && Array.isArray(portfolios) ? portfolios.find(p => p.id === selectedPortfolioId) : null;
@@ -53,7 +59,8 @@ export default function OpportunitiesPage() {
   // Categorize opportunities
   const opportunities = (instruments as OpportunityListResult[]) || [];
   
-  const actionable: OpportunityListResult[] = [];
+  const strongBuy: OpportunityListResult[] = [];
+  const buy: OpportunityListResult[] = [];
   const watchlist: OpportunityListResult[] = [];
   const insufficientData: OpportunityListResult[] = [];
 
@@ -62,8 +69,10 @@ export default function OpportunitiesPage() {
       insufficientData.push(inst);
     } else {
       const action = inst.personal_action || inst.market_view;
-      if ((action === "BUY" || action === "STRONG_BUY") && (!selectedPortfolioId || inst.sizing_state === "OK")) {
-        actionable.push(inst);
+      const isActionable = (action === "BUY" || action === "STRONG_BUY") && (!selectedPortfolioId || inst.sizing_state === "OK");
+      if (isActionable) {
+        if (action === "STRONG_BUY") strongBuy.push(inst);
+        else buy.push(inst);
       } else {
         watchlist.push(inst);
       }
@@ -138,13 +147,13 @@ export default function OpportunitiesPage() {
                  </div>
                  <div className="flex justify-between items-center mb-1">
                    <span className="text-xs font-medium text-primary-800">Adet:</span>
-                   <span className="text-xs font-bold text-primary-700">{inst.recommended_quantity} Lot</span>
+                   <span className="text-xs font-bold text-primary-700">{inst.recommended_quantity} adet</span>
                  </div>
-                 {(inst.max_additional_budget != null && inst.max_additional_budget > 0) && (
+                 {(inst.max_executable_budget != null && inst.max_executable_budget > 0) && (
                    <div className="flex justify-between items-center mb-1">
-                     <span className="text-xs font-medium text-primary-800">Azami ek alım:</span>
-                     <span className="text-xs font-medium text-primary-700">
-                       {formatTry(inst.max_additional_budget)} / {inst.max_additional_quantity} adet
+                     <span className="text-xs font-medium text-slate-500">Kapasite:</span>
+                     <span className="text-xs font-medium text-slate-700">
+                       {formatTry(inst.max_executable_budget)} / {inst.max_executable_quantity} adet
                      </span>
                    </div>
                  )}
@@ -231,7 +240,8 @@ export default function OpportunitiesPage() {
 
       {!isLoading && (
         <div className="flex gap-4 border-b border-slate-200 pb-2">
-          <div className="text-sm font-bold text-navy-900">Alım Fırsatı: <span className="text-success-600">{actionable.length}</span></div>
+          <div className="text-sm font-bold text-navy-900">Öne Çıkan: <span className="text-success-600">{strongBuy.length}</span></div>
+          <div className="text-sm font-bold text-navy-900">Kademeli: <span className="text-success-600">{buy.length}</span></div>
           <div className="text-sm font-bold text-navy-900">İzle: <span className="text-amber-600">{watchlist.length}</span></div>
           <div className="text-sm font-bold text-navy-900">Yetersiz Veri: <span className="text-slate-500">{insufficientData.length}</span></div>
         </div>
@@ -245,14 +255,26 @@ export default function OpportunitiesPage() {
         </div>
       ) : (
         <div className="space-y-10">
-          {actionable.length > 0 && (
+          {strongBuy.length > 0 && (
+            <section>
+              <h2 className="text-xl font-bold text-navy-900 mb-4 flex items-center gap-2">
+                <Target className="text-success-600" size={24} /> 
+                ÖNE ÇIKAN FIRSATLAR
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {strongBuy.map(renderCard)}
+              </div>
+            </section>
+          )}
+
+          {buy.length > 0 && (
             <section>
               <h2 className="text-xl font-bold text-navy-900 mb-4 flex items-center gap-2">
                 <Target className="text-primary-600" size={24} /> 
-                Alım Fırsatları
+                KADEMELİ ALIM ADAYLARI
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {actionable.map(renderCard)}
+                {buy.map(renderCard)}
               </div>
             </section>
           )}
@@ -261,7 +283,7 @@ export default function OpportunitiesPage() {
             <section>
               <h2 className="text-xl font-bold text-navy-900 mb-4 flex items-center gap-2">
                 <ShieldAlert className="text-amber-600" size={24} /> 
-                İzlemeye Değer
+                İZLEMEYE DEĞER
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-90">
                 {watchlist.map(renderCard)}
@@ -271,7 +293,7 @@ export default function OpportunitiesPage() {
 
           {insufficientData.length > 0 && (
             <section>
-              <h2 className="text-lg font-bold text-slate-500 mb-4">Verisi Yetersiz</h2>
+              <h2 className="text-lg font-bold text-slate-500 mb-4">VERİSİ YETERSİZ</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-60">
                 {insufficientData.map(renderCard)}
               </div>

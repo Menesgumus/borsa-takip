@@ -161,6 +161,8 @@ def evaluate_decision(
     fit_score = None
 
     if portfolio_fit is not None:
+        personal_action = market_view
+
         # Calculate fit
         if portfolio_fit.current_weight >= portfolio_fit.max_weight_limit:
             fit_score = Decimal("0")
@@ -169,17 +171,18 @@ def evaluate_decision(
             ratio = portfolio_fit.current_weight / portfolio_fit.max_weight_limit
             fit_score = clamp_score(Decimal("100") - (ratio * Decimal("100")))
 
-        # Adjust overall personal score
-        overall_personal = (overall_market * Decimal("0.7")) + (fit_score * Decimal("0.3"))
-        personal_action = map_action(overall_personal)
-
         # Guardrails for personal
-        if dq_score < Decimal("50"):
-            personal_action = DecisionAction.HOLD
-
-        if fit_score < Decimal("20") and personal_action in [DecisionAction.STRONG_BUY, DecisionAction.BUY]:
-            personal_action = DecisionAction.HOLD
-            reason_codes.append("RISK_LIMIT_EXCEEDED")
+        if personal_action in [DecisionAction.BUY, DecisionAction.STRONG_BUY]:
+            if portfolio_fit.current_weight >= portfolio_fit.max_weight_limit:
+                personal_action = DecisionAction.HOLD
+                reason_codes.append("RISK_LIMIT_EXCEEDED")
+            elif fit_score < Decimal("20"):
+                # Downgrade materially poor fit
+                if personal_action == DecisionAction.STRONG_BUY:
+                    personal_action = DecisionAction.BUY
+                else:
+                    personal_action = DecisionAction.HOLD
+                reason_codes.append("POOR_PORTFOLIO_FIT")
 
     return DecisionResult(
         instrument_id=instrument_id,

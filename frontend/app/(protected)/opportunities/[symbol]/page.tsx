@@ -122,7 +122,7 @@ export default function OpportunityDetailPage() {
             <div>
               <div className="text-sm text-primary-800 font-medium mb-1">Önerilen Aksiyon</div>
               <div className="font-bold text-primary-900">
-                {inst.recommended_quantity} Lot {inst.symbol} Alımı ({formatTry(inst.recommended_budget)})
+                {inst.recommended_quantity} adet {inst.symbol} Alımı ({formatTry(inst.recommended_budget)})
               </div>
             </div>
             <button 
@@ -151,7 +151,7 @@ export default function OpportunityDetailPage() {
                   <div className="font-bold text-navy-900">{formatPercent(inst.current_position_weight_percentage)}</div>
                   {inst.current_position_quantity != null && inst.current_position_quantity > 0 && (
                     <div className="text-xs text-slate-400">
-                      {inst.current_position_quantity} Lot ({formatTry(inst.current_position_market_value)})
+                      {inst.current_position_quantity} adet ({formatTry(inst.current_position_market_value)})
                     </div>
                   )}
                 </div>
@@ -168,9 +168,9 @@ export default function OpportunityDetailPage() {
                   <div className="font-bold text-navy-900">{formatPercent(inst.hard_max_weight)}</div>
                 </div>
                 <div>
-                  <div className="text-xs text-slate-500 font-medium mb-1">Azami Ek Alım Kapasitesi</div>
-                  <div className="font-bold text-navy-900">{inst.max_additional_quantity ?? 0} Lot</div>
-                  <div className="text-xs text-slate-400">{formatTry(inst.max_additional_budget)}</div>
+                  <div className="text-xs text-slate-500 font-medium mb-1">Maks. Alınabilir</div>
+                  <div className="font-bold text-navy-900">{inst.max_executable_quantity ?? 0} adet</div>
+                  <div className="text-xs text-slate-400">{formatTry(inst.max_executable_budget)}</div>
                 </div>
                 <div>
                   <div className="text-xs text-slate-500 font-medium mb-1">Risk Durumu</div>
@@ -275,7 +275,7 @@ export default function OpportunityDetailPage() {
               <div>
                 <h3 className="font-bold text-navy-900 flex items-center gap-2 border-b border-slate-100 pb-2 mb-3">
                   <Target size={18} className="text-primary-600" />
-                  Sizing Gerekçeleri
+                  Pozisyon Büyüklüğü Gerekçeleri
                 </h3>
                 <ul className="space-y-2">
                   {inst.sizing_reason_codes.map((rc, i) => (

@@ -16,8 +16,9 @@ class PositionSizingResult(BaseModel):
     recommended_quantity: int
     recommended_target_weight: Decimal | None = None
 
-    max_additional_budget: Decimal | None = None
-    max_additional_quantity: int
+    max_executable_budget: Decimal | None = None
+    max_executable_quantity: int
+    theoretical_max_additional_budget: Decimal | None = None
     hard_max_weight: Decimal | None = None
 
     estimated_post_trade_weight: Decimal | None = None
@@ -38,6 +39,7 @@ class OpportunityResult(BaseModel):
 
     market_score: Decimal | None = None
     personal_score: Decimal | None = None
+    portfolio_fit_score: Decimal | None = None
     data_quality_score: Decimal
 
     technical_score: Decimal | None = None
@@ -66,8 +68,9 @@ class OpportunityResult(BaseModel):
     recommended_quantity: int | None = None
     recommended_target_weight: Decimal | None = None
 
-    max_additional_budget: Decimal | None = None
-    max_additional_quantity: int | None = None
+    max_executable_budget: Decimal | None = None
+    max_executable_quantity: int | None = None
+    theoretical_max_additional_budget: Decimal | None = None
     hard_max_weight: Decimal | None = None
 
     estimated_post_trade_weight: Decimal | None = None

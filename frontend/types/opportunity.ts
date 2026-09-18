@@ -9,6 +9,7 @@ export interface OpportunityListResult {
 
   market_score: number | null;
   personal_score: number | null;
+  portfolio_fit_score: number | null;
   data_quality_score: number;
 
   technical_score: number | null;
@@ -37,8 +38,9 @@ export interface OpportunityListResult {
   recommended_quantity: number | null;
   recommended_target_weight: number | null;
 
-  max_additional_budget: number | null;
-  max_additional_quantity: number | null;
+  max_executable_budget: number | null;
+  max_executable_quantity: number | null;
+  theoretical_max_additional_budget: number | null;
   hard_max_weight: number | null;
 
   estimated_post_trade_weight: number | null;

@@ -55,10 +55,10 @@ describe('PortfolioRiskPage (Phase 24)', () => {
     render(<PortfolioRiskPage />);
     
     // Check formatted cash weight
-    expect(screen.getByText('36,47%')).toBeDefined();
+    expect(screen.getByText('%36,47')).toBeDefined();
     
     // Check formatted invested weight
-    expect(screen.getAllByText('63,53%').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('%63,53').length).toBeGreaterThan(0);
     
     // Check historical var
     expect(screen.getByText('500,12 ₺')).toBeDefined();
@@ -96,7 +96,7 @@ describe('PortfolioRiskPage (Phase 24)', () => {
     render(<PortfolioRiskPage />);
     
     // Since invested_weight_percentage="0E+14", formatPercent("0E+14") -> Number(0) -> 0,00%
-    expect(screen.getByText('0,0%')).toBeDefined();
+    expect(screen.getByText('%0,0')).toBeDefined();
     
     const scientificNode = screen.queryByText(/0E\+14/);
     expect(scientificNode).toBeNull();

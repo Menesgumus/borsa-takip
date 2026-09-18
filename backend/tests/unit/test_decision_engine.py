@@ -94,7 +94,7 @@ def test_portfolio_fit_favorable():
     res = evaluate_decision(1, Horizon.SHORT, tech, FundamentalInputs(), NewsInputs(), pf)
     # Fit score = 100
     assert res.portfolio_fit_score == Decimal("100")
-    assert res.personal_action == DecisionAction.STRONG_BUY
+    assert res.personal_action == DecisionAction.BUY
 
 def test_news_unavailable_not_negative():
     tech = TechnicalInputs(current_price=Decimal("150"), rsi_14=Decimal("25"), macd_line=Decimal("2"), macd_signal=Decimal("1"), sma_50=Decimal("140"), sma_200=Decimal("120"))

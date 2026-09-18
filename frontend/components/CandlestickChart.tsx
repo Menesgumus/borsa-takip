@@ -148,7 +148,7 @@ export default function CandlestickChart({ data, symbol, userId = 'local_user' }
     });
 
     const uniqueData = Array.from(new Map(data.map(d => [new Date(d.timestamp).getTime(), d])).values());
-    const formattedData = uniqueData.map(d => ({
+    const formattedData: any[] = uniqueData.map(d => ({
       time: new Date(d.timestamp).getTime() / 1000,
       open: Number(d.open),
       high: Number(d.high),
@@ -156,14 +156,47 @@ export default function CandlestickChart({ data, symbol, userId = 'local_user' }
       close: Number(d.close),
     })).sort((a, b) => (a.time as number) - (b.time as number));
 
-    const volumeData = uniqueData.map(d => ({
+    const volumeData: any[] = uniqueData.map(d => ({
       time: new Date(d.timestamp).getTime() / 1000,
       value: Number(d.volume),
       color: Number(d.close) > Number(d.open) ? 'rgba(22, 163, 74, 0.3)' : 'rgba(220, 38, 38, 0.3)'
     })).sort((a, b) => (a.time as number) - (b.time as number));
 
-    candlestickSeries.setData(formattedData as any);
-    volumeSeries.setData(volumeData as any);
+    // Add future whitespace (120 bars)
+    const FUTURE_WORKSPACE_BARS = 120;
+    if (formattedData.length > 0) {
+      const lastTime = formattedData[formattedData.length - 1].time as number;
+      let nextTime = lastTime;
+      for (let i = 1; i <= FUTURE_WORKSPACE_BARS; i++) {
+        // Skip weekends
+        const d = new Date(nextTime * 1000);
+        d.setDate(d.getDate() + 1);
+        if (d.getDay() === 6) d.setDate(d.getDate() + 2); // skip saturday to monday
+        else if (d.getDay() === 0) d.setDate(d.getDate() + 1); // skip sunday to monday
+        nextTime = d.getTime() / 1000;
+        
+        formattedData.push({ time: nextTime as any });
+      }
+    }
+
+    candlestickSeries.setData(formattedData);
+    volumeSeries.setData(volumeData);
+    
+    // Add vertical line at last candle
+    if (uniqueData.length > 0) {
+      const lastTime = new Date(uniqueData[uniqueData.length - 1].timestamp).getTime() / 1000;
+      candlestickSeries.createPriceLine({
+        price: 0,
+        color: 'transparent',
+        lineWidth: 1,
+        lineStyle: 1,
+        axisLabelVisible: false,
+        title: '',
+      });
+      // Wait, createPriceLine is horizontal. To create a vertical line, we use markers or just custom SVG rendering!
+      // I'll render the vertical line using the SVG overlay in the React component.
+    }
+
     chart.timeScale().fitContent();
 
     const onViewportChange = () => {
@@ -229,6 +262,8 @@ export default function CandlestickChart({ data, symbol, userId = 'local_user' }
     currentDrawingRef.current = currentDrawing;
   }, [currentDrawing]);
 
+  const [separatorX, setSeparatorX] = useState<number | null>(null);
+
   const updateRenderedDrawings = useCallback(() => {
     if (!chartRef.current || !seriesRef.current) return;
     
@@ -243,7 +278,14 @@ export default function CandlestickChart({ data, symbol, userId = 'local_user' }
     });
     
     setRenderedDrawings(rendered);
-  }, []);
+
+    // Calculate separator line X
+    if (data.length > 0) {
+      const lastTime = new Date(data[data.length - 1].timestamp).getTime() / 1000;
+      const x = chartRef.current.timeScale().timeToCoordinate(lastTime as Time);
+      setSeparatorX(x);
+    }
+  }, [data]);
 
   useEffect(() => {
     updateRenderedDrawings();
@@ -409,6 +451,15 @@ export default function CandlestickChart({ data, symbol, userId = 'local_user' }
             }
             return null;
           })}
+          
+          {/* Separator Line */}
+          {separatorX !== null && (
+            <g>
+              <line x1={separatorX} y1={0} x2={separatorX} y2="100%" stroke="#cbd5e1" strokeWidth={2} strokeDasharray="4 4" />
+              <rect x={separatorX + 8} y={10} width={135} height={24} rx={4} fill="#f1f5f9" stroke="#cbd5e1" />
+              <text x={separatorX + 16} y={26} fill="#64748b" fontSize={11} fontWeight="bold">Gelecek çalışma alanı</text>
+            </g>
+          )}
         </svg>
       </div>
     </div>
