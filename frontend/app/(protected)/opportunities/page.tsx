@@ -80,23 +80,38 @@ export default function OpportunitiesPage() {
   });
 
   const renderCard = (inst: OpportunityListResult) => {
-    const action = inst.personal_action || inst.market_view;
+    let action = inst.personal_action || inst.market_view;
+    const isActionable = (action === "BUY" || action === "STRONG_BUY") && (!selectedPortfolioId || inst.sizing_state === "OK");
+    
+    console.log(`BEFORE: symbol=${inst.symbol}, action=${action}, isActionable=${isActionable}`);
+    // If it was a BUY but we can't buy it (no cash, over limit), display it as HOLD
+    if ((action === "BUY" || action === "STRONG_BUY") && !isActionable) {
+      action = "HOLD";
+    }
+    console.log(`AFTER: symbol=${inst.symbol}, action=${action}, isActionable=${isActionable}`);
+    
     const isMissing = inst.missing_data || inst.data_quality_score < 50;
     
     return (
-      <Link key={inst.symbol} href={`/opportunities/${inst.symbol}${selectedPortfolioId ? `?portfolio_id=${selectedPortfolioId}` : ''}`} className="bg-surface rounded-xl p-5 border border-navy-800/10 shadow-sm hover:shadow-md transition-all group relative overflow-hidden flex flex-col justify-between">
+      <Link 
+        key={inst.symbol} 
+        data-debug-sizing={inst.sizing_state} 
+        data-debug-portfolio={selectedPortfolioId}
+        data-debug-actionable={isActionable}
+        href={`/opportunities/${inst.symbol}${selectedPortfolioId ? `?portfolio_id=${selectedPortfolioId}` : ''}`} className="bg-surface rounded-xl p-5 border border-navy-800/10 shadow-sm hover:shadow-md transition-all group relative overflow-hidden flex flex-col justify-between">
         {isMissing && (
            <div className="absolute top-0 left-0 w-full bg-amber-500/10 text-amber-600 text-[10px] font-bold text-center py-1 uppercase tracking-wider">
              Yetersiz Veri
            </div>
         )}
         
-        <div className={`flex justify-between items-start mb-4 ${isMissing ? "mt-4" : ""}`}>
-          <div>
-            <h3 className="text-lg font-bold text-navy-900 group-hover:text-primary-600 transition-colors flex items-center gap-2">
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex flex-col gap-0.5">
+            <h3 className="text-lg font-extrabold text-navy-900 group-hover:text-primary-600 transition-colors">
               {inst.symbol}
             </h3>
             <p className="text-sm text-navy-700/60 truncate max-w-[150px]">{inst.name || 'Hisse Senedi'}</p>
+            <p className="text-xs text-red-500">DBG: {inst.sizing_state} | {String(isActionable)} | {action}</p>
           </div>
           <div className="flex flex-col items-end gap-1">
             <span className={`px-2 py-1 text-xs font-bold rounded border ${getActionColorClass(action, isMissing)}`}>

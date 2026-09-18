@@ -21,6 +21,7 @@ class MockRedis:
     async def incr(self, *args, **kwargs): return 1
     async def expire(self, *args, **kwargs): return True
     async def ping(self): return True
+    async def aclose(self): pass
 
 if os.environ.get("ENVIRONMENT") == "test" or os.environ.get("CI") == "true":
     redis_client = MockRedis()

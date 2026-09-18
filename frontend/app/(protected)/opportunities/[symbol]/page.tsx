@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useSearchParams } from "next/navigation";
@@ -11,6 +11,7 @@ import { DataStateBadge } from "@/components/DataStateBadge";
 import { useState } from "react";
 import { PortfolioActionModal } from "@/components/PortfolioActionModal";
 import { CheckCircle } from "lucide-react";
+import CandlestickChart from "@/components/CandlestickChart";
 
 const translateReason = (reason: string) => {
   const map: Record<string, string> = {
@@ -60,6 +61,14 @@ export default function OpportunityDetailPage() {
         : `/api/v1/opportunities/${symbol}`;
       return fetchApi(url) as Promise<OpportunityDetailResult>;
     },
+  });
+
+  const { data: historyData } = useQuery({
+    queryKey: ["instrument-history", symbol],
+    queryFn: async () => {
+      return fetchApi(`/api/v1/instruments/${symbol}/history`) as Promise<any[]>;
+    },
+    enabled: !!symbol
   });
 
   if (isLoading) {
@@ -133,6 +142,23 @@ export default function OpportunityDetailPage() {
             </button>
           </div>
         )}
+
+        {/* Chart Section */}
+        <div className="p-6 border-b border-slate-100">
+          <h3 className="font-bold text-navy-900 flex items-center gap-2 mb-4">
+            <Activity size={18} className="text-primary-600" />
+            Fiyat Grafiği ve Teknik Görünüm
+          </h3>
+          <div className="h-[400px] w-full rounded-xl overflow-hidden border border-slate-200">
+            {historyData && historyData.length > 0 ? (
+              <CandlestickChart data={historyData} symbol={inst.symbol} />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-slate-50 text-slate-500">
+                Grafik verisi yükleniyor veya bulunamadı...
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Content */}
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -323,5 +349,3 @@ export default function OpportunityDetailPage() {
     </div>
   );
 }
-
-

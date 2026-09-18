@@ -26,22 +26,7 @@ async def get_opportunities(
         if not p_res.scalars().first():
             raise HTTPException(status_code=404, detail="Portfolio not found or unauthorized")
 
-    # Cache isolation per user and portfolio
-    cache_key = f"opportunities:v3:{current_user.id}:{portfolio_id or 'none'}:MEDIUM:{ENGINE_VERSION}:{limit}"
-
-    cached_data = await redis_client.get(cache_key)
-    if cached_data:
-        return Response(content=cached_data, media_type="application/json")
-
     results = await scan_opportunities(db, user=current_user, portfolio_id=portfolio_id, limit=limit)
-
-    # Cache for 60 seconds due to delayed market data
-    try:
-        json_data = "[%s]" % ",".join([r.model_dump_json() for r in results])
-        await redis_client.set(cache_key, json_data, ex=60)
-    except Exception:
-        pass
-
     return results
 
 @router.get('/{symbol}', response_model=OpportunityResult)

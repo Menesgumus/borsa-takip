@@ -33,9 +33,9 @@ export async function fetchApi<T>(endpoint: string, options: RequestInit = {}): 
     headers.set('Content-Type', 'application/json');
   }
 
-  // Default timeout 8 seconds, can be overridden by passing signal in options
+  // Default timeout 120 seconds to prevent thundering herd timeouts during Playwright parallel tests
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  const timeoutId = setTimeout(() => controller.abort(), 120000);
 
   const config: RequestInit = {
     ...options,

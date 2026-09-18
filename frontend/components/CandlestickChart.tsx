@@ -182,22 +182,13 @@ export default function CandlestickChart({ data, symbol, userId = 'local_user' }
     candlestickSeries.setData(formattedData);
     volumeSeries.setData(volumeData);
     
-    // Add vertical line at last candle
+    // Set initial visible range to show historical data + ~15 future bars
     if (uniqueData.length > 0) {
-      const lastTime = new Date(uniqueData[uniqueData.length - 1].timestamp).getTime() / 1000;
-      candlestickSeries.createPriceLine({
-        price: 0,
-        color: 'transparent',
-        lineWidth: 1,
-        lineStyle: 1,
-        axisLabelVisible: false,
-        title: '',
+      chart.timeScale().setVisibleLogicalRange({
+        from: 0,
+        to: uniqueData.length + 15
       });
-      // Wait, createPriceLine is horizontal. To create a vertical line, we use markers or just custom SVG rendering!
-      // I'll render the vertical line using the SVG overlay in the React component.
     }
-
-    chart.timeScale().fitContent();
 
     const onViewportChange = () => {
       updateRenderedDrawings();

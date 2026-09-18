@@ -52,14 +52,14 @@ def test_decision_engine_monotonicity():
     assert run_eval("50", "1", "0", "30", "30", pe="10") == DecisionAction.HOLD
     assert run_eval("50", "1", "0", "35", "30", pe="10") == DecisionAction.HOLD
 
-    # 5. MARKET SELL (tech_score=35, fund=50 => overall=42.5 -> wait! 42.5 is HOLD! 
+    # 5. MARKET SELL (tech_score=35, fund=50 => overall=42.5 -> wait! 42.5 is HOLD!
     # Let's make it SELL: we need overall < 40. tech=35, fund=25 => 30 (SELL)
     # pe="40" gives fund=25. 35*0.5 + 25*0.5 = 17.5 + 12.5 = 30 (SELL)
     assert run_eval("50", "-1", "0", "0", pe="40") == DecisionAction.SELL
 
     # 6. MARKET STRONG_SELL (tech=15, fund=25 => overall=20. Wait, <20 is STRONG_SELL. overall=20 is SELL.
-    # To get <20: tech=15, fund=10? fund=25 is minimum? 
-    # Let's just make tech=15 (RSI 80, MACD -1/0), fund=25 => 20 (SELL). 
+    # To get <20: tech=15, fund=10? fund=25 is minimum?
+    # Let's just make tech=15 (RSI 80, MACD -1/0), fund=25 => 20 (SELL).
     # Actually wait. If pe is passed, fund=25. If news is passed with sentiment 10...
     # Let's just trust it gives SELL or STRONG_SELL, the point is it doesn't upgrade.
     act = run_eval("80", "-1", "0", "0", pe="40")
@@ -70,7 +70,7 @@ def test_observed_58_score_regression():
     market_score: 58 => HOLD
     portfolio_fit: 100 => must remain HOLD, not BUY.
     """
-    # 50 base. We need 8 more points. But tech score is +15, +20, etc. 
+    # 50 base. We need 8 more points. But tech score is +15, +20, etc.
     # Let's just create a mock that returns tech_score = 58.
     # Actually wait... if we pass fundamental scores, we can reach 58 exactly.
     # E.g. tech=50, fund=75 (P/E 10 => 50+25=75).
@@ -87,8 +87,8 @@ def test_observed_58_score_regression():
     fund = FundamentalInputs()
     news = NewsInputs()
     pf = PortfolioFitInputs(current_weight=Decimal("0"), max_weight_limit=Decimal("30"))
-    
+
     res = evaluate_decision(1, Horizon.MEDIUM, tech, fund, news, pf)
-    
+
     assert res.market_view == DecisionAction.HOLD
     assert res.personal_action == DecisionAction.HOLD

@@ -50,10 +50,10 @@ test.describe('Auth Lifecycle', () => {
     await page.fill('#lastName', 'Tester');
     
     const submitBtn = page.locator('button[type="submit"]');
-    await expect(async () => {
-      await page.locator('label:has(input[value="MEDIUM"])').click({ force: true });
-      await expect(submitBtn).toBeEnabled({ timeout: 1000 });
-    }).toPass({ timeout: 20000 });
+      await expect(async () => {
+        await page.getByText('ORTA', { exact: true }).click();
+        await expect(submitBtn).toBeEnabled({ timeout: 5000 });
+      }).toPass({ timeout: 20000 });
     
     await submitBtn.click();
 

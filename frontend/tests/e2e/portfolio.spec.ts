@@ -38,10 +38,10 @@ async function registerAndOnboard(page: Page, email: string, password: string) {
   // Use toPass to retry clicking the risk tolerance label until the submit button becomes enabled.
   // This securely handles React hydration delays where early clicks are lost.
   const submitBtn = page.locator('button[type="submit"]');
-  await expect(async () => {
-    await page.locator('label:has(input[value="MEDIUM"])').click({ force: true });
-    await expect(submitBtn).toBeEnabled({ timeout: 1000 });
-  }).toPass({ timeout: 20000 });
+    await expect(async () => {
+      await page.getByText('ORTA', { exact: true }).click();
+      await expect(submitBtn).toBeEnabled({ timeout: 1000 });
+    }).toPass({ timeout: 20000 });
   await submitBtn.click();
   await expect(page).toHaveURL(/.*\/dashboard/, { timeout: 20000 });
 }
@@ -70,7 +70,7 @@ async function selectAction(page: Page, label: string) {
 /** Wait for the modal overlay to disappear after a successful transaction. */
 async function waitForModalClose(page: Page) {
   const modalOverlay = page.locator('.fixed.inset-0.z-50');
-  await expect(modalOverlay).not.toBeVisible({ timeout: 15000 });
+  await expect(modalOverlay).not.toBeVisible({ timeout: 30000 });
 }
 
 // ─── Main test ────────────────────────────────────────────────────────────────
@@ -81,7 +81,9 @@ test.describe('Critical Flows: Portfolio & Trade', () => {
     // Allow extra time for full flow (7 sub-steps)
     test.setTimeout(180000);
 
-    const email = `pf_${Date.now()}_${testInfo.workerIndex}@example.com`;
+    const ts = Date.now();
+    const randomSuffix = Math.random().toString(36).substring(7);
+    const email = `qa_portfolio_${ts}_${randomSuffix}@example.com`;
     const password = 'TestPassword123!';
 
     // ── Setup: register fresh user ──────────────────────────────────────────

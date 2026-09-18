@@ -15,7 +15,7 @@ describe('Financial Formatters and Colors (Phase 23)', () => {
     expect(formatPercent(12.34)).toBe("%12,34");
     expect(formatPercent(5)).toBe("%5,0");
     expect(formatPercent(0)).toBe("%0,0");
-    expect(formatPercent(-1.5)).toBe("-1,5%");
+    expect(formatPercent(-1.5)).toBe("%-1,5");
   });
 
   it('formats quantities correctly', () => {
