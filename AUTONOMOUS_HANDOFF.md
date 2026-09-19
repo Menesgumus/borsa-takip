@@ -21,3 +21,11 @@
 - Do **NOT** start Phase 22 until the user explicitly asks for it.
 - Do **NOT** rewrite tags v1.0.0 through v1.0.7.
 - Repository + Docker are authoritative.
+
+
+## PHASE 27 FINAL STATE
+**Phase 27 - Core Product Simplification: COMPLETED**
+- Sidebar narrowed to Dashboard, Fırsatlar, Portföyüm, Ayarlar.
+- Portfolio/Trade/Risk legacy routes removed/redirected.
+- Tabbed Portfolio architecture implemented.
+- Instrument Search extracted as a reusable component.
