@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { fetchApi } from "@/lib/api";
 import { ChevronRight, Target, ShieldAlert, Star, Wallet, PieChart as PieChartIcon } from "lucide-react";
 import { OpportunityListResult } from "@/types/opportunity";
-import { formatTry, formatPercent, formatActionLabel, getActionColorClass } from "@/lib/financialUi";
+import { formatMoney, formatPercent, formatActionLabel, getActionColorClass } from "@/lib/financialUi";
 import { DataStateBadge } from "@/components/DataStateBadge";
 import { InstrumentSearch } from "@/components/InstrumentSearch";
 
@@ -126,7 +126,7 @@ export default function OpportunitiesPage() {
         <div className="space-y-2 mt-2 mb-4">
           <div className="flex justify-between items-center text-sm">
             <span className="text-navy-700/80">Fiyat</span>
-            <span className="font-medium text-navy-900">{formatTry(inst.quote_price)}</span>
+            <span className="font-medium text-navy-900">{formatMoney(inst.quote_price, inst.currency)}</span>
           </div>
 
           <div className="flex justify-between items-center text-sm">
@@ -160,7 +160,7 @@ export default function OpportunitiesPage() {
                <>
                  <div className="flex justify-between items-center mb-1">
                    <span className="text-xs font-medium text-primary-800">Önerilen Alım:</span>
-                   <span className="text-sm font-bold text-primary-700">{formatTry(inst.recommended_budget)}</span>
+                   <span className="text-sm font-bold text-primary-700">{formatMoney(inst.recommended_budget, "TRY")}</span>
                  </div>
                  <div className="flex justify-between items-center mb-1">
                    <span className="text-xs font-medium text-primary-800">Adet:</span>
@@ -170,7 +170,7 @@ export default function OpportunitiesPage() {
                    <div className="flex justify-between items-center mb-1">
                      <span className="text-xs font-medium text-slate-500">Kapasite:</span>
                      <span className="text-xs font-medium text-slate-700">
-                       {formatTry(inst.max_executable_budget)} / {inst.max_executable_quantity} adet
+                       {formatMoney(inst.max_executable_budget, "TRY")} / {inst.max_executable_quantity} adet
                      </span>
                    </div>
                  )}
@@ -272,7 +272,7 @@ export default function OpportunitiesPage() {
             </div>
             <div>
               <div className="text-xs text-slate-500 font-medium">Kullanılabilir Nakit</div>
-              <div className="font-bold text-navy-900">{formatTry(selectedPortfolio.cash_balance)}</div>
+              <div className="font-bold text-navy-900">{formatMoney(selectedPortfolio.cash_balance, "TRY")}</div>
             </div>
           </div>
           <div className="w-px h-8 bg-slate-200 hidden sm:block"></div>
@@ -280,7 +280,7 @@ export default function OpportunitiesPage() {
             <div className="text-xs text-slate-500 font-medium">Toplam Değer</div>
             <div className="font-bold text-navy-900">
               {selectedPortfolio.total_market_value != null 
-                ? formatTry(Number(selectedPortfolio.total_market_value)) 
+                ? formatMoney(Number(selectedPortfolio.total_market_value), "TRY") 
                 : "Kısmi Veri"}
             </div>
           </div>

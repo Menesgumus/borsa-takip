@@ -474,13 +474,26 @@ async def execute_trade(
     if quote.price is None or quote.price <= 0:
         raise HTTPException(status_code=400, detail="Geçersiz fiyat verisi")
 
-    execution_price = Decimal(str(quote.price))
+    # 5. Get FX Rate if needed
+    from app.services.fx_service import FxRateService
+    fx_service = FxRateService(registry)
+    fx_rate_to_base = Decimal("1.0")
+    if inst.currency == "USD":
+        fx_res = await fx_service.get_usd_try_rate(db)
+        if fx_res:
+            fx_rate_to_base = fx_res.rate
+        else:
+            raise HTTPException(status_code=400, detail="Cannot execute USD trade without FX rate")
+
+    native_execution_price = Decimal(str(quote.price))
+    execution_base_price = native_execution_price * fx_rate_to_base
+    execution_price = execution_base_price
     quantity = Decimal("0")
 
     # 6. Determine quantity if budget mode
     if trade_in.side == "BUY":
         if trade_in.budget_amount is not None and trade_in.budget_amount > 0:
-            quantity = trade_in.budget_amount // execution_price
+            quantity = trade_in.budget_amount // execution_base_price
             if quantity < 1:
                 raise HTTPException(status_code=400, detail="Bu tutarla en az 1 adet hisse alınamıyor.")
         elif trade_in.quantity is not None and trade_in.quantity > 0:
@@ -527,7 +540,11 @@ async def execute_trade(
         quantity=quantity,
         price=execution_price,
         fee=Decimal("0"),
-        executed_at=datetime.now(UTC)
+        executed_at=datetime.now(UTC),
+        native_price=native_execution_price,
+        native_currency=inst.currency,
+        fx_rate_to_base=fx_rate_to_base,
+        execution_source="SYSTEM_QUOTE"
     )
     db.add(new_tx)
     await db.commit()
@@ -554,7 +571,7 @@ async def preview_basket(
     if request.deploy_amount <= 0:
         raise HTTPException(status_code=400, detail="Deploy amount must be positive")
 
-    user_profile = await db.scalar(select(UserProfile).where(UserProfile.id == current_user.id))
+    user_profile = await db.scalar(select(UserProfile).where(UserProfile.user_id == current_user.id))
 
     service = BasketBuilderService(registry)
     return await service.build_basket(db, portfolio_id, request.deploy_amount, user_profile)
@@ -575,37 +592,84 @@ async def preview_execution(
         raise HTTPException(status_code=404, detail="Instrument not found")
 
     from app.services.scanner import scan_opportunities
-    opps = await scan_opportunities(db, current_user, portfolio_id)
-    opp = next((o for o in opps if o.instrument_id == instrument.id), None)
-
-    analysis_price = opp.current_price if opp else request.manual_native_price
+    opps = await scan_opportunities(db, current_user, portfolio_id, symbols=[instrument.symbol])
+    opp = opps[0] if opps else None
+    
+    if not opp:
+        raise HTTPException(status_code=404, detail="Opportunity not actionable or missing data")
 
     from app.services.fx_service import FxRateService
     fx_service = FxRateService(registry)
 
     fx_rate = Decimal("1.0")
+    fx_source = "NONE"
+    fx_as_of = datetime.now(UTC)
+    
     if instrument.currency == "USD":
-        rate = await fx_service.get_usd_try_rate(db)
-        if rate:
-            fx_rate = rate
+        fx_res = await fx_service.get_usd_try_rate(db)
+        if fx_res:
+            fx_rate = fx_res.rate
+            fx_source = fx_res.source
+            fx_as_of = fx_res.as_of
         else:
             raise HTTPException(status_code=400, detail="Cannot execute USD trade without FX rate")
 
+    # Evaluate portfolio
+    from app.services.portfolio_valuation import evaluate_portfolios
+    evals = await evaluate_portfolios(db, [portfolio])
+    val = evals.get(portfolio_id)
+    if not val or not val.valuation_complete:
+        raise HTTPException(status_code=400, detail="Portfolio valuation incomplete")
+
+    available_cash = val.cash_balance
+    total_value = available_cash + (val.invested_market_value or Decimal("0"))
+
+    # Current position
+    current_quantity = 0
+    if val.positions:
+        pos = next((p for p in val.positions if p["instrument_id"] == instrument.id), None)
+        if pos:
+            current_quantity = int(pos.get("quantity", 0))
+
+    from app.services.position_sizing import calculate_position_sizing
+    from app.schemas.decision import DecisionAction
+
+    execution_base_price = request.manual_native_price * fx_rate
+    
+    action_str = opp.personal_action if opp.personal_action else opp.market_view
+    action_enum = DecisionAction(action_str)
+
+    p_res = await db.execute(select(UserProfile).where(UserProfile.user_id == current_user.id))
+    profile = p_res.scalars().first()
+    risk_tol = profile.risk_tolerance.value if profile and profile.risk_tolerance else "MEDIUM"
+
+    sizing = calculate_position_sizing(
+        available_cash=available_cash,
+        total_portfolio_value=total_value,
+        current_price=execution_base_price,
+        current_quantity=current_quantity,
+        market_view=DecisionAction(opp.market_view),
+        personal_action=DecisionAction(opp.personal_action) if opp.personal_action else None,
+        data_state="MANUAL_BROKER",
+        hard_limit=Decimal("0.30"),
+        risk_tolerance=risk_tol
+    )
+
     return ExecutionPreviewResponse(
-        analysis_price=analysis_price,
-        analysis_price_state="LIVE" if opp else "UNKNOWN",
+        analysis_price=opp.quote_price or Decimal("0"),
+        analysis_price_state=opp.quote_data_state or "UNKNOWN",
         execution_price=request.manual_native_price,
-        execution_source="MANUAL",
+        execution_source="MANUAL_BROKER",
         execution_currency=instrument.currency,
         fx_rate=fx_rate,
-        fx_source="YAHOO",
-        fx_as_of=datetime.now(UTC),
-        recomputed_quantity=Decimal("0"),
-        recomputed_budget=Decimal("0"),
-        projected_weight=Decimal("0"),
-        market_view=opp.market_view if opp else "NEUTRAL",
-        personal_action=opp.personal_action if opp else "HOLD",
-        market_score=opp.market_score if opp else 50
+        fx_source=fx_source,
+        fx_as_of=fx_as_of,
+        recomputed_quantity=Decimal(sizing.recommended_quantity),
+        recomputed_budget=sizing.recommended_budget or Decimal("0"),
+        projected_weight=sizing.estimated_post_trade_weight or Decimal("0"),
+        market_view=opp.market_view,
+        personal_action=opp.personal_action,
+        market_score=opp.market_score or 50
     )
 
 @router.post("/{portfolio_id}/manual-trade", response_model=TransactionRead)
@@ -638,9 +702,9 @@ async def execute_manual_trade(
 
     fx_rate_to_base = Decimal("1.0")
     if instrument.currency == "USD":
-        rate = await fx_service.get_usd_try_rate(db)
-        if rate:
-            fx_rate_to_base = rate
+        rate_res = await fx_service.get_usd_try_rate(db)
+        if rate_res:
+            fx_rate_to_base = rate_res.rate
         else:
             raise HTTPException(status_code=400, detail="Cannot execute USD trade without FX rate")
 

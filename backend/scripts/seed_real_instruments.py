@@ -37,20 +37,30 @@ GOLD = [
     {"symbol": "GLDTR.IS", "name": "QNB Finans Portfoy Altin ETF", "exchange": "BIST", "asset_class": AssetClass.GOLD, "currency": "TRY"},
 ]
 
+FX_REFERENCE = [
+    {"symbol": "USDTRY=X", "name": "USD/TRY Exchange Rate", "exchange": "CCY", "asset_class": AssetClass.FX_REFERENCE, "currency": "TRY"},
+]
+
 async def seed() -> None:
     async with async_session_maker() as session:
         print("Starting seed process...")
-        for data in US_EQUITIES + GOLD:
+        for data in US_EQUITIES + GOLD + FX_REFERENCE:
             symbol = data["symbol"]
             inst = await session.scalar(select(Instrument).where(Instrument.symbol == symbol))
             
             if not inst:
                 print(f"Creating {symbol}...")
+                itype = InstrumentType.STOCK
+                if data["asset_class"] == AssetClass.GOLD:
+                    itype = InstrumentType.ETF
+                elif data["asset_class"] == AssetClass.FX_REFERENCE:
+                    itype = InstrumentType.CURRENCY
+                    
                 inst = Instrument(
                     symbol=symbol,
                     name=data["name"],
                     exchange=data["exchange"],
-                    instrument_type=InstrumentType.STOCK if data["asset_class"] != AssetClass.GOLD else InstrumentType.ETF,
+                    instrument_type=itype,
                     is_active=True,
                     asset_class=data["asset_class"],
                     currency=data["currency"]

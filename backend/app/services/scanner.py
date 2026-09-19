@@ -9,7 +9,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from app.core.redis import redis_client
-from app.db.models import FundamentalData, Instrument, Portfolio, User, UserProfile
+from app.db.models import FundamentalData, Instrument, Portfolio, User, UserProfile, AssetClass
 from app.market.exceptions import ProviderUnavailableError
 from app.market.registry import registry
 from app.schemas.decision import (
@@ -49,7 +49,7 @@ async def scan_opportunities(db: AsyncSession, user: User, portfolio_id: int | N
 
     from app.services.decision_engine import ENGINE_VERSION
     redis = redis_client
-    cache_key = f"opportunities:market:v4:{risk_tolerance}:{ENGINE_VERSION}" # Global market cache key
+    cache_key = f"opportunities:market:v5:{risk_tolerance}:{ENGINE_VERSION}" # Global market cache key
 
     market_results: dict[str, dict] = {}
 
@@ -62,7 +62,10 @@ async def scan_opportunities(db: AsyncSession, user: User, portfolio_id: int | N
                 market_results = {}
 
     if not market_results:
-        stmt = select(Instrument).options(selectinload(Instrument.provider_mappings)).where(Instrument.is_active == True)
+        stmt = select(Instrument).options(selectinload(Instrument.provider_mappings)).where(
+            Instrument.is_active == True,
+            Instrument.asset_class != AssetClass.FX_REFERENCE
+        )
         if symbols:
             stmt = stmt.where(Instrument.symbol.in_(symbols))
 
@@ -253,6 +256,8 @@ async def scan_opportunities(db: AsyncSession, user: User, portfolio_id: int | N
             instrument_id=inst.id,
             symbol=inst.symbol,
             name=inst.name,
+            asset_class=str(inst.asset_class),
+            currency=inst.currency,
             quote_price=quote_price_val,
             quote_data_state=mr["quote_data_state"],
             quote_as_of=datetime.fromisoformat(mr["quote_as_of"]) if mr["quote_as_of"] else None,

@@ -33,32 +33,48 @@ class BasketBuilderService:
         valuation = evaluations.get(portfolio_id)
 
         if not valuation or not valuation.valuation_complete:
-            # We can't build a basket if we can't value existing positions
             data_state = "INCOMPLETE"
             valuation_complete = False
         else:
             data_state = valuation.data_freshness
             valuation_complete = True
 
+        usd_try_rate_result = await self.fx.get_usd_try_rate(db)
+        if usd_try_rate_result:
+            usd_try_rate = usd_try_rate_result.rate
+        else:
+            usd_try_rate = None
+            valuation_complete = False
+            data_state = "INCOMPLETE"
+
         cash_balance = valuation.cash_balance if valuation else Decimal("0")
         current_market_value = valuation.invested_market_value if valuation and valuation.invested_market_value else Decimal("0")
-        total_value_before_deploy = cash_balance + current_market_value
+        total_portfolio_value = cash_balance + current_market_value
 
-        # Calculate target cash to preserve based on target weight
+        # Calculate target cash to preserve
         risk_tolerance = user_profile.risk_tolerance if user_profile and user_profile.risk_tolerance else "MEDIUM"
         target_weights = AllocationService.get_target_weights(risk_tolerance)
 
         target_cash_weight = target_weights.get("CASH", Decimal("0"))
-        total_value_after_deploy = total_value_before_deploy + deploy_amount
-        target_cash_reserve = total_value_after_deploy * target_cash_weight
+        target_cash_reserve = total_portfolio_value * target_cash_weight
+        minimum_cash_to_keep = max(target_cash_reserve, Decimal("0"))
+        
+        deployable_cash_under_policy = max(Decimal("0"), cash_balance - minimum_cash_to_keep)
 
-        available_cash = cash_balance + deploy_amount
+        # Enforce validation: deploy_amount <= available_cash
+        if deploy_amount > cash_balance:
+            raise ValueError("Requested deploy amount exceeds available cash")
+        if deploy_amount <= 0:
+            raise ValueError("Deploy amount must be > 0")
+
+        actual_maximum_deployment = min(deploy_amount, deployable_cash_under_policy)
+        remaining_deploy = actual_maximum_deployment
 
         # Gather all existing positions by asset class
         current_sleeve_values = {
-            AssetClass.BIST_EQUITY: Decimal("0"),
-            AssetClass.US_EQUITY: Decimal("0"),
-            AssetClass.GOLD: Decimal("0"),
+            str(AssetClass.BIST_EQUITY): Decimal("0"),
+            str(AssetClass.US_EQUITY): Decimal("0"),
+            str(AssetClass.GOLD): Decimal("0"),
         }
 
         if valuation and valuation.positions:
@@ -67,15 +83,15 @@ class BasketBuilderService:
                 if ac and ac in current_sleeve_values and p.get("market_value"):
                     current_sleeve_values[ac] += p["market_value"]
 
-        # Calculate deficits and proposed allocations
+        # Calculate deficits
         sleeves = []
         for ac, target_w in target_weights.items():
             if ac == "CASH":
                 continue
 
             current_v = current_sleeve_values.get(ac, Decimal("0"))
-            current_w = (current_v / total_value_before_deploy) if total_value_before_deploy > 0 else Decimal("0")
-            target_v = total_value_after_deploy * target_w
+            current_w = (current_v / total_portfolio_value) if total_portfolio_value > 0 else Decimal("0")
+            target_v = total_portfolio_value * target_w
             deficit_v = max(Decimal("0"), target_v - current_v)
 
             sleeves.append({
@@ -92,23 +108,41 @@ class BasketBuilderService:
                 "deficit": deficit_v
             })
 
-        # Get actionable opportunities
-        # We need a User object for scan_opportunities, but we have user_profile.
-        user = await db.scalar(select(User).where(User.id == user_profile.id))
+        user = await db.scalar(select(User).where(User.id == user_profile.user_id))
         opportunities = await scan_opportunities(db, user, portfolio_id)
 
-        # Filter actionable: market_score >= 70, personal_action == BUY
-        actionable = [o for o in opportunities if o.personal_action in ("BUY", "STRONG_BUY")]
-        actionable.sort(key=lambda x: x.market_score, reverse=True)
+        # Candidate Eligibility
+        actionable = []
+        for o in opportunities:
+            if o.asset_class == AssetClass.FX_REFERENCE:
+                continue
+            action = o.personal_action or o.market_view
+            if action not in ("BUY", "STRONG_BUY"):
+                continue
+            if o.sizing_state != "OK":
+                continue
+            if getattr(o, "missing_data", False):
+                continue
+            if getattr(o, "data_quality_score", 0) < 50:
+                continue
+            quote_price = getattr(o, "quote_price", getattr(o, "current_price", Decimal("0")))
+            if quote_price <= 0:
+                continue
+            
+            currency = getattr(o, "currency", "TRY")
+            if currency == "USD" and usd_try_rate is None:
+                continue
+            
+            if getattr(o, "max_executable_quantity", Decimal("1")) <= 0:
+                continue
 
-        usd_try_rate = await self.fx.get_usd_try_rate(db)
-        if usd_try_rate is None:
-            usd_try_rate = Decimal("1.0") # Fallback, though valuation should catch it
+            actionable.append(o)
+
+        actionable.sort(key=lambda x: getattr(x, "market_score", 0), reverse=True)
 
         basket_items = []
         allocated_total = Decimal("0")
 
-        # We will track current values per instrument to enforce 30% rule
         pos_values = {}
         if valuation and valuation.positions:
             for p in valuation.positions:
@@ -122,9 +156,9 @@ class BasketBuilderService:
             ac = sleeve.asset_class
 
             if deficit <= 0:
+                sleeve.unallocated_reason = "TARGET_REACHED"
                 continue
 
-            # Candidates for this sleeve
             candidates = [o for o in actionable if str(o.asset_class) == ac]
 
             if not candidates:
@@ -135,20 +169,23 @@ class BasketBuilderService:
             sleeve_allocated = Decimal("0")
 
             for candidate in candidates:
-                # Calculate fx
-                if candidate.currency == "USD":
-                    fx = usd_try_rate
-                else:
-                    fx = Decimal("1.0")
+                if remaining_deploy <= 0:
+                    break
 
-                analysis_base = candidate.current_price * fx
+                currency = getattr(candidate, "currency", "TRY")
+                fx = usd_try_rate if currency == "USD" else Decimal("1.0")
+                
+                quote_price = getattr(candidate, "quote_price", getattr(candidate, "current_price", Decimal("0")))
+                analysis_base = quote_price * fx
 
-                # Check 30% limit
                 current_pos_val = pos_values.get(candidate.instrument_id, Decimal("0"))
-                max_allowed_total_val = total_value_after_deploy * MAX_POS_WEIGHT
+                max_allowed_total_val = total_portfolio_value * MAX_POS_WEIGHT
                 room = max(Decimal("0"), max_allowed_total_val - current_pos_val)
 
-                budget = min(budget_per_candidate, room)
+                # Respect sizing capacity
+                sizing_max_budget = getattr(candidate, "max_executable_budget", Decimal("Infinity"))
+                
+                budget = min(budget_per_candidate, room, remaining_deploy, sizing_max_budget)
 
                 if budget <= 0 or analysis_base <= 0:
                     continue
@@ -158,30 +195,35 @@ class BasketBuilderService:
                 if quantity <= 0:
                     continue
 
+                # Respect max executable quantity from sizing
+                sizing_max_quantity = getattr(candidate, "max_executable_quantity", Decimal("Infinity"))
+                quantity = int(min(Decimal(quantity), sizing_max_quantity))
+
                 proposed_base = Decimal(quantity) * analysis_base
-                proposed_native = Decimal(quantity) * candidate.current_price
+                proposed_native = Decimal(quantity) * quote_price
 
                 sleeve_allocated += proposed_base
                 allocated_total += proposed_base
+                remaining_deploy -= proposed_base
 
                 basket_items.append(BasketItemDTO(
                     instrument_id=candidate.instrument_id,
                     symbol=candidate.symbol,
                     name=candidate.name,
                     asset_class=ac,
-                    native_currency=candidate.currency,
+                    native_currency=currency,
                     market_view=candidate.market_view,
                     personal_action=candidate.personal_action,
-                    market_score=candidate.market_score,
-                    data_quality_score=candidate.data_quality_score,
-                    analysis_native_price=candidate.current_price,
+                    market_score=getattr(candidate, "market_score", 0),
+                    data_quality_score=getattr(candidate, "data_quality_score", 0),
+                    analysis_native_price=quote_price,
                     fx_rate_to_base=fx,
                     analysis_base_price=analysis_base,
                     proposed_quantity=Decimal(quantity),
                     proposed_native_budget=proposed_native,
                     proposed_base_budget=proposed_base,
-                    projected_weight=(current_pos_val + proposed_base) / total_value_after_deploy,
-                    recommended_target_weight=budget_per_candidate / total_value_after_deploy,
+                    projected_weight=(current_pos_val + proposed_base) / total_portfolio_value,
+                    recommended_target_weight=budget_per_candidate / total_portfolio_value,
                     hard_max_weight=MAX_POS_WEIGHT,
                     sizing_state="OK",
                     reason_codes=[]
@@ -190,20 +232,20 @@ class BasketBuilderService:
             sleeve.proposed_allocation = sleeve_allocated
 
         final_sleeves = [s["dto"] for s in sleeves]
-        unallocated = deploy_amount - allocated_total
+        unallocated_from_deploy = deploy_amount - allocated_total
 
         return BasketPreviewResponse(
             portfolio_id=portfolio_id,
             base_currency="TRY",
             risk_tolerance=risk_tolerance,
             allocation_policy_version="v1",
-            portfolio_total_value=total_value_before_deploy,
-            available_cash=available_cash,
+            portfolio_total_value=total_portfolio_value,
+            available_cash=cash_balance,
             requested_deploy_amount=deploy_amount,
             allocated_amount=allocated_total,
-            unallocated_amount=unallocated,
+            unallocated_amount=unallocated_from_deploy,
             target_cash_reserve=target_cash_reserve,
-            constraint_unallocated=unallocated,
+            constraint_unallocated=deploy_amount - actual_maximum_deployment,
             valuation_complete=valuation_complete,
             data_state=data_state,
             sleeves=final_sleeves,

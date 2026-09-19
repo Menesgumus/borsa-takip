@@ -32,6 +32,8 @@ class OpportunityResult(BaseModel):
     instrument_id: int
     symbol: str
     name: str
+    asset_class: str
+    currency: str
 
     quote_price: Decimal | None = None
     quote_data_state: str | None = None

@@ -13,8 +13,15 @@ def mock_registry():
 
 @pytest.fixture
 def mock_fx():
+    from app.services.fx_service import FxRateResult
+    from datetime import datetime
     fx = AsyncMock()
-    fx.get_usd_try_rate.return_value = Decimal("35.00")
+    fx.get_usd_try_rate.return_value = FxRateResult(
+        rate=Decimal("35.00"),
+        source="mock",
+        as_of=datetime.now(),
+        data_state="LIVE"
+    )
     return fx
 
 @pytest.mark.asyncio
@@ -55,7 +62,16 @@ async def test_no_forced_buy_preserves_cash():
 
 
     service = BasketBuilderService(AsyncMock())
-    service.fx.get_usd_try_rate = AsyncMock(return_value=Decimal("35.0"))
+    from app.services.fx_service import FxRateResult
+    from datetime import datetime
+    
+    fx_result = FxRateResult(
+        rate=Decimal("35.0"),
+        source="mock",
+        as_of=datetime.now(),
+        data_state="LIVE"
+    )
+    service.fx.get_usd_try_rate = AsyncMock(return_value=fx_result)
 
     profile = UserProfile(id=1, risk_tolerance="HIGH")
     # HIGH target has 45% US Equity, 45% BIST, 10% Gold.

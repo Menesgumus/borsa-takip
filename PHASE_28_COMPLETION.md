@@ -12,6 +12,7 @@ Phase 28 evolved Borsa Takip from a BIST-only opportunity tracker into a **deter
 
 ### 2. Provider Integration & Real World Instruments
 - Wrote an idempotent Python seed script (`seed_real_instruments.py`) that wires the initial 10 US equities (AAPL, MSFT, TSLA, NVDA, etc.) and `GLDTR.IS` Gold ETF directly to the generic Yahoo provider `v8/finance/chart` endpoint.
+- Included `USDTRY=X` specifically as an `FX_REFERENCE` utility asset.
 - Extended deterministic QA fixtures (`QAUS`, `QAGOLD`, `QAUSDTRY`) to lock down integration test outcomes.
 
 ### 3. FX Architecture
@@ -27,14 +28,14 @@ The allocation service is entirely in-memory and operates with determinism:
 5.  **No-Forced-Buy**: If an instrument's minimum unit cost exceeds the remaining sleeve budget, it is correctly skipped without crashing.
 
 ### 5. Frontend UI/UX
-- **BasketBuilder Component**: An interactive preview wizard injected into the Portfolio Details page. Shows the unallocated/allocated split and details every constraint reason code. Allows users to override accepted `native_price` for manual execution mirroring.
+- **BasketBuilder Component**: An interactive preview wizard injected into the Portfolio Details page. Shows the unallocated/allocated split and details every constraint reason code. Allows users to override accepted `native_price` for manual execution mirroring, triggering isolated row-level execution previews without corrupting the main `deploy_amount` ledger.
 - **Instrument Search**: Upgraded from "Hisse Ara" to asset-neutral terminology ("Sembol veya Varlık Ara").
-- **Opportunities Tabs**: Added asset-class filtration tabs directly to the Opportunities view.
-- **Formatting**: Integrated `formatMoney` universally across data grids.
+- **Opportunities Tabs**: Added asset-class filtration tabs directly to the Opportunities view utilizing the `asset_class` query parameter API.
+- **Formatting**: Integrated `formatMoney` universally across data grids, dynamically respecting `currency`.
 
 ### 6. QA Engineering & Stability
 - Test environment recovery: Remedied legacy Pytest cross-contamination issues caused by Redis `scan_opportunities` cache leakage between parallel tests.
-- Re-architected integration endpoints to support multiple asynchronous provider mocking strategies natively.
-- Full E2E Playwright coverage deployed for deterministic Basket flows.
+- Execution invariants rigorously tested: Tested manual trades and preview recalculations scaling by appropriate canonical base ledgers.
+- Full E2E Playwright coverage deployed for deterministic Basket flows without anti-patterns (no `.catch()` silent failures).
 
 Phase 28 is fully operational and safely establishes the foundation for Phase 29 Portfolio Lifecycles (Hold/Reduce/Sell workflows).

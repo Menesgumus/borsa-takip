@@ -13,6 +13,7 @@ router = APIRouter()
 @router.get("", response_model=list[OpportunityResult])
 async def get_opportunities(
     portfolio_id: int | None = Query(None),
+    asset_class: str | None = Query(None),
     limit: int = Query(10, ge=1, le=50),
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
@@ -24,6 +25,8 @@ async def get_opportunities(
             raise HTTPException(status_code=404, detail="Portfolio not found or unauthorized")
 
     results = await scan_opportunities(db, user=current_user, portfolio_id=portfolio_id, limit=limit)
+    if asset_class and asset_class != "ALL":
+        results = [r for r in results if r.asset_class == asset_class]
     return results
 
 @router.get('/{symbol}', response_model=OpportunityResult)

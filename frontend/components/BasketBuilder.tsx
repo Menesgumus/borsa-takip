@@ -22,18 +22,7 @@ export function BasketBuilder({ portfolioId }: BasketBuilderProps) {
     queryFn: async () => {
       const payload: any = {};
       if (amount && !isNaN(Number(amount))) {
-        payload.amount = Number(amount);
-      }
-      
-      const pricesToSubmit: Record<number, number> = {};
-      Object.entries(manualPrices).forEach(([id, priceStr]) => {
-        if (priceStr && !isNaN(Number(priceStr))) {
-          pricesToSubmit[Number(id)] = Number(priceStr);
-        }
-      });
-      
-      if (Object.keys(pricesToSubmit).length > 0) {
-        payload.manual_prices = pricesToSubmit;
+        payload.deploy_amount = Number(amount);
       }
 
       return fetchApi(`/api/v1/portfolios/${portfolioId}/basket-preview`, {
@@ -53,38 +42,23 @@ export function BasketBuilder({ portfolioId }: BasketBuilderProps) {
     }));
   };
 
-  const executeMutation = useMutation({
-    mutationFn: async () => {
-      const payload: any = {};
-      if (amount && !isNaN(Number(amount))) {
-        payload.amount = Number(amount);
-      }
-      
-      const pricesToSubmit: Record<number, number> = {};
-      Object.entries(manualPrices).forEach(([id, priceStr]) => {
-        if (priceStr && !isNaN(Number(priceStr))) {
-          pricesToSubmit[Number(id)] = Number(priceStr);
-        }
-      });
-      
-      if (Object.keys(pricesToSubmit).length > 0) {
-        payload.manual_prices = pricesToSubmit;
-      }
-
-      return fetchApi(`/api/v1/portfolios/${portfolioId}/execution-preview`, {
+  const updateExecutionPreview = async (instrumentId: number) => {
+    const priceStr = manualPrices[instrumentId];
+    if (!priceStr || isNaN(Number(priceStr))) return;
+    
+    try {
+      const res = (await fetchApi(`/api/v1/portfolios/${portfolioId}/execution-preview`, {
         method: 'POST',
-        body: JSON.stringify(payload)
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['portfolios'] });
-      queryClient.invalidateQueries({ queryKey: ['portfolio', portfolioId] });
-      alert("Sepet başarıyla oluşturuldu/uygulandı!");
-    },
-    onError: (err: any) => {
+        body: JSON.stringify({
+          instrument_id: instrumentId,
+          manual_native_price: Number(priceStr)
+        })
+      })) as any;
+      alert(`İşlem Önizlemesi Alındı:\nAdet: ${res.recomputed_quantity}\nBütçe: ${res.recomputed_budget}`);
+    } catch (err: any) {
       alert("Hata: " + err.message);
     }
-  });
+  };
 
   if (isLoading && !preview) {
     return (
@@ -130,18 +104,10 @@ export function BasketBuilder({ portfolioId }: BasketBuilderProps) {
           </div>
           <button 
             onClick={() => refetch()}
-            className="px-4 py-2 bg-navy-50 text-navy-700 hover:bg-navy-100 rounded-lg font-medium transition-colors flex items-center gap-2"
+            className="px-6 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-bold shadow-sm transition-colors flex items-center gap-2"
           >
-            <RefreshCw size={16} />
-            Yenile
-          </button>
-          <button 
-            onClick={() => executeMutation.mutate()}
-            disabled={executeMutation.isPending || !preview?.items.some(i => i.proposed_quantity > 0)}
-            className="px-6 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-lg font-bold shadow-sm transition-colors disabled:opacity-50 flex items-center gap-2"
-          >
-            {executeMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator size={18} />}
-            Sepeti Uygula
+            <Calculator size={18} />
+            Sepeti Hesapla
           </button>
         </div>
       </div>
@@ -236,14 +202,22 @@ export function BasketBuilder({ portfolioId }: BasketBuilderProps) {
                         {formatMoney(item.analysis_native_price, item.native_currency)}
                       </td>
                       <td className="px-5 py-3">
-                        <input
-                          type="number"
-                          step="0.01"
-                          placeholder={item.analysis_native_price.toString()}
-                          value={manualPrices[item.instrument_id] ?? ''}
-                          onChange={(e) => handlePriceChange(item.instrument_id, e.target.value)}
-                          className="w-24 text-right border border-slate-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-primary-500 focus:outline-none"
-                        />
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder={item.analysis_native_price.toString()}
+                            value={manualPrices[item.instrument_id] ?? ''}
+                            onChange={(e) => handlePriceChange(item.instrument_id, e.target.value)}
+                            className="w-24 text-right border border-slate-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-primary-500 focus:outline-none"
+                          />
+                          <button
+                            onClick={() => updateExecutionPreview(item.instrument_id)}
+                            className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded"
+                          >
+                            Önizle
+                          </button>
+                        </div>
                       </td>
                       <td className="px-5 py-3 text-right font-bold text-navy-900">
                         {item.proposed_quantity}

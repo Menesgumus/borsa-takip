@@ -2,6 +2,8 @@ export interface OpportunityListResult {
   instrument_id: number;
   symbol: string;
   name: string;
+  asset_class: string;
+  currency: string;
 
   quote_price: number | null;
   quote_data_state: string | null;
