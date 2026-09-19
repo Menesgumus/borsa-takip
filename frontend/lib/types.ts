@@ -19,6 +19,11 @@ export interface PositionDTO {
   market_value: number | null;
   unrealized_pnl: number | null;
   unrealized_pnl_percent: number | null;
+  asset_class?: string | null;
+  native_currency?: string | null;
+  average_cost_native?: number | null;
+  current_native_price?: number | null;
+  current_fx_rate_to_base?: number | null;
 }
 
 export interface PortfolioOverviewDTO {
@@ -63,4 +68,56 @@ export interface TransactionRead {
   created_at: string;
   notes: string | null;
   strategy: string | null;
+}
+
+export interface SleeveAllocationDTO {
+  asset_class: string;
+  current_value: number;
+  current_weight: number;
+  target_weight: number;
+  target_value: number;
+  deficit_value: number;
+  proposed_allocation: number;
+  unallocated_reason: string | null;
+}
+
+export interface BasketItemDTO {
+  instrument_id: number;
+  symbol: string;
+  name: string;
+  asset_class: string;
+  native_currency: string;
+  market_view: string;
+  personal_action: string;
+  market_score: number;
+  data_quality_score: number;
+  analysis_native_price: number;
+  fx_rate_to_base: number;
+  analysis_base_price: number;
+  proposed_quantity: number;
+  proposed_native_budget: number;
+  proposed_base_budget: number;
+  projected_weight: number;
+  recommended_target_weight: number;
+  hard_max_weight: number;
+  sizing_state: string;
+  reason_codes: string[];
+}
+
+export interface BasketPreviewResponse {
+  portfolio_id: number;
+  base_currency: string;
+  risk_tolerance: string;
+  allocation_policy_version: string;
+  portfolio_total_value: number;
+  available_cash: number;
+  requested_deploy_amount: number;
+  allocated_amount: number;
+  unallocated_amount: number;
+  target_cash_reserve: number;
+  constraint_unallocated: number;
+  valuation_complete: boolean;
+  data_state: string;
+  sleeves: SleeveAllocationDTO[];
+  items: BasketItemDTO[];
 }

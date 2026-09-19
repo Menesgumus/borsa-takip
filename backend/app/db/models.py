@@ -101,6 +101,13 @@ class AuditLog(Base):
 # ---------------------------------------------------------------------------
 
 
+class AssetClass(enum.StrEnum):
+    BIST_EQUITY = "BIST_EQUITY"
+    US_EQUITY = "US_EQUITY"
+    GOLD = "GOLD"
+    FX_REFERENCE = "FX_REFERENCE"
+
+
 class InstrumentType(enum.StrEnum):
     STOCK = "STOCK"
     ETF = "ETF"
@@ -118,6 +125,14 @@ class Instrument(Base):
     symbol = Column(String, unique=True, index=True, nullable=False)  # e.g. "BIST:GARAN"
     name = Column(String, nullable=False)
     exchange = Column(String, nullable=False, index=True)  # e.g. "BIST"
+
+    asset_class: typing.Any = Column(
+        Enum(AssetClass, name="assetclass", create_constraint=False, create_type=False),
+        nullable=False,
+        default=AssetClass.BIST_EQUITY,
+    )
+    currency = Column(String(3), nullable=False, default="TRY")
+
     instrument_type: typing.Any = Column(
         Enum(InstrumentType, name="instrumenttype", create_constraint=False, create_type=False),
         nullable=False,
@@ -296,8 +311,16 @@ class PortfolioTransaction(Base):
 
     transaction_type = Column(Enum(TransactionType), nullable=False)
     quantity = Column(Numeric(precision=24, scale=8), nullable=False, default=0)
+
+    # Base currency canonical ledger values
     price = Column(Numeric(precision=18, scale=6), nullable=False, default=0)
     fee = Column(Numeric(precision=18, scale=6), nullable=False, default=0)
+
+    # Multi-asset accounting fields
+    native_price = Column(Numeric(precision=18, scale=6), nullable=True)
+    native_currency = Column(String(3), nullable=True)
+    fx_rate_to_base = Column(Numeric(precision=18, scale=6), nullable=True)
+    execution_source = Column(String(50), nullable=True)  # SYSTEM_QUOTE, MANUAL_BROKER
 
     executed_at = Column(DateTime(timezone=True), nullable=False, index=True)
 

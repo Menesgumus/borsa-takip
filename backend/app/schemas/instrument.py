@@ -5,11 +5,15 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict
 
+from app.db.models import AssetClass
+
 
 class InstrumentBase(BaseModel):
     symbol: str
     name: str
     exchange: str
+    asset_class: AssetClass
+    currency: str
     instrument_type: str
     is_active: bool = True
 

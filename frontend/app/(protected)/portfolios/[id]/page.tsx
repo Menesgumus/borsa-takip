@@ -10,8 +10,9 @@ import { PortfolioActionModal } from "@/components/PortfolioActionModal";
 import { PortfolioCharts } from "@/components/PortfolioCharts";
 import { PortfolioRiskPanel } from "@/components/PortfolioRiskPanel";
 import { PortfolioTransactions } from "@/components/PortfolioTransactions";
-import { formatTry, formatQuantity, getProfitLossColorClass } from "@/lib/financialUi";
+import { formatTry, formatMoney, formatQuantity, getProfitLossColorClass } from "@/lib/financialUi";
 import { DataStateBadge } from "@/components/DataStateBadge";
+import { BasketBuilder } from "@/components/BasketBuilder";
 
 export default function PortfolioDetailPage() {
   const params = useParams();
@@ -40,6 +41,7 @@ export default function PortfolioDetailPage() {
     { id: "pozisyonlar", label: "Açık Pozisyonlar", icon: Briefcase },
     { id: "risk", label: "Risk Analizi", icon: ShieldAlert },
     { id: "islemler", label: "İşlem Geçmişi", icon: History },
+    { id: "sepet", label: "Sepet Oluştur", icon: Briefcase },
   ];
 
   if (isLoading) {
@@ -177,30 +179,38 @@ export default function PortfolioDetailPage() {
                   <thead className="bg-slate-50 text-slate-600 font-medium">
                     <tr>
                       <th className="px-5 py-3">Sembol</th>
-                      <th className="px-5 py-3 text-right">Adet</th>
-                      <th className="px-5 py-3 text-right">Ort. Maliyet</th>
-                      <th className="px-5 py-3 text-right">Anlık Fiyat</th>
-                      <th className="px-5 py-3 text-right">Piyasa Değeri</th>
-                      <th className="px-5 py-3 text-right">Durum (K/Z)</th>
+                        <th className="px-5 py-3 text-right">Varlık Sınıfı</th>
+                        <th className="px-5 py-3 text-right">Adet</th>
+                        <th className="px-5 py-3 text-right">Ort. Maliyet (TRY)</th>
+                        <th className="px-5 py-3 text-right">Anlık Fiyat (Native)</th>
+                        <th className="px-5 py-3 text-right">Anlık Fiyat (TRY)</th>
+                        <th className="px-5 py-3 text-right">Piyasa Değeri (TRY)</th>
+                        <th className="px-5 py-3 text-right">Durum (K/Z)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {summary.positions.map((pos: any) => (
                       <tr key={pos.instrument_id} className="hover:bg-slate-50/50">
-                        <td className="px-5 py-4 font-semibold text-navy-900">
-                          <Link href={`/instruments/${pos.symbol}`} className="hover:text-primary-600 hover:underline">
-                            {pos.symbol}
-                          </Link>
-                        </td>
-                        <td className="px-5 py-4 text-right font-medium">{formatQuantity(pos.quantity)}</td>
-                        <td className="px-5 py-4 text-right text-slate-600">{formatTry(pos.average_cost)}</td>
-                        <td className="px-5 py-4 text-right font-medium">
-                          {pos.current_price != null ? formatTry(pos.current_price) : 'Yetersiz Veri'}
-                        </td>
-                        <td className="px-5 py-4 text-right font-medium">
-                          {pos.market_value != null ? formatTry(pos.market_value) : 'Yetersiz Veri'}
-                        </td>
-                        <td className="px-5 py-4 text-right">
+                          <td className="px-5 py-4 font-semibold text-navy-900">
+                            <Link href={`/instruments/${pos.symbol}`} className="hover:text-primary-600 hover:underline">
+                              {pos.symbol}
+                            </Link>
+                          </td>
+                          <td className="px-5 py-4 text-right text-slate-600 font-medium text-xs">
+                            {pos.asset_class?.replace('_', ' ') || '-'}
+                          </td>
+                          <td className="px-5 py-4 text-right font-medium">{formatQuantity(pos.quantity)}</td>
+                          <td className="px-5 py-4 text-right text-slate-600">{formatTry(pos.average_cost)}</td>
+                          <td className="px-5 py-4 text-right text-slate-600">
+                            {pos.current_native_price != null ? formatMoney(pos.current_native_price, pos.native_currency || "TRY") : '-'}
+                          </td>
+                          <td className="px-5 py-4 text-right font-medium">
+                            {pos.current_price != null ? formatTry(pos.current_price) : 'Yetersiz Veri'}
+                          </td>
+                          <td className="px-5 py-4 text-right font-medium">
+                            {pos.market_value != null ? formatTry(pos.market_value) : 'Yetersiz Veri'}
+                          </td>
+                          <td className="px-5 py-4 text-right">
                           {pos.unrealized_pnl != null ? (
                             <span className={`font-semibold ${getProfitLossColorClass(pos.unrealized_pnl)}`}>
                               {Number(pos.unrealized_pnl) > 0 ? '+' : ''}{formatTry(pos.unrealized_pnl)}
@@ -225,6 +235,14 @@ export default function PortfolioDetailPage() {
         {currentTab === 'islemler' && (
           <div className="bg-surface rounded-xl border border-navy-800/10 shadow-sm overflow-hidden">
             <PortfolioTransactions portfolioId={id} />
+          </div>
+        )}
+        {currentTab === 'sepet' && (
+          <div className="bg-surface rounded-xl border border-navy-800/10 shadow-sm overflow-hidden p-6">
+             <h2 className="text-xl font-bold text-navy-900 mb-4">Sepet Oluştur (Basket Builder)</h2>
+             <div>
+               <BasketBuilder portfolioId={Number(id)} />
+             </div>
           </div>
         )}
       </div>

@@ -32,7 +32,8 @@ class ValuationResult:
 def calculate_portfolio_valuation(
     state: PortfolioState,
     instruments: dict[int, Instrument],
-    quotes: dict[int, QuoteDTO]
+    quotes: dict[int, QuoteDTO],
+    usd_try_rate: Decimal | None = None
 ) -> ValuationResult:
     total_unrealized_pnl = Decimal("0")
     invested_market_value = Decimal("0")
@@ -48,6 +49,8 @@ def calculate_portfolio_valuation(
         instrument = instruments.get(inst_id)
         symbol = instrument.symbol if instrument else "UNKNOWN"
         name = instrument.name if instrument else "Unknown Instrument"
+        asset_class = instrument.asset_class if instrument else None
+        currency = instrument.currency if instrument else "TRY"
 
         quote = quotes.get(inst_id)
 
@@ -55,17 +58,31 @@ def calculate_portfolio_valuation(
         market_value = None
         unrealized_pnl = None
         unrealized_pnl_percent = None
+        current_native_price = None
+        fx_rate_used = Decimal("1.0")
 
         if quote:
-            current_price = quote.price
-            market_value = current_price * pos.quantity
-            cost_basis = pos.average_cost * pos.quantity
-            unrealized_pnl = market_value - cost_basis
-            if cost_basis > 0:
-                unrealized_pnl_percent = (unrealized_pnl / cost_basis) * 100
+            current_native_price = quote.price
 
-            invested_market_value += market_value
-            total_unrealized_pnl += unrealized_pnl
+            if currency == "USD":
+                if usd_try_rate is not None:
+                    fx_rate_used = usd_try_rate
+                    current_price = current_native_price * fx_rate_used
+                else:
+                    current_price = None
+                    valuation_complete = False
+            else:
+                current_price = current_native_price
+
+            if current_price is not None:
+                market_value = current_price * pos.quantity
+                cost_basis = pos.average_cost * pos.quantity
+                unrealized_pnl = market_value - cost_basis
+                if cost_basis > 0:
+                    unrealized_pnl_percent = (unrealized_pnl / cost_basis) * 100
+
+                invested_market_value += market_value
+                total_unrealized_pnl += unrealized_pnl
 
             if getattr(quote, 'is_delayed', False) and data_freshness == "LIVE":
                 data_freshness = "DELAYED"
@@ -84,7 +101,12 @@ def calculate_portfolio_valuation(
             "current_price": current_price,
             "market_value": market_value,
             "unrealized_pnl": unrealized_pnl,
-            "unrealized_pnl_percent": unrealized_pnl_percent
+            "unrealized_pnl_percent": unrealized_pnl_percent,
+            "asset_class": str(asset_class) if asset_class else None,
+            "native_currency": currency,
+            "average_cost_native": None,  # Not calculated for legacy BIST
+            "current_native_price": current_native_price,
+            "current_fx_rate_to_base": fx_rate_used if currency == "USD" else None
         })
 
     if not valuation_complete:
@@ -174,8 +196,18 @@ async def evaluate_portfolios(db: AsyncSession, portfolios: Sequence[Portfolio])
             except ProviderUnavailableError:
                 pass
 
+    usd_try_rate = Decimal("1.0")
+    if any(inst.currency == "USD" for inst in instruments.values()):
+        from app.services.fx_service import FxRateService
+        fx_service = FxRateService(registry)
+        rate = await fx_service.get_usd_try_rate(db)
+        if rate:
+            usd_try_rate = rate
+        else:
+            usd_try_rate = None
+
     results = {}
     for p in portfolios:
-        results[int(p.id)] = calculate_portfolio_valuation(states[p.id], instruments, quotes)
+        results[int(p.id)] = calculate_portfolio_valuation(states[p.id], instruments, quotes, usd_try_rate)
 
     return results

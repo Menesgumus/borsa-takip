@@ -3,6 +3,23 @@
  */
 
 // Formatters
+export function formatMoney(value: number | string | null | undefined, currency: string = "TRY"): string {
+  if (value === null || value === undefined) return "-";
+  const num = typeof value === "string" ? parseFloat(value) : value;
+  if (isNaN(num)) return "-";
+  
+  const formatter = new Intl.NumberFormat("tr-TR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  
+  const formatted = formatter.format(num);
+  
+  if (currency === "USD") return "$" + formatted;
+  if (currency === "TRY") return formatted + " ₺";
+  return formatted + " " + currency;
+}
+
 export function formatTry(value: number | string | null | undefined): string {
   if (value === null || value === undefined) return "-";
   const num = typeof value === "string" ? parseFloat(value) : value;

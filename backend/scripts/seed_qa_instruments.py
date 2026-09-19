@@ -29,22 +29,31 @@ os.environ.setdefault("POSTGRES_DB", "borsa_takip_test")
 # Add parent to path so app imports work from scripts/
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from sqlalchemy import delete, select, update  # noqa: E402
+from sqlalchemy import delete, select  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Instrument, InstrumentType, ProviderMapping, OHLCVDaily, FundamentalData  # noqa: E402
+from app.core.redis import get_redis_client
+from app.db.models import (  # noqa: E402
+    AssetClass,
+    FundamentalData,
+    Instrument,
+    InstrumentType,
+    OHLCVDaily,
+    ProviderMapping,
+)
 from app.db.session import async_session_maker  # noqa: E402
 from app.market.mock_provider import MockMarketDataProvider
-from app.core.redis import get_redis_client
 
 QA_INSTRUMENTS = [
-    {"symbol": "AEFES", "name": "Anadolu Efes Biracilik", "exchange": "BIST"},
-    {"symbol": "THYAO", "name": "TǬrk Hava Yollar", "exchange": "BIST"},
-    {"symbol": "GARAN", "name": "Garanti Bankas", "exchange": "BIST"},
-    {"symbol": "ASELS", "name": "Aselsan Elektronik", "exchange": "BIST"},
-    {"symbol": "SISE",  "name": "?iYecam ?irketleri", "exchange": "BIST"},
-    # The dedicated QA Deterministic Buy Fixture
-    {"symbol": "QABUY", "name": "QA Deterministic Buy Fixture", "exchange": "QA"},
+    {"symbol": "AEFES", "name": "Anadolu Efes Biracılık", "exchange": "BIST", "asset_class": AssetClass.BIST_EQUITY, "currency": "TRY"},
+    {"symbol": "THYAO", "name": "Türk Hava Yolları", "exchange": "BIST", "asset_class": AssetClass.BIST_EQUITY, "currency": "TRY"},
+    {"symbol": "GARAN", "name": "Garanti Bankası", "exchange": "BIST", "asset_class": AssetClass.BIST_EQUITY, "currency": "TRY"},
+    {"symbol": "ASELS", "name": "Aselsan Elektronik", "exchange": "BIST", "asset_class": AssetClass.BIST_EQUITY, "currency": "TRY"},
+    {"symbol": "SISE",  "name": "Şişecam Şirketleri", "exchange": "BIST", "asset_class": AssetClass.BIST_EQUITY, "currency": "TRY"},
+    {"symbol": "QABUY", "name": "QA Deterministic Buy Fixture", "exchange": "QA", "asset_class": AssetClass.BIST_EQUITY, "currency": "TRY"},
+    {"symbol": "QAUS", "name": "QA US Deterministic Fixture", "exchange": "QA", "asset_class": AssetClass.US_EQUITY, "currency": "USD"},
+    {"symbol": "QAGOLD", "name": "QA Gold Deterministic Fixture", "exchange": "QA", "asset_class": AssetClass.GOLD, "currency": "TRY"},
+    {"symbol": "QAUSDTRY", "name": "QA USD/TRY Deterministic Fixture", "exchange": "QA", "asset_class": AssetClass.FX_REFERENCE, "currency": "TRY", "type": InstrumentType.CURRENCY},
 ]
 
 async def seed_qabuy_technical_data(session: AsyncSession, instrument_id: int):
@@ -53,22 +62,22 @@ async def seed_qabuy_technical_data(session: AsyncSession, instrument_id: int):
     quote = await provider.get_quote("QABUY")
     fixture_price = quote.price
     volume = quote.volume
-    
+
     # Generate 250 sequential daily candles to satisfy scanner (SMA200 requires >= 200)
     # Ensure they form a clean bullish trend/stable behavior
     # We use stable price = fixture_price, with slight variations
     now = datetime.now(UTC)
     start_date = (now - timedelta(days=250)).replace(hour=0, minute=0, second=0, microsecond=0)
-    
+
     await session.execute(delete(OHLCVDaily).where(OHLCVDaily.instrument_id == instrument_id))
-    
+
     candles = []
     # Create an uptrend to guarantee STRONG_BUY from MACD and RSI and SMA
     # For day i in 0..249: price goes from fixture_price * 0.5 up to fixture_price
     for i in range(250):
         trend_factor = Decimal("0.5") + (Decimal("0.5") * Decimal(i) / Decimal(249))
         day_price = fixture_price * trend_factor
-        
+
         # for the final day, make it equal to fixture price
         if i == 249:
             day_price = fixture_price
@@ -83,12 +92,12 @@ async def seed_qabuy_technical_data(session: AsyncSession, instrument_id: int):
             volume=volume,
             provider_name="mock"
         ))
-    
+
     session.add_all(candles)
 
 async def seed_qabuy_fundamental_data(session: AsyncSession, instrument_id: int):
     await session.execute(delete(FundamentalData).where(FundamentalData.instrument_id == instrument_id))
-    
+
     # Strong fundamentals: PE < 15, PB < 2.0
     fund = FundamentalData(
         instrument_id=instrument_id,
@@ -116,28 +125,30 @@ async def seed() -> None:
                     symbol=symbol,
                     name=inst_data["name"],
                     exchange=inst_data["exchange"],
-                    instrument_type=InstrumentType.STOCK,
+                    instrument_type=inst_data.get("type", InstrumentType.STOCK),
+                    asset_class=inst_data["asset_class"],
+                    currency=inst_data["currency"],
                     is_active=True,
                 )
                 session.add(instrument)
                 await session.flush()
                 print(f"  + Created instrument: {symbol} (id={instrument.id})")
-            
+
             # Ensure mock provider mapping is primary
             # And demote any other mappings
             mappings_result = await session.execute(
                 select(ProviderMapping).where(ProviderMapping.instrument_id == instrument.id)
             )
             mappings = mappings_result.scalars().all()
-            
+
             mock_mapping = next((m for m in mappings if m.provider_name == "mock"), None)
-            
+
             # Demote others
             for m in mappings:
                 if m.provider_name != "mock" and m.is_primary:
                     m.is_primary = False
                     session.add(m)
-            
+
             if mock_mapping is None:
                 mock_mapping = ProviderMapping(
                     instrument_id=instrument.id,
@@ -153,15 +164,16 @@ async def seed() -> None:
                     mock_mapping.is_primary = True
                     session.add(mock_mapping)
                 print(f"    - Existing mock mapping for {symbol} verified as primary")
-            
-            if symbol == "QABUY":
+
+            if symbol in ("QABUY", "QAUS", "QAGOLD"):
                 await seed_qabuy_technical_data(session, instrument.id)
-                await seed_qabuy_fundamental_data(session, instrument.id)
-                print(f"    + Seeded deterministic technical and fundamental data for QABUY")
+                if symbol != "QAGOLD":
+                    await seed_qabuy_fundamental_data(session, instrument.id)
+                print(f"    + Seeded deterministic technical data for {symbol}")
 
         await session.commit()
         print("Database seeded.")
-        
+
     # Clear QA Redis opportunities cache
     redis_gen = get_redis_client()
     redis = await anext(redis_gen)

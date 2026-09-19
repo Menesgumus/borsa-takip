@@ -12,6 +12,7 @@ import { InstrumentSearch } from "@/components/InstrumentSearch";
 
 export default function OpportunitiesPage() {
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<number | null>(null);
+  const [selectedAssetClass, setSelectedAssetClass] = useState<string>("BIST_EQUITY");
   const [isSelectionReady, setIsSelectionReady] = useState(false);
 
   const { data: portfolios, isLoading: isPortfoliosLoading } = useQuery({
@@ -45,11 +46,14 @@ export default function OpportunitiesPage() {
   };
 
   const { data: instruments, isLoading } = useQuery({
-    queryKey: ["opportunities", selectedPortfolioId],
+    queryKey: ["opportunities", selectedPortfolioId, selectedAssetClass],
     queryFn: () => {
-      const url = selectedPortfolioId 
+      let url = selectedPortfolioId 
         ? `/api/v1/opportunities?portfolio_id=${selectedPortfolioId}&limit=20`
         : `/api/v1/opportunities?limit=20`;
+      if (selectedAssetClass !== "ALL") {
+        url += `&asset_class=${selectedAssetClass}`;
+      }
       return fetchApi(url);
     },
     enabled: isSelectionReady,
@@ -203,22 +207,50 @@ export default function OpportunitiesPage() {
           <p className="text-navy-700 mt-1">Sistem tarafından belirlenen güncel potansiyeller.</p>
         </div>
         
-        <div className="flex flex-col gap-1 min-w-[250px]">
-          <label className="text-sm font-medium text-navy-700">Portföy Uyumu İçin Seçin</label>
-          <select 
-            className="w-full bg-surface border border-navy-800/20 rounded-lg px-3 py-2 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            value={selectedPortfolioId || ""}
-            onChange={(e) => handlePortfolioChange(e.target.value ? Number(e.target.value) : null)}
-          >
-            <option value="">Genel Piyasa Görünümü</option>
-            {!isPortfoliosLoading && Array.isArray(portfolios) && portfolios.map((p: any) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
+        <div className="flex flex-col sm:flex-row gap-4 items-center">
+          <div className="flex flex-col gap-1 min-w-[200px]">
+            <label className="text-sm font-medium text-navy-700">Portföy Seçimi</label>
+            <select 
+              className="w-full bg-surface border border-navy-800/20 rounded-lg px-3 py-2 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              value={selectedPortfolioId || ""}
+              onChange={(e) => handlePortfolioChange(e.target.value ? Number(e.target.value) : null)}
+            >
+              <option value="">Genel Piyasa Görünümü</option>
+              {!isPortfoliosLoading && Array.isArray(portfolios) && portfolios.map((p: any) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+          {selectedPortfolioId && (
+            <div className="mt-5 sm:mt-5">
+              <Link href={`/portfolios/${selectedPortfolioId}?tab=sepet`} className="inline-flex items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 transition-colors">
+                <PieChartIcon className="h-4 w-4 mr-2" />
+                Sepet Oluştur
+              </Link>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="w-full">
+      <div className="border-b border-navy-800/10">
+        <nav className="-mb-px flex space-x-6 overflow-x-auto" aria-label="Tabs">
+          {["BIST_EQUITY", "US_EQUITY", "GOLD", "ALL"].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setSelectedAssetClass(tab)}
+              className={`${
+                selectedAssetClass === tab
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-navy-600 hover:border-navy-300 hover:text-navy-800'
+              } whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition-colors`}
+            >
+              {tab === "BIST_EQUITY" ? "BIST" : tab === "US_EQUITY" ? "US Equities" : tab === "GOLD" ? "Altın" : "Tümü"}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      <div className="w-full mt-4">
         <InstrumentSearch />
       </div>
 

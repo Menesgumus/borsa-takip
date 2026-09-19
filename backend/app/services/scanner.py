@@ -46,7 +46,6 @@ async def scan_opportunities(db: AsyncSession, user: User, portfolio_id: int | N
             portfolio_valuation = valuations.get(portfolio.id)
 
     # Cache Keys
-    import os
 
     from app.services.decision_engine import ENGINE_VERSION
     redis = redis_client

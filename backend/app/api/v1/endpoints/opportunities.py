@@ -1,14 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.api.v1.endpoints.auth import get_current_user
-from app.core.redis import redis_client
 from app.db.models import Portfolio, User
 from app.db.session import get_db_session
 from app.schemas.opportunity import OpportunityResult
-from app.services.decision_engine import ENGINE_VERSION
 from app.services.scanner import scan_opportunities
 
 router = APIRouter()

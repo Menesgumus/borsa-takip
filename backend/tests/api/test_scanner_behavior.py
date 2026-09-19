@@ -44,8 +44,10 @@ async def test_scanner_same_instrument_different_portfolios(mock_get_quotes):
         db.add(pm)
         await db.commit()
 
-        res1 = await scan_opportunities(db, user=user, portfolio_id=p1.id)
-        res2 = await scan_opportunities(db, user=user, portfolio_id=p2.id)
+        from app.core.redis import redis_client
+        await redis_client.flushdb()
+        res1 = await scan_opportunities(db, user=user, portfolio_id=p1.id, limit=1000)
+        res2 = await scan_opportunities(db, user=user, portfolio_id=p2.id, limit=1000)
 
         target_inst_1 = next((x for x in res1 if x.symbol == inst.symbol), None)
         target_inst_2 = next((x for x in res2 if x.symbol == inst.symbol), None)
@@ -64,6 +66,8 @@ async def test_scanner_deterministic_ranking(mock_get_quotes):
 
     async with async_session_maker() as db:
         user = User(id=999999, email="test999@example.com", password_hash="xx")
+        from app.core.redis import redis_client
+        await redis_client.flushdb()
         res = await scan_opportunities(db, user=user)
         # Should be sorted by missing_data ASC, market_score DESC, symbol ASC
         for i in range(len(res)-1):
@@ -135,7 +139,10 @@ async def test_scanner_incomplete_portfolio_valuation(mock_val_quotes, mock_scan
         mock_val_quotes.return_value = [quote_a]
         mock_scan_quotes.return_value = [quote_a]
 
-        res = await scan_opportunities(db, user=user, portfolio_id=p.id)
+        from app.core.redis import redis_client
+        await redis_client.flushdb()
+        res = await scan_opportunities(db, user=user, portfolio_id=p.id, limit=1000)
+        print("SCAN RES:", res)
 
         target_inst_a = next((x for x in res if x.symbol == inst_a.symbol), None)
         assert target_inst_a is not None
@@ -208,7 +215,10 @@ async def test_scanner_valid_sizing_exposes_target(mock_val_quotes, mock_scan_qu
         mock_val_quotes.return_value = [quote_v]
         mock_scan_quotes.return_value = [quote_v]
 
-        res = await scan_opportunities(db, user=user, portfolio_id=p.id)
+        from app.core.redis import redis_client
+        await redis_client.flushdb()
+        res = await scan_opportunities(db, user=user, portfolio_id=p.id, limit=1000)
+        print("SCAN RES:", res)
 
         target = next((x for x in res if x.symbol == inst.symbol), None)
         assert target is not None
