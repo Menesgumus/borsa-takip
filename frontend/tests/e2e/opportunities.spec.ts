@@ -126,7 +126,14 @@ test.describe('Phase 26.1 Opportunities E2E', () => {
 
     // Create a funded portfolio
     await page.goto('/portfolios');
-    await page.getByRole('button', { name: /Yeni Portf.y/i }).first().click();
+    
+    // Handle mobile "Yeni İşlem" action menu if visible
+    const yeniIslemBtn = page.getByRole('button', { name: /Yeni .şlem/i }).first();
+    if (await yeniIslemBtn.isVisible()) {
+      await yeniIslemBtn.click();
+    }
+    
+    await page.getByRole('button', { name: /Yeni Portföy/ }).first().click();
     await page.fill('input[name="name"]', 'Funded Portfolio');
     const responsePromise = page.waitForResponse(response => response.url().includes('/api/v1/portfolios') && response.request().method() === 'POST');
     await page.getByRole('button', { name: 'Kaydet' }).click();
