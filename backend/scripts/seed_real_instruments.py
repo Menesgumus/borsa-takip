@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from sqlalchemy import select
 
-from app.db.models import Instrument, InstrumentType, ProviderMapping, AssetClass
+from app.db.models import AssetClass, Instrument, InstrumentType, ProviderMapping
 from app.db.session import async_session_maker
 
 US_EQUITIES = [
@@ -47,7 +47,7 @@ async def seed() -> None:
         for data in US_EQUITIES + GOLD + FX_REFERENCE:
             symbol = data["symbol"]
             inst = await session.scalar(select(Instrument).where(Instrument.symbol == symbol))
-            
+
             if not inst:
                 print(f"Creating {symbol}...")
                 itype = InstrumentType.STOCK
@@ -55,7 +55,7 @@ async def seed() -> None:
                     itype = InstrumentType.ETF
                 elif data["asset_class"] == AssetClass.FX_REFERENCE:
                     itype = InstrumentType.CURRENCY
-                    
+
                 inst = Instrument(
                     symbol=symbol,
                     name=data["name"],
@@ -73,13 +73,13 @@ async def seed() -> None:
                 inst.asset_class = data["asset_class"]
                 inst.currency = data["currency"]
                 inst.is_active = True
-                
+
             pm = await session.scalar(
                 select(ProviderMapping)
                 .where(ProviderMapping.instrument_id == inst.id)
                 .where(ProviderMapping.provider_name == "yahoo")
             )
-            
+
             if not pm:
                 print(f"Adding yahoo ProviderMapping for {symbol}...")
                 pm = ProviderMapping(
@@ -89,7 +89,7 @@ async def seed() -> None:
                     is_primary=True
                 )
                 session.add(pm)
-        
+
         await session.commit()
         print("Seed complete.")
 

@@ -13,8 +13,9 @@ def mock_registry():
 
 @pytest.fixture
 def mock_fx():
-    from app.services.fx_service import FxRateResult
     from datetime import datetime
+
+    from app.services.fx_service import FxRateResult
     fx = AsyncMock()
     fx.get_usd_try_rate.return_value = FxRateResult(
         rate=Decimal("35.00"),
@@ -62,9 +63,10 @@ async def test_no_forced_buy_preserves_cash():
 
 
     service = BasketBuilderService(AsyncMock())
-    from app.services.fx_service import FxRateResult
     from datetime import datetime
-    
+
+    from app.services.fx_service import FxRateResult
+
     fx_result = FxRateResult(
         rate=Decimal("35.0"),
         source="mock",

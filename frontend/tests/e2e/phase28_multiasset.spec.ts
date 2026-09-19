@@ -49,57 +49,77 @@ test.describe('Phase 28 Multi-Asset Allocation & Basket Builder', () => {
     await createModal.getByRole('combobox').selectOption('REAL');
     
     const fundingModal = page.locator('.fixed.inset-0.z-50');
-    await fundingModal.getByRole('spinbutton').fill('100000');
     
     const [response] = await Promise.all([
       page.waitForResponse(res => res.url().includes('/api/v1/portfolios') && res.request().method() === 'POST'),
-      fundingModal.getByRole('button', { name: 'Oluştur' }).click(),
+      createModal.getByRole('button', { name: 'Oluştur' }).click(),
     ]);
     const portfolioData = await response.json();
     const portfolioId = portfolioData.id;
+
+    // Fund the portfolio via its detail page
+    await page.goto(`/portfolios/${portfolioId}`);
+    await page.waitForURL(`**/portfolios/${portfolioId}`);
+    await page.getByRole('button').filter({ hasText: /Yeni İşlem/i }).first().click();
+    
+    const actionModal = page.locator('.fixed.inset-0.z-50');
+    await expect(actionModal.getByRole('heading', { name: /Yeni İşlem/ })).toBeVisible({ timeout: 10000 });
+    await actionModal.locator('input[type="number"]').fill('100000');
+    const confirmBtnDeposit = actionModal.getByRole('button', { name: 'Onayla', exact: true });
+    await expect(confirmBtnDeposit).toBeEnabled({ timeout: 5000 });
+    
+    const [depositResponse] = await Promise.all([
+      page.waitForResponse(res => res.url().includes('/transactions') && res.request().method() === 'POST'),
+      confirmBtnDeposit.click(),
+    ]);
+    await expect(actionModal).not.toBeVisible({ timeout: 15000 });
 
     // 3. Navigate to Opportunities
     await page.goto('/opportunities');
     await page.waitForURL('**/opportunities');
     
     // Select the portfolio
-    await page.selectOption('select.w-full.bg-slate-50', { value: String(portfolioId) });
+    await page.locator('select').first().selectOption({ value: String(portfolioId) });
     
     // 4. Test Asset Class Filter Tabs
     // Click on US Equities tab
-    const usTab = page.locator('button', { hasText: 'ABD Hisse' });
+    const usTab = page.locator('button', { hasText: 'US Equities' });
     await expect(usTab).toBeVisible();
+    const usPromise = page.waitForResponse(res => res.url().includes('asset_class=US_EQUITY') && res.request().method() === 'GET');
     await usTab.click();
     
     // Check if GET /opportunities?asset_class=US_EQUITY was fired
-    const usRes = await page.waitForResponse(res => res.url().includes('asset_class=US_EQUITY') && res.request().method() === 'GET');
+    const usRes = await usPromise;
     expect(usRes.ok()).toBeTruthy();
 
-    const gldTab = page.locator('button', { hasText: 'Altın/Emtia' });
+    const gldTab = page.locator('button', { hasText: 'Altın' });
     await expect(gldTab).toBeVisible();
+    const gldPromise = page.waitForResponse(res => res.url().includes('asset_class=GOLD') && res.request().method() === 'GET');
     await gldTab.click();
-    const gldRes = await page.waitForResponse(res => res.url().includes('asset_class=GOLD') && res.request().method() === 'GET');
+    const gldRes = await gldPromise;
     expect(gldRes.ok()).toBeTruthy();
 
-    // Go back to Tüm Varlıklar
-    await page.locator('button', { hasText: 'Tüm Varlıklar' }).click();
+    // Go back to Tümü
+    await page.locator('button', { hasText: 'Tümü' }).click();
 
     // 5. Open Basket Builder
     const sepetLink = page.locator('text=Sepet Oluştur');
     await expect(sepetLink).toBeVisible();
+    // Wait for basket preview request
+    const previewPromise = page.waitForResponse(res => res.url().includes(`/api/v1/portfolios/${portfolioId}/basket-preview`) && res.request().method() === 'POST');
     await sepetLink.click();
 
-    // Wait for basket preview request
-    const previewRes = await page.waitForResponse(res => res.url().includes(`/api/v1/portfolios/${portfolioId}/basket-preview`) && res.request().method() === 'POST');
+    const previewRes = await previewPromise;
     expect(previewRes.ok()).toBeTruthy();
     
     await expect(page.locator('text=Varlık Sınıfı Hedefleri')).toBeVisible();
 
     // 6. Provide a deploy amount and recalculate
     await page.fill('input[type="number"][placeholder="Örn: 10000"]', '50000');
+    
+    const recalculatePromise = page.waitForResponse(res => res.url().includes(`/api/v1/portfolios/${portfolioId}/basket-preview`) && res.request().method() === 'POST');
     await page.locator('button', { hasText: 'Sepeti Hesapla' }).click();
-
-    const recalculateRes = await page.waitForResponse(res => res.url().includes(`/api/v1/portfolios/${portfolioId}/basket-preview`) && res.request().method() === 'POST');
+    const recalculateRes = await recalculatePromise;
     expect(recalculateRes.ok()).toBeTruthy();
 
     // 7. Manual Price Execution Preview
@@ -113,9 +133,10 @@ test.describe('Phase 28 Multi-Asset Allocation & Basket Builder', () => {
       // Setup dialog handler before clicking
       const dialogPromise = page.waitForEvent('dialog');
       
+      const execPreviewPromise = page.waitForResponse(res => res.url().includes(`/api/v1/portfolios/${portfolioId}/execution-preview`) && res.request().method() === 'POST');
       await onizleBtn.click();
       
-      const execPreviewRes = await page.waitForResponse(res => res.url().includes(`/api/v1/portfolios/${portfolioId}/execution-preview`) && res.request().method() === 'POST');
+      const execPreviewRes = await execPreviewPromise;
       expect(execPreviewRes.ok()).toBeTruthy();
       
       const dialog = await dialogPromise;

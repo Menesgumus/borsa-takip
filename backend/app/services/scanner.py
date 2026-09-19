@@ -9,7 +9,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from app.core.redis import redis_client
-from app.db.models import FundamentalData, Instrument, Portfolio, User, UserProfile, AssetClass
+from app.db.models import AssetClass, FundamentalData, Instrument, Portfolio, User, UserProfile
 from app.market.exceptions import ProviderUnavailableError
 from app.market.registry import registry
 from app.schemas.decision import (

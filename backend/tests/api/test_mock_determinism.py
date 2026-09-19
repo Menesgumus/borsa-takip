@@ -4,6 +4,7 @@ from app.db.models import User
 from app.market.mock_provider import MockMarketDataProvider
 from app.services.scanner import scan_opportunities
 
+
 @pytest.mark.asyncio
 async def test_mock_determinism():
     provider1 = MockMarketDataProvider()
@@ -18,16 +19,16 @@ async def test_mock_determinism():
 
 @pytest.mark.asyncio
 async def test_qabuy_scanner_fixture():
-    from app.db.session import async_session_maker
     from sqlalchemy import select
+
+    from app.db.session import async_session_maker
     async with async_session_maker() as session:
-        from app.market.registry import registry
         from app.market.mock_provider import MockMarketDataProvider
-        from app.market.registry import ProviderCircuitBreaker
+        from app.market.registry import ProviderCircuitBreaker, registry
         registry._providers["MOCK"] = MockMarketDataProvider()
         registry._circuits["MOCK"] = ProviderCircuitBreaker()
-        
-        
+
+
         from app.db.models import Instrument, InstrumentType, ProviderMapping
         inst = await session.scalar(select(Instrument).where(Instrument.symbol == "QABUY"))
         if not inst:

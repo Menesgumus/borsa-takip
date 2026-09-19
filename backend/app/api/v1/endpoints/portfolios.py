@@ -568,8 +568,8 @@ async def preview_basket(
     if not portfolio:
         raise HTTPException(status_code=404, detail="Portfolio not found")
 
-    if request.deploy_amount <= 0:
-        raise HTTPException(status_code=400, detail="Deploy amount must be positive")
+    if request.deploy_amount < 0:
+        raise HTTPException(status_code=400, detail="Deploy amount must be non-negative")
 
     user_profile = await db.scalar(select(UserProfile).where(UserProfile.user_id == current_user.id))
 
@@ -592,9 +592,9 @@ async def preview_execution(
         raise HTTPException(status_code=404, detail="Instrument not found")
 
     from app.services.scanner import scan_opportunities
-    opps = await scan_opportunities(db, current_user, portfolio_id, symbols=[instrument.symbol])
+    opps = await scan_opportunities(db, current_user, portfolio_id, symbols=[str(instrument.symbol)])
     opp = opps[0] if opps else None
-    
+
     if not opp:
         raise HTTPException(status_code=404, detail="Opportunity not actionable or missing data")
 
@@ -604,7 +604,7 @@ async def preview_execution(
     fx_rate = Decimal("1.0")
     fx_source = "NONE"
     fx_as_of = datetime.now(UTC)
-    
+
     if instrument.currency == "USD":
         fx_res = await fx_service.get_usd_try_rate(db)
         if fx_res:
@@ -631,11 +631,11 @@ async def preview_execution(
         if pos:
             current_quantity = int(pos.get("quantity", 0))
 
-    from app.services.position_sizing import calculate_position_sizing
     from app.schemas.decision import DecisionAction
+    from app.services.position_sizing import calculate_position_sizing
 
     execution_base_price = request.manual_native_price * fx_rate
-    
+
     action_str = opp.personal_action if opp.personal_action else opp.market_view
     action_enum = DecisionAction(action_str)
 

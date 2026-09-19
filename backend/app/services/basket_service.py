@@ -58,14 +58,17 @@ class BasketBuilderService:
         target_cash_weight = target_weights.get("CASH", Decimal("0"))
         target_cash_reserve = total_portfolio_value * target_cash_weight
         minimum_cash_to_keep = max(target_cash_reserve, Decimal("0"))
-        
+
         deployable_cash_under_policy = max(Decimal("0"), cash_balance - minimum_cash_to_keep)
 
+        if deploy_amount == 0:
+            deploy_amount = cash_balance
+            
         # Enforce validation: deploy_amount <= available_cash
         if deploy_amount > cash_balance:
             raise ValueError("Requested deploy amount exceeds available cash")
-        if deploy_amount <= 0:
-            raise ValueError("Deploy amount must be > 0")
+        if deploy_amount < 0:
+            raise ValueError("Deploy amount must be >= 0")
 
         actual_maximum_deployment = min(deploy_amount, deployable_cash_under_policy)
         remaining_deploy = actual_maximum_deployment
@@ -128,11 +131,11 @@ class BasketBuilderService:
             quote_price = getattr(o, "quote_price", getattr(o, "current_price", Decimal("0")))
             if quote_price <= 0:
                 continue
-            
+
             currency = getattr(o, "currency", "TRY")
             if currency == "USD" and usd_try_rate is None:
                 continue
-            
+
             if getattr(o, "max_executable_quantity", Decimal("1")) <= 0:
                 continue
 
@@ -148,14 +151,16 @@ class BasketBuilderService:
             for p in valuation.positions:
                 pos_values[p["instrument_id"]] = p.get("market_value", Decimal("0"))
 
-        MAX_POS_WEIGHT = Decimal("0.30")
+        max_pos_weight = Decimal("0.30")
 
         for sleeve_dict in sleeves:
             sleeve = sleeve_dict["dto"]
-            deficit = sleeve_dict["deficit"]
+            deficit = sleeve_dict.get("deficit", Decimal("0"))
+            if not isinstance(deficit, Decimal):
+                deficit = Decimal(str(deficit))
             ac = sleeve.asset_class
 
-            if deficit <= 0:
+            if deficit <= Decimal("0"):
                 sleeve.unallocated_reason = "TARGET_REACHED"
                 continue
 
@@ -173,18 +178,18 @@ class BasketBuilderService:
                     break
 
                 currency = getattr(candidate, "currency", "TRY")
-                fx = usd_try_rate if currency == "USD" else Decimal("1.0")
-                
+                fx = usd_try_rate if currency == "USD" and usd_try_rate is not None else Decimal("1.0")
+
                 quote_price = getattr(candidate, "quote_price", getattr(candidate, "current_price", Decimal("0")))
                 analysis_base = quote_price * fx
 
                 current_pos_val = pos_values.get(candidate.instrument_id, Decimal("0"))
-                max_allowed_total_val = total_portfolio_value * MAX_POS_WEIGHT
+                max_allowed_total_val = total_portfolio_value * max_pos_weight
                 room = max(Decimal("0"), max_allowed_total_val - current_pos_val)
 
                 # Respect sizing capacity
                 sizing_max_budget = getattr(candidate, "max_executable_budget", Decimal("Infinity"))
-                
+
                 budget = min(budget_per_candidate, room, remaining_deploy, sizing_max_budget)
 
                 if budget <= 0 or analysis_base <= 0:
@@ -224,7 +229,7 @@ class BasketBuilderService:
                     proposed_base_budget=proposed_base,
                     projected_weight=(current_pos_val + proposed_base) / total_portfolio_value,
                     recommended_target_weight=budget_per_candidate / total_portfolio_value,
-                    hard_max_weight=MAX_POS_WEIGHT,
+                    hard_max_weight=max_pos_weight,
                     sizing_state="OK",
                     reason_codes=[]
                 ))

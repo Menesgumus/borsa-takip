@@ -163,7 +163,7 @@ class BasketPreviewResponse(BaseModel):
     items: list[BasketItemDTO]
 
 class BasketPreviewRequest(BaseModel):
-    deploy_amount: Decimal
+    deploy_amount: Decimal = Decimal('0')
 
 class ExecutionPreviewRequest(BaseModel):
     instrument_id: int

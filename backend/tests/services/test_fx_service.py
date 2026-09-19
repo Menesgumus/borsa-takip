@@ -1,6 +1,6 @@
+import json
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
-import json
 
 import pytest
 

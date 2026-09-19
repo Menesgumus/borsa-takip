@@ -23,7 +23,19 @@ vi.mock('lucide-react', () => ({
   TrendingDown: () => <div data-testid="icon-trendingdown" />,
   Clock: () => <div data-testid="icon-clock" />,
   AlertCircle: () => <div data-testid="icon-alert" />,
+  Target: () => <div data-testid="icon-target" />,
   ArrowRight: () => <div data-testid="icon-arrowright" />,
+  Search: () => <div data-testid="icon-search" />,
+}));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    prefetch: vi.fn(),
+    back: vi.fn()
+  }),
+  usePathname: () => '/',
 }));
 
 describe('DashboardPage (Phase 25)', () => {
@@ -54,11 +66,11 @@ describe('DashboardPage (Phase 25)', () => {
 
     render(<DashboardPage />);
     
-    expect(screen.getByText('Ana Portföy')).toBeDefined();
+    expect(screen.getAllByText('Ana Portföy')[0]).toBeDefined();
     // 125000.5 should format to "125.000,50 ₺" via formatTry
     expect(screen.getByText('125.000,50 ₺')).toBeDefined();
     
-    expect(screen.getByText('Yedek Portföy')).toBeDefined();
+    expect(screen.getAllByText('Yedek Portföy')[0]).toBeDefined();
     // Null should safely fallback to 0,00 ₺
     expect(screen.getByText('0,00 ₺')).toBeDefined();
     
