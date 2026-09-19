@@ -87,24 +87,24 @@ test.describe('Phase 26.1 Opportunities E2E', () => {
     
     // Find the exact same card in the portfolio view
     const portCard = page.locator(`a[href^="/opportunities/"]:has(h3:has-text("${symbol}"))`).first();
-    // It might not be visible if filtered out, but if it is, we check it
-    if (await portCard.isVisible()) {
-      const personalActionText = await portCard.locator('span.px-2.py-1.text-xs.font-bold').first().textContent();
-      const personalAction = personalActionText?.trim() || 'BEKLE';
+    // Deterministically assert it is visible so we actually test the invariant
+    await expect(portCard).toBeVisible({ timeout: 5000, message: "Target instrument disappeared when switching to empty portfolio (preventing invariant check)." });
+    
+    const personalActionText = await portCard.locator('span.px-2.py-1.text-xs.font-bold').first().textContent();
+    const personalAction = personalActionText?.trim() || 'BEKLE';
 
-      const rankMap: Record<string, number> = {
-        'GÜÇLÜ SAT': 1,
-        'SAT': 2,
-        'BEKLE': 3,
-        'AL': 4,
-        'GÜÇLÜ AL': 5
-      };
+    const rankMap: Record<string, number> = {
+      'GÜÇLÜ SAT': 1,
+      'SAT': 2,
+      'BEKLE': 3,
+      'AL': 4,
+      'GÜÇLÜ AL': 5
+    };
 
-      const mRank = rankMap[marketAction] || 3;
-      const pRank = rankMap[personalAction] || 3;
+    const mRank = rankMap[marketAction] || 3;
+    const pRank = rankMap[personalAction] || 3;
 
-      expect(pRank).toBeLessThanOrEqual(mRank);
-    }
+    expect(pRank).toBeLessThanOrEqual(mRank);
 
 
   });
@@ -175,20 +175,21 @@ test.describe('Phase 26.1 Opportunities E2E', () => {
     const detailResponse = await page.request.get(`/api/v1/opportunities/${symbol}?portfolio_id=${portfolioId}`);
     const detail = await detailResponse.json();
 
+    // Deterministically assert we have a valid test fixture
+    expect(detail.recommended_quantity, "Expected test fixture to yield a positive recommended quantity for actionable sizing check").toBeGreaterThan(0);
+
     // Check sizes
-    if (detail.recommended_quantity && detail.recommended_quantity > 0) {
-      expect(Number.isInteger(detail.recommended_quantity)).toBeTruthy();
-      
-      const price = parseFloat(detail.quote_price);
-      const budget = parseFloat(detail.max_executable_budget);
-      const qty = parseFloat(detail.max_executable_quantity);
-      
-      // max_executable_budget == max_executable_quantity * current_price
-      expect(Math.abs(budget - (qty * price))).toBeLessThan(0.01);
-      
-      const theoretical = parseFloat(detail.theoretical_max_additional_budget);
-      expect(budget).toBeLessThanOrEqual(theoretical + 0.01); // +0.01 for floating point margin
-    }
+    expect(Number.isInteger(detail.recommended_quantity)).toBeTruthy();
+    
+    const price = parseFloat(detail.quote_price);
+    const budget = parseFloat(detail.max_executable_budget);
+    const qty = parseFloat(detail.max_executable_quantity);
+    
+    // max_executable_budget == max_executable_quantity * current_price
+    expect(Math.abs(budget - (qty * price))).toBeLessThan(0.01);
+    
+    const theoretical = parseFloat(detail.theoretical_max_additional_budget);
+    expect(budget).toBeLessThanOrEqual(theoretical + 0.01); // +0.01 for floating point margin
 
     // Check future workspace marker
     const futureWorkspaceMarker = page.locator('text=/Gelecek/');
