@@ -37,6 +37,8 @@ services:
       - DEBUG=true
     ports:
       - "8002:8000"
+    volumes:
+      - ./data:/data
     depends_on:
       - db
       - redis

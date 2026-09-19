@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "@/lib/api";
 import { useState, useEffect } from "react";
 import { User, Shield, GraduationCap, Save, CheckCircle, AlertCircle } from "lucide-react";
+import Link from "next/link";
 
 export default function SettingsPage() {
   const { data: user } = useQuery({
@@ -71,6 +72,12 @@ export default function SettingsPage() {
           >
             <Shield size={18} /> Güvenlik ve Risk
           </button>
+          <Link 
+            href="/education"
+            className="w-full text-left p-4 text-navy-700 font-medium flex items-center gap-2 hover:bg-slate-50 rounded-xl cursor-pointer border border-transparent transition-colors focus:ring-2 focus:ring-primary-500 focus:outline-none"
+          >
+            <GraduationCap size={18} /> Eğitim Merkezi
+          </Link>
         </div>
 
         <div className="md:col-span-2 space-y-6">
@@ -95,7 +102,7 @@ export default function SettingsPage() {
             <h3 className="text-lg font-bold text-navy-900 mb-4 border-b pb-2">Risk Tercihleri</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-navy-700 mb-1">Risk Toleransı</label>
+                <label className="block text-sm font-medium text-navy-700 mb-1">Risk Toleransııı</label>
                 <select
                   value={riskTolerance}
                   onChange={(e) => setRiskTolerance(e.target.value)}

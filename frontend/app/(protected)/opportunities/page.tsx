@@ -8,6 +8,7 @@ import { ChevronRight, Target, ShieldAlert, Star, Wallet, PieChart as PieChartIc
 import { OpportunityListResult } from "@/types/opportunity";
 import { formatTry, formatPercent, formatActionLabel, getActionColorClass } from "@/lib/financialUi";
 import { DataStateBadge } from "@/components/DataStateBadge";
+import { InstrumentSearch } from "@/components/InstrumentSearch";
 
 export default function OpportunitiesPage() {
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<number | null>(null);
@@ -218,6 +219,10 @@ export default function OpportunitiesPage() {
             ))}
           </select>
         </div>
+      </div>
+
+      <div className="w-full">
+        <InstrumentSearch />
       </div>
 
       {selectedPortfolio && (

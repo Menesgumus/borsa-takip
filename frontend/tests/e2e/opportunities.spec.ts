@@ -88,7 +88,7 @@ test.describe('Phase 26.1 Opportunities E2E', () => {
     // Find the exact same card in the portfolio view
     const portCard = page.locator(`a[href^="/opportunities/"]:has(h3:has-text("${symbol}"))`).first();
     // Deterministically assert it is visible so we actually test the invariant
-    await expect(portCard).toBeVisible({ timeout: 5000, message: "Target instrument disappeared when switching to empty portfolio (preventing invariant check)." });
+    await expect(portCard, "Target instrument disappeared when switching to empty portfolio (preventing invariant check).").toBeVisible({ timeout: 5000 });
     
     const personalActionText = await portCard.locator('span.px-2.py-1.text-xs.font-bold').first().textContent();
     const personalAction = personalActionText?.trim() || 'BEKLE';

@@ -19,12 +19,8 @@ import {
 
 export const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Piyasalar', href: '/markets', icon: LineChart },
-  { name: 'Portföyüm', href: '/portfolios', icon: Briefcase },
-  { name: 'Risk Yönetimi', href: '/risk', icon: ShieldAlert },
   { name: 'Fırsatlar', href: '/opportunities', icon: Target },
-  { name: 'Alarmlar', href: '/alerts', icon: Bell },
-  { name: 'Eğitim', href: '/education', icon: BookOpen },
+  { name: 'Portföyüm', href: '/portfolios', icon: Briefcase },
   { name: 'Ayarlar', href: '/settings', icon: Settings },
 ];
 

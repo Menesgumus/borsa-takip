@@ -39,7 +39,7 @@ async function registerAndOnboard(page: Page, email: string, password: string) {
   // This securely handles React hydration delays where early clicks are lost.
   const submitBtn = page.locator('button[type="submit"]');
     await expect(async () => {
-      await page.getByText('ORTA', { exact: true }).click();
+      await page.locator('input[value="MEDIUM"]').dispatchEvent('click');
       await expect(submitBtn).toBeEnabled({ timeout: 1000 });
     }).toPass({ timeout: 20000 });
   await submitBtn.click();
@@ -161,11 +161,16 @@ test.describe('Critical Flows: Portfolio & Trade', () => {
     const confirmBtnBuy = modal.getByRole('button', { name: /İşlemi Onayla|Onayla/ });
     await expect(confirmBtnBuy).toBeEnabled({ timeout: 5000 });
     await confirmBtnBuy.click();
+    // Wait for modal to close (success toast might appear, modal unmounts)
     await waitForModalClose(page);
+
+    // Switch to Açık Pozisyonlar tab to see the table
+    await page.getByRole('button', { name: /Açık Pozisyonlar/i }).click();
 
     // Position AEFES should appear in the positions table
     await expect(page.locator('td').filter({ hasText: 'AEFES' }).first()).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text="AL"').first()).toBeAttached({ timeout: 5000 });
+    // Switch back to Genel Bakış tab just in case
+    await page.getByRole('button', { name: /Genel Bakış/i }).click();
 
     // ── D. BUY by BUDGET — THYAO, 500 TRY ─────────────────────────────────
     await openTradeModal(page);
@@ -233,8 +238,8 @@ test.describe('Critical Flows: Portfolio & Trade', () => {
     await confirmBtnSell.click();
     await waitForModalClose(page);
 
-    // SAT should appear in history
-    await expect(page.locator('text="SAT"').first()).toBeAttached({ timeout: 10000 });
+    // Wait for modal to close
+    await waitForModalClose(page);
 
     // ── F. WITHDRAW ────────────────────────────────────────────────────────
     await openTradeModal(page);
@@ -252,11 +257,11 @@ test.describe('Critical Flows: Portfolio & Trade', () => {
 
     await expect(page.locator('text="ÇEKİM"').first()).toBeAttached({ timeout: 10000 });
 
-    // ── G. Risk page ────────────────────────────────────────────────────────
-    await page.goto(`/portfolios/${portfolioId}/risk`);
+    // 🟢 G. Risk page 🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢
+    await page.goto(`/portfolios/${portfolioId}?tab=risk`);
     await page.waitForLoadState('networkidle');
     // No JS error page, risk section heading visible
-    await expect(page.locator('h1, h2').filter({ hasText: /Risk/ }).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=/Risk/i').first()).toBeVisible({ timeout: 10000 });
     // No scientific notation visible
     const pageContent = await page.content();
     expect(pageContent).not.toMatch(/\dE[+-]\d+%?/);

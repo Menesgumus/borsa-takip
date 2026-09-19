@@ -1,13 +1,15 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { fetchApi } from "@/lib/api";
-import { ArrowLeft, AlertCircle, DollarSign, Plus } from "lucide-react";
+import { ArrowLeft, AlertCircle, DollarSign, Plus, LayoutDashboard, Briefcase, ShieldAlert, History } from "lucide-react";
 import { useState } from "react";
 import { PortfolioActionModal } from "@/components/PortfolioActionModal";
 import { PortfolioCharts } from "@/components/PortfolioCharts";
+import { PortfolioRiskPanel } from "@/components/PortfolioRiskPanel";
+import { PortfolioTransactions } from "@/components/PortfolioTransactions";
 import { formatTry, formatQuantity, getProfitLossColorClass } from "@/lib/financialUi";
 import { DataStateBadge } from "@/components/DataStateBadge";
 
@@ -15,6 +17,9 @@ export default function PortfolioDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const currentTab = searchParams.get("tab") || "genel";
+  
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
 
   const { data: summary, isLoading, isError, error } = useQuery<any>({
@@ -30,6 +35,13 @@ export default function PortfolioDetailPage() {
   
   const portfolio = portfolios?.find((p: any) => String(p.id) === id);
 
+  const tabs = [
+    { id: "genel", label: "Genel Bakış", icon: LayoutDashboard },
+    { id: "pozisyonlar", label: "Açık Pozisyonlar", icon: Briefcase },
+    { id: "risk", label: "Risk Analizi", icon: ShieldAlert },
+    { id: "islemler", label: "İşlem Geçmişi", icon: History },
+  ];
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px] text-slate-500">
@@ -38,24 +50,19 @@ export default function PortfolioDetailPage() {
     );
   }
 
-  if (isError) {
+  if (isError || !summary) {
     return (
       <div className="text-center py-12 flex flex-col items-center gap-4">
         <AlertCircle className="text-danger-500" size={32} />
         <div className="text-danger-700 font-medium">
           Portföy verileri alınamadı.
         </div>
-        <div className="text-sm text-slate-500">
-          {(error as any)?.message || "Lütfen daha sonra tekrar deneyin."}
-        </div>
       </div>
     );
   }
 
-  if (!summary) return null;
-
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 max-w-6xl mx-auto pb-12">
+    <div className="space-y-6 animate-in fade-in duration-500 max-w-7xl mx-auto pb-12">
       <div className="flex flex-col md:flex-row md:items-center gap-4 mb-2">
         <button onClick={() => router.push('/portfolios')} className="hidden md:flex text-slate-400 hover:text-navy-900 transition-colors">
           <ArrowLeft size={20} />
@@ -78,9 +85,6 @@ export default function PortfolioDetailPage() {
           <button onClick={() => setIsActionModalOpen(true)} className="flex-1 md:flex-none bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center justify-center gap-2">
             <Plus size={16} /> Yeni İşlem
           </button>
-          <Link href={`/portfolios/${id}/risk`} className="flex-1 md:flex-none text-center bg-navy-900 hover:bg-navy-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
-            Risk Analizi
-          </Link>
         </div>
       </div>
 
@@ -121,64 +125,109 @@ export default function PortfolioDetailPage() {
         </div>
       </div>
 
-      <div className="bg-surface rounded-xl border border-navy-800/10 shadow-sm overflow-hidden mt-6">
-        <div className="p-5 border-b border-navy-800/10 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-          <h2 className="text-lg font-bold text-navy-900">Açık Pozisyonlar</h2>
-          <div className="flex items-center gap-2 text-xs font-medium">
-            <span className="text-slate-500">Veri Durumu:</span>
-            <DataStateBadge state={summary.market_data_freshness} />
+      <div className="border-b border-navy-800/10">
+        <nav className="flex space-x-6 overflow-x-auto" aria-label="Tabs">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = currentTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => router.push(`/portfolios/${id}?tab=${tab.id}`)}
+                className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${
+                  isActive
+                    ? 'border-primary-600 text-primary-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                }`}
+              >
+                <Icon size={18} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      <div className="mt-6">
+        {currentTab === 'genel' && (
+          <div className="space-y-6">
+            <PortfolioCharts portfolioId={id} summary={summary} />
           </div>
-        </div>
-        
-        {summary.positions.length === 0 ? (
-          <div className="p-12 text-center text-slate-500 flex flex-col items-center">
-            <DollarSign className="w-12 h-12 text-slate-300 mb-3" />
-            <p className="font-medium text-navy-900 mb-1">Henüz Pozisyon Yok</p>
-            <p className="text-sm">Bu portföyde henüz açık bir pozisyon bulunmuyor.</p>
+        )}
+
+        {currentTab === 'pozisyonlar' && (
+          <div className="bg-surface rounded-xl border border-navy-800/10 shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-navy-800/10 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+              <h2 className="text-lg font-bold text-navy-900">Açık Pozisyonlar</h2>
+              <div className="flex items-center gap-2 text-xs font-medium">
+                <span className="text-slate-500">Veri Durumu:</span>
+                <DataStateBadge state={summary.market_data_freshness} />
+              </div>
+            </div>
+            
+            {summary.positions.length === 0 ? (
+              <div className="p-12 text-center text-slate-500 flex flex-col items-center">
+                <DollarSign className="w-12 h-12 text-slate-300 mb-3" />
+                <p className="font-medium text-navy-900 mb-1">Henüz Pozisyon Yok</p>
+                <p className="text-sm">Bu portföyde henüz açık bir pozisyon bulunmuyor.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm min-w-[700px]">
+                  <thead className="bg-slate-50 text-slate-600 font-medium">
+                    <tr>
+                      <th className="px-5 py-3">Sembol</th>
+                      <th className="px-5 py-3 text-right">Adet</th>
+                      <th className="px-5 py-3 text-right">Ort. Maliyet</th>
+                      <th className="px-5 py-3 text-right">Anlık Fiyat</th>
+                      <th className="px-5 py-3 text-right">Piyasa Değeri</th>
+                      <th className="px-5 py-3 text-right">Durum (K/Z)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {summary.positions.map((pos: any) => (
+                      <tr key={pos.instrument_id} className="hover:bg-slate-50/50">
+                        <td className="px-5 py-4 font-semibold text-navy-900">
+                          <Link href={`/instruments/${pos.symbol}`} className="hover:text-primary-600 hover:underline">
+                            {pos.symbol}
+                          </Link>
+                        </td>
+                        <td className="px-5 py-4 text-right font-medium">{formatQuantity(pos.quantity)}</td>
+                        <td className="px-5 py-4 text-right text-slate-600">{formatTry(pos.average_cost)}</td>
+                        <td className="px-5 py-4 text-right font-medium">
+                          {pos.current_price != null ? formatTry(pos.current_price) : 'Yetersiz Veri'}
+                        </td>
+                        <td className="px-5 py-4 text-right font-medium">
+                          {pos.market_value != null ? formatTry(pos.market_value) : 'Yetersiz Veri'}
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          {pos.unrealized_pnl != null ? (
+                            <span className={`font-semibold ${getProfitLossColorClass(pos.unrealized_pnl)}`}>
+                              {Number(pos.unrealized_pnl) > 0 ? '+' : ''}{formatTry(pos.unrealized_pnl)}
+                            </span>
+                          ) : (
+                            <span className="text-slate-500 font-medium">Yetersiz Veri</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm min-w-[700px]">
-              <thead className="bg-slate-50 text-slate-600 font-medium">
-                <tr>
-                  <th className="px-5 py-3">Sembol</th>
-                  <th className="px-5 py-3 text-right">Adet</th>
-                  <th className="px-5 py-3 text-right">Ort. Maliyet</th>
-                  <th className="px-5 py-3 text-right">Anlık Fiyat</th>
-                  <th className="px-5 py-3 text-right">Piyasa Değeri</th>
-                  <th className="px-5 py-3 text-right">Durum (K/Z)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {summary.positions.map((pos: any) => (
-                  <tr key={pos.instrument_id} className="hover:bg-slate-50/50">
-                    <td className="px-5 py-4 font-semibold text-navy-900">{pos.symbol}</td>
-                    <td className="px-5 py-4 text-right font-medium">{formatQuantity(pos.quantity)}</td>
-                    <td className="px-5 py-4 text-right text-slate-600">{formatTry(pos.average_cost)}</td>
-                    <td className="px-5 py-4 text-right font-medium">
-                      {pos.current_price != null ? formatTry(pos.current_price) : 'Yetersiz Veri'}
-                    </td>
-                    <td className="px-5 py-4 text-right font-medium">
-                      {pos.market_value != null ? formatTry(pos.market_value) : 'Yetersiz Veri'}
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      {pos.unrealized_pnl != null ? (
-                        <span className={`font-semibold ${getProfitLossColorClass(pos.unrealized_pnl)}`}>
-                          {Number(pos.unrealized_pnl) > 0 ? '+' : ''}{formatTry(pos.unrealized_pnl)}
-                        </span>
-                      ) : (
-                        <span className="text-slate-500 font-medium">Yetersiz Veri</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        )}
+
+        {currentTab === 'risk' && (
+          <PortfolioRiskPanel portfolioId={id} />
+        )}
+
+        {currentTab === 'islemler' && (
+          <div className="bg-surface rounded-xl border border-navy-800/10 shadow-sm overflow-hidden">
+            <PortfolioTransactions portfolioId={id} />
           </div>
         )}
       </div>
-
-      <PortfolioCharts portfolioId={id} summary={summary} />
 
       <PortfolioActionModal 
         portfolioId={id} 

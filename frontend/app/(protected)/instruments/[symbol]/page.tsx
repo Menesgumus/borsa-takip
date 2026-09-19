@@ -81,11 +81,9 @@ export default function InstrumentDetail() {
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Breadcrumb */}
       <nav className="flex items-center text-sm text-navy-700/60 mb-4">
-        <Link href="/markets" className="hover:text-primary-600 transition-colors flex items-center gap-1">
-          <ArrowLeft size={14} /> Piyasalar
+        <Link href="/opportunities" className="hover:text-primary-600 transition-colors flex items-center gap-1">
+          <ArrowLeft size={14} /> Fırsatlara Dön
         </Link>
-        <span className="mx-2">/</span>
-        <span className="font-medium text-navy-900">{symbol}</span>
       </nav>
 
       {/* Hero Header */}
@@ -171,12 +169,10 @@ export default function InstrumentDetail() {
       <div className="border-b border-navy-800/10">
         <nav className="flex space-x-6 overflow-x-auto">
           {[
-            { id: 'GENEL_BAKIS', label: 'GENEL BAKIÅ' },
+            { id: 'GENEL_BAKIS', label: 'GENEL BAKIŞ' },
             { id: 'TEKNIK', label: 'TEKNİK' },
             { id: 'KARAR', label: 'KARAR' },
-            { id: 'KAP', label: 'KAP / HABER' },
-            { id: 'TEMEL', label: 'TEMEL' },
-            { id: 'RISK', label: 'RİSK / PORTFÖY' },
+            { id: 'KAP', label: 'HABERLER' },
           ].map(tab => (
             <button
               key={tab.id}
