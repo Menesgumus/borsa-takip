@@ -4,6 +4,7 @@ export default defineConfig({
   testDir: './tests/e2e',
   timeout: 90000,
   retries: 0,
+  workers: 1,
   use: {
     baseURL: 'http://127.0.0.1:3000',
     trace: 'on',
@@ -41,9 +42,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm run start',
+    command: 'pnpm build && pnpm run start',
     url: 'http://127.0.0.1:3000',
-    reuseExistingServer: true,
+    reuseExistingServer: false,
     timeout: 120000,
     env: {
       INTERNAL_API_URL: 'http://127.0.0.1:8002',

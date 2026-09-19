@@ -32,20 +32,24 @@ class MockMarketDataProvider(MarketDataProvider):
         if self.always_fail:
             raise ProviderUnavailableError(self.name, "Configured to always fail")
 
-    def _generate_quote(self, symbol: str) -> QuoteDTO:
-        # Deterministic generation
-        base_val = float(abs(hash(symbol)) % 1000) + 10.0
-        now = datetime.now(UTC)
-        day_modifier = now.toordinal() % 100
+    def _stable_int(self, value: str) -> int:
+        import hashlib
+        digest = hashlib.sha256(value.encode("utf-8")).digest()
+        return int.from_bytes(digest[:8], "big")
 
-        price = Decimal(f"{base_val + day_modifier:.2f}")
-        change_pct = Decimal(f"{(hash(symbol + 'change') % 1000) / 100.0 - 5.0:.2f}")
+    def _generate_quote(self, symbol: str) -> QuoteDTO:
+        # Deterministic generation using stable standard-library hash
+        base_val = float(self._stable_int(f"{symbol}:price") % 1000) + 10.0
+        now = datetime.now(UTC)
+
+        price = Decimal(f"{base_val:.2f}")
+        change_pct = Decimal(f"{(self._stable_int(f'{symbol}:change') % 1000) / 100.0 - 5.0:.2f}")
 
         return QuoteDTO(
             symbol=symbol,
             price=price,
             change_pct=change_pct,
-            volume=abs(hash(symbol + "vol")) % 1000000,
+            volume=self._stable_int(f"{symbol}:volume") % 1000000,
             high=price * Decimal("1.05"),
             low=price * Decimal("0.95"),
             open=price * Decimal("0.98"),

@@ -1,10 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from 'next/font/google';
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { NetworkProvider } from "@/components/NetworkProvider";
-
-const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: "Borsa Takip",
@@ -31,7 +28,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
       </head>
       <body
-        className={`${inter.className} antialiased bg-slate-50 text-slate-900 min-h-screen flex flex-col`}
+        className="font-sans [--font-inter:ui-sans-serif] antialiased bg-slate-50 text-slate-900 min-h-screen flex flex-col"
       >
         <Providers>
           <NetworkProvider>

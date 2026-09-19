@@ -84,12 +84,10 @@ export default function OpportunitiesPage() {
     let action = inst.personal_action || inst.market_view;
     const isActionable = (action === "BUY" || action === "STRONG_BUY") && (!selectedPortfolioId || inst.sizing_state === "OK");
     
-    console.log(`BEFORE: symbol=${inst.symbol}, action=${action}, isActionable=${isActionable}`);
     // If it was a BUY but we can't buy it (no cash, over limit), display it as HOLD
     if ((action === "BUY" || action === "STRONG_BUY") && !isActionable) {
       action = "HOLD";
     }
-    console.log(`AFTER: symbol=${inst.symbol}, action=${action}, isActionable=${isActionable}`);
     
     const isMissing = inst.missing_data || inst.data_quality_score < 50;
     
@@ -112,7 +110,6 @@ export default function OpportunitiesPage() {
               {inst.symbol}
             </h3>
             <p className="text-sm text-navy-700/60 truncate max-w-[150px]">{inst.name || 'Hisse Senedi'}</p>
-            <p className="text-xs text-red-500">DBG: {inst.sizing_state} | {String(isActionable)} | {action}</p>
           </div>
           <div className="flex flex-col items-end gap-1">
             <span className={`px-2 py-1 text-xs font-bold rounded border ${getActionColorClass(action, isMissing)}`}>

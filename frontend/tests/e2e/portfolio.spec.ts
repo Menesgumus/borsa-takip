@@ -91,28 +91,34 @@ test.describe('Critical Flows: Portfolio & Trade', () => {
 
     // ── A. Create PAPER portfolio ───────────────────────────────────────────
     await page.goto('/portfolios');
-    await page.waitForLoadState('networkidle');
 
-    // Empty state shows a create button
-    const createBtn = page.getByRole('button', { name: /Oluştur/ }).first();
-    await expect(createBtn).toBeVisible({ timeout: 10000 });
-    await createBtn.click();
+    const createPortfolioButton = page.getByRole('button', { name: 'İlk Portföyü Oluştur' });
+    await expect(createPortfolioButton).toBeVisible({ timeout: 10000 });
+    await createPortfolioButton.click();
 
-    // Fill the create-portfolio modal
-    await page.fill('input[type="text"]', 'QA Portfolio');
-    // Select PAPER type if select exists
-    const hasPaperSelect = await page.locator('select').count() > 0;
+    const createModal = page.locator('.fixed.inset-0.z-50');
+    await expect(createModal.getByRole('heading', { name: 'Yeni Portföy Ekle' })).toBeVisible({ timeout: 10000 });
+
+    await createModal.locator('input[type="text"]').fill('QA Portfolio');
+    
+    const hasPaperSelect = await createModal.locator('select').count() > 0;
     if (hasPaperSelect) {
-      await page.selectOption('select', 'PAPER').catch(() => null);
+      await createModal.locator('select').selectOption('PAPER').catch(() => null);
     }
-    // Submit the modal (the primary blue button inside the overlay)
-    await page.locator('.fixed button.bg-primary-600, dialog button.bg-primary-600, [role="dialog"] button.bg-primary-600').first().click();
+    
+    const responsePromise = page.waitForResponse(
+      response => response.url().includes('/api/v1/portfolios') && response.request().method() === 'POST'
+    );
+    await createModal.getByRole('button', { name: 'Oluştur' }).click();
 
-    // Should land on portfolio detail page
-    await expect(page).toHaveURL(/.*\/portfolios\/\d+/, { timeout: 15000 });
-    const portfolioUrl = page.url();
-    const portfolioId = portfolioUrl.match(/portfolios\/(\d+)/)?.[1];
+    const response = await responsePromise;
+    expect(response.ok()).toBeTruthy();
+
+    const data = await response.json();
+    const portfolioId = data.id;
     expect(portfolioId).toBeTruthy();
+
+    await expect(page).toHaveURL(new RegExp(`/portfolios/${portfolioId}(?:\\?.*)?$`), { timeout: 20000 });
 
     // ── B. DEPOSIT 10,000 TRY ──────────────────────────────────────────────
     await openTradeModal(page);

@@ -1,76 +1,112 @@
 import { test, expect, Page } from '@playwright/test';
 
-test.describe('Phase 26.1 Opportunities E2E', () => {
-  test.describe.configure({ mode: 'serial' });
-
-  let page: Page;
-
-  test.beforeAll(async ({ browser }) => {
-    page = await browser.newPage();
-  });
-
-  test.afterAll(async () => {
-    await page.close();
-  });
-
-  async function registerAndOnboard(page: Page, email: string, password: string) {
-    await page.goto('/register');
-    await page.fill('#email', email);
-    await page.fill('#password', password);
-    await page.click('button[type="submit"]');
-    await expect(page).toHaveURL(/.*\/onboarding/, { timeout: 20000 });
-    
-    await page.waitForTimeout(1000); // Wait for React to settle
-    
-    await page.fill('#firstName', 'QA');
-    await page.fill('#lastName', 'Opportunity');
-    
-    const submitBtn = page.locator('button[type="submit"]');
-    await expect(async () => {
-      await page.getByText('ORTA', { exact: true }).click();
-      await expect(submitBtn).toBeEnabled({ timeout: 2000 });
-    }).toPass({ timeout: 20000 });
-    
-    const fname = await page.inputValue('#firstName');
-    if (!fname) {
-        await page.fill('#firstName', 'QA');
-        await page.fill('#lastName', 'Opportunity');
-    }
-
-    await submitBtn.click();
-    await expect(page).toHaveURL(/.*\/dashboard/, { timeout: 20000 });
+async function registerAndOnboard(page: Page, email: string, password: string) {
+  await page.goto('/register');
+  await page.fill('#email', email);
+  await page.fill('#password', password);
+  await page.click('button[type="submit"]');
+  await expect(page).toHaveURL(/.*\/onboarding/, { timeout: 20000 });
+  
+  await page.fill('#firstName', 'QA');
+  await page.fill('#lastName', 'Opportunity');
+  
+  const submitBtn = page.locator('button[type="submit"]');
+  await expect(async () => {
+    await page.getByText('ORTA', { exact: true }).click();
+    await expect(submitBtn).toBeEnabled({ timeout: 2000 });
+  }).toPass({ timeout: 20000 });
+  
+  const fname = await page.inputValue('#firstName');
+  if (!fname) {
+      await page.fill('#firstName', 'QA');
+      await page.fill('#lastName', 'Opportunity');
   }
 
-  test('Decision Monotonicity: Personal Action <= Market Action', async () => {
+  await submitBtn.click();
+  await expect(page).toHaveURL(/.*\/dashboard/, { timeout: 20000 });
+}
+
+async function createPortfolioViaUi(page: Page, portfolioName: string) {
+  await page.goto('/portfolios');
+  
+  const yeniIslemBtn = page.getByRole('button', { name: /Yeni İşlem/i }).first();
+  if (await yeniIslemBtn.isVisible()) {
+    await yeniIslemBtn.click();
+  }
+  
+  const createPortfolioButton = page.getByRole('button', {
+    name: 'İlk Portföyü Oluştur',
+  });
+  if (await createPortfolioButton.isVisible()) {
+    await createPortfolioButton.click();
+  } else {
+    await page.getByRole('button', { name: 'Yeni Ekle' }).click().catch(() => null);
+  }
+
+  const createModal = page.locator('.fixed.inset-0.z-50');
+  await expect(
+    createModal.getByRole('heading', { name: 'Yeni Portföy Ekle' })
+  ).toBeVisible({ timeout: 10000 });
+
+  await createModal.locator('input[type="text"]').fill(portfolioName);
+
+  const responsePromise = page.waitForResponse(
+    response =>
+      response.url().includes('/api/v1/portfolios') &&
+      response.request().method() === 'POST'
+  );
+
+  await createModal.getByRole('button', { name: 'Oluştur' }).click();
+
+  const response = await responsePromise;
+  expect(response.ok()).toBeTruthy();
+
+  const data = await response.json();
+  const portfolioId = data.id;
+  expect(portfolioId).toBeTruthy();
+
+  await expect(page).toHaveURL(
+    new RegExp(`/portfolios/${portfolioId}(?:\\?.*)?$`),
+    { timeout: 20000 }
+  );
+
+  await expect(
+    page.getByRole('heading', { name: portfolioName })
+  ).toBeVisible({ timeout: 20000 });
+
+  return portfolioId;
+}
+
+async function depositCashViaUi(page: Page, portfolioId: string | number, amount: string) {
+  await page.goto(`/portfolios/${portfolioId}`);
+  await page.getByRole('button').filter({ hasText: /Yeni İşlem/i }).first().click();
+  
+  const modal = page.locator('.fixed.inset-0.z-50');
+  await expect(modal.getByRole('heading', { name: /Yeni İşlem/ })).toBeVisible({ timeout: 10000 });
+  await modal.locator('input[type="number"]').fill(amount);
+  const confirmBtnDeposit = modal.getByRole('button', { name: 'Onayla', exact: true });
+  await expect(confirmBtnDeposit).toBeEnabled({ timeout: 5000 });
+  await confirmBtnDeposit.click();
+  await expect(modal).not.toBeVisible({ timeout: 15000 });
+}
+
+test.describe('Phase 26.1 Opportunities E2E', () => {
+
+  test('Decision Monotonicity: Personal Action <= Market Action', async ({ page }) => {
     test.setTimeout(180000);
     const ts = Date.now();
     const randomSuffix = Math.random().toString(36).substring(7);
     const email = `oppqa_mono_${ts}_${randomSuffix}@example.com`;
     
     await registerAndOnboard(page, email, 'TestPassword123!');
-
-    // Create empty portfolio
-    await page.goto('/portfolios');
-    const createInitialBtn = page.getByRole('button', { name: /Olu.tur/i }).first();
-    await expect(createInitialBtn).toBeVisible({ timeout: 10000 });
-    await createInitialBtn.click();
-    await page.fill('input[type="text"]', 'Empty Portfolio');
-    const hasPaperSelect = await page.locator('select').count() > 0;
-    if (hasPaperSelect) {
-      await page.selectOption('select', 'PAPER').catch(() => null);
-    }
-    await page.locator('.fixed button.bg-primary-600, dialog button.bg-primary-600, [role="dialog"] button.bg-primary-600').first().click();
-    await expect(page.locator('text="Empty Portfolio"').first()).toBeVisible({ timeout: 30000 });
+    await createPortfolioViaUi(page, 'Empty Portfolio');
     
     await page.goto('/opportunities');
     await page.waitForLoadState('networkidle');
 
-    // Select General Market
     const portfolioSelect = page.locator('select');
     await portfolioSelect.selectOption('');
-    await page.waitForTimeout(2000);
 
-    // Get the first symbol and its market action
     const firstCard = page.locator('a[href^="/opportunities/"]').first();
     await expect(firstCard).toBeVisible({ timeout: 60000 });
     
@@ -81,14 +117,10 @@ test.describe('Phase 26.1 Opportunities E2E', () => {
     const marketActionText = await firstCard.locator('span.px-2.py-1.text-xs.font-bold').first().textContent();
     const marketAction = marketActionText?.trim() || 'BEKLE';
 
-    // Switch to Empty Portfolio
     await portfolioSelect.selectOption('Empty Portfolio');
-    await page.waitForTimeout(2000);
     
-    // Find the exact same card in the portfolio view
     const portCard = page.locator(`a[href^="/opportunities/"]:has(h3:has-text("${symbol}"))`).first();
-    // Deterministically assert it is visible so we actually test the invariant
-    await expect(portCard, "Target instrument disappeared when switching to empty portfolio (preventing invariant check).").toBeVisible({ timeout: 5000 });
+    await expect(portCard, "Target instrument disappeared").toBeVisible({ timeout: 10000 });
     
     const personalActionText = await portCard.locator('span.px-2.py-1.text-xs.font-bold').first().textContent();
     const personalAction = personalActionText?.trim() || 'BEKLE';
@@ -105,93 +137,81 @@ test.describe('Phase 26.1 Opportunities E2E', () => {
     const pRank = rankMap[personalAction] || 3;
 
     expect(pRank).toBeLessThanOrEqual(mRank);
-
-
   });
 
-  test('Executable Position Sizing & Future Workspace', async () => {
+  test('Executable Position Sizing & Future Workspace', async ({ page }) => {
     test.setTimeout(180000);
     const ts = Date.now();
     const randomSuffix = Math.random().toString(36).substring(7);
     const email = `oppqa_size_${ts}_${randomSuffix}@example.com`;
     
-    // We can reuse the page session if we logout, or just use a new context. But since mode: serial, let's just clear cookies or use a new page.
-    // To be safe, just logout and register again, OR use a fresh context!
-    // Actually, mode: serial means we can just logout.
-    await page.context().clearCookies();
-    await page.goto('/login');
-    await expect(page).toHaveURL(/.*\/login/, { timeout: 10000 });
-
     await registerAndOnboard(page, email, 'TestPassword123!');
+    const portfolioId = await createPortfolioViaUi(page, 'Funded Portfolio');
+    await depositCashViaUi(page, portfolioId, '1000000');
 
-    // Create a funded portfolio
-    await page.goto('/portfolios');
-    
-    // Handle mobile "Yeni İşlem" action menu if visible
-    const yeniIslemBtn = page.getByRole('button', { name: /Yeni .şlem/i }).first();
-    if (await yeniIslemBtn.isVisible()) {
-      await yeniIslemBtn.click();
-    }
-    
-    await page.getByRole('button', { name: /Yeni Portföy/ }).first().click();
-    await page.fill('input[name="name"]', 'Funded Portfolio');
-    const responsePromise = page.waitForResponse(response => response.url().includes('/api/v1/portfolios') && response.request().method() === 'POST');
-    await page.getByRole('button', { name: 'Kaydet' }).click();
-    
-    const response = await responsePromise;
-    const data = await response.json();
-    const portfolioId = data.id;
-    
-    await expect(page.locator('h1').filter({ hasText: 'Portföylerim' })).toBeVisible();
-    expect(portfolioId).not.toBe('');
-    
-    // Deposit cash
-    await page.goto(`/portfolios/${portfolioId}`);
-    
-    // Deposit cash
-    await page.getByRole('button').filter({ hasText: /Yeni .şlem/i }).first().click();
-    await page.waitForTimeout(1000);
-    await page.fill('input[type="number"]', '1000000');
-    const modal = page.locator('.fixed.inset-0.z-50');
-    await modal.locator('button.bg-primary-600').filter({ hasText: 'Onayla' }).click();
-    
-    await expect(page.locator('.fixed.inset-0.z-50')).not.toBeVisible({ timeout: 15000 });
-
-    // Go to opportunities
-    await page.goto('/opportunities');
+    // We go directly to the page with portfolio_id to ensure a clean request
     const portfolioSelect = page.locator('select');
-    await portfolioSelect.selectOption(portfolioId);
-    await page.waitForTimeout(2000);
+    
+    const responsePromise = page.waitForResponse(response => {
+        const url = new URL(response.url());
+        return (
+            url.pathname.includes('/api/v1/opportunities') &&
+            !url.pathname.includes('/portfolios') &&
+            url.searchParams.get('portfolio_id') === String(portfolioId) &&
+            response.request().method() === 'GET' &&
+            (response.request().resourceType() === 'fetch' || response.request().resourceType() === 'xhr')
+        );
+    }, { timeout: 15000 });
 
-    // Click the first card
-    const firstCard = page.locator('a[href^="/opportunities/"]').first();
-    await expect(firstCard).toBeVisible({ timeout: 60000 });
-    const cardHref = await firstCard.getAttribute('href');
-    const symbol = cardHref?.split('/').pop() || '';
+    await page.goto(`/opportunities?portfolio_id=${portfolioId}`);
     
-    await firstCard.click();
+    const opportunitiesResponse = await responsePromise;
+    expect(opportunitiesResponse.ok(), `Portfolio opportunities request failed: ${opportunitiesResponse.status()}`).toBeTruthy();
+
+    const opportunities = await opportunitiesResponse.json();
     
-    // We can just query the API directly using page.request to get the JSON payload safely
-    const detailResponse = await page.request.get(`/api/v1/opportunities/${symbol}?portfolio_id=${portfolioId}`);
+    const qaBuy = opportunities.find((opp: any) => opp.symbol === 'QABUY');
+    expect(qaBuy).toBeDefined();
+    expect(qaBuy.sizing_state).toBe('OK');
+    expect(qaBuy.recommended_quantity).toBeGreaterThan(0);
+
+    const targetSymbol = 'QABUY';
+    const qaCard = page.locator('a[href^="/opportunities/"]').filter({ has: page.getByRole('heading', { name: 'QABUY' }) }).first();
+    
+    const detailResponsePromise = page.waitForResponse(response => {
+        const url = new URL(response.url());
+        return (
+            url.pathname.includes(`/api/v1/opportunities/${targetSymbol}`) &&
+            url.searchParams.get('portfolio_id') === String(portfolioId) &&
+            response.request().method() === 'GET' &&
+            (response.request().resourceType() === 'fetch' || response.request().resourceType() === 'xhr')
+        );
+    }, { timeout: 15000 });
+
+    await page.goto(`/opportunities/${targetSymbol}?portfolio_id=${portfolioId}`);
+    
+    const detailResponse = await detailResponsePromise;
+    expect(detailResponse.ok(), `Detail response failed: ${detailResponse.status()}`).toBeTruthy();
     const detail = await detailResponse.json();
 
-    // Deterministically assert we have a valid test fixture
-    expect(detail.recommended_quantity, "Expected test fixture to yield a positive recommended quantity for actionable sizing check").toBeGreaterThan(0);
-
-    // Check sizes
+    expect(detail.symbol).toBe('QABUY');
+    expect(detail.selected_portfolio_id).toBe(Number(portfolioId));
+    expect(detail.sizing_state).toBe('OK');
+    expect(detail.recommended_quantity).toBeGreaterThan(0);
     expect(Number.isInteger(detail.recommended_quantity)).toBeTruthy();
+    expect(detail.max_executable_quantity).toBeGreaterThan(0);
+    expect(Number.isInteger(detail.max_executable_quantity)).toBeTruthy();
     
     const price = parseFloat(detail.quote_price);
+    expect(price).toBeGreaterThan(0);
+
     const budget = parseFloat(detail.max_executable_budget);
     const qty = parseFloat(detail.max_executable_quantity);
     
-    // max_executable_budget == max_executable_quantity * current_price
     expect(Math.abs(budget - (qty * price))).toBeLessThan(0.01);
-    
     const theoretical = parseFloat(detail.theoretical_max_additional_budget);
-    expect(budget).toBeLessThanOrEqual(theoretical + 0.01); // +0.01 for floating point margin
+    expect(budget).toBeLessThanOrEqual(theoretical + 0.01); 
 
-    // Check future workspace marker
     const futureWorkspaceMarker = page.locator('text=/Gelecek/');
     await expect(futureWorkspaceMarker).toBeVisible({ timeout: 15000 });
   });

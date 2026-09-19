@@ -12,27 +12,14 @@ import {
 } from "lucide-react";
 import { useNetwork } from "@/components/NetworkProvider";
 import { fetchApi } from "@/lib/api";
-import { formatTry } from "@/lib/financialUi";
+import { formatTry, formatActionLabel, getActionColorClass } from "@/lib/financialUi";
 import { PortfolioOverviewDTO } from "@/lib/types";
 import { InstrumentSearch } from "@/components/InstrumentSearch";
+import type { OpportunityListResult } from "@/types/opportunity";
 
-function OpportunityPreviewCard({ opp }: { opp: any }) {
-  // Use exact logic from Opportunities page for display
-  const rankMap: Record<string, number> = {
-    'GÜÇLÜ SAT': 1,
-    'SAT': 2,
-    'BEKLE': 3,
-    'AL': 4,
-    'GÜÇLÜ AL': 5
-  };
-  const actionText = opp.decision.personal_action || opp.decision.market_action || 'BEKLE';
-  const actionRank = rankMap[actionText] || 3;
-  
-  const getBadgeClass = (rank: number) => {
-    if (rank >= 4) return "bg-success-50 text-success-700 border border-success-200";
-    if (rank <= 2) return "bg-danger-50 text-danger-700 border border-danger-200";
-    return "bg-slate-50 text-slate-700 border border-slate-200";
-  };
+function OpportunityPreviewCard({ opp }: { opp: OpportunityListResult }) {
+  const action = opp.personal_action || opp.market_view;
+  const isMissing = opp.missing_data || opp.data_quality_score < 50;
 
   return (
     <Link href={`/instruments/${opp.symbol}`} className="bg-surface rounded-xl p-5 border border-navy-800/10 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
@@ -41,17 +28,17 @@ function OpportunityPreviewCard({ opp }: { opp: any }) {
           <h3 className="font-bold text-navy-900 text-lg">{opp.symbol}</h3>
           <p className="text-sm text-navy-700/60 truncate max-w-[140px]">{opp.name || opp.symbol}</p>
         </div>
-        <span className={`px-2 py-1 text-xs font-bold rounded ${getBadgeClass(actionRank)}`}>
-          {actionText}
+        <span className={`px-2 py-1 text-xs font-bold rounded border ${getActionColorClass(action, isMissing)}`}>
+          {formatActionLabel(action, isMissing)}
         </span>
       </div>
       
       <div>
         <div className="text-2xl font-semibold text-navy-900 mb-1">
-          {Number(opp.quote.price).toFixed(2)} ₺
+          {formatTry(opp.quote_price)}
         </div>
         <div className="text-sm text-navy-700 mt-2">
-          Güven Skoru: <span className="font-medium">{(opp.decision.confidence_score * 100).toFixed(0)}%</span>
+          Piyasa Puanı: <span className="font-medium">{opp.market_score != null ? Number(opp.market_score).toFixed(0) : "—"}</span>
         </div>
       </div>
     </Link>
@@ -74,16 +61,14 @@ export default function Dashboard() {
 
   const { data: oppsData, isLoading: isOppsLoading, isError: isOppsError } = useQuery({
     queryKey: ["dashboard_opportunities"],
-    queryFn: () => fetchApi('/api/v1/opportunities'),
+    queryFn: () => fetchApi<OpportunityListResult[]>('/api/v1/opportunities'),
     staleTime: 60000,
   });
 
-  // Pick top 3 actionable opportunities for the preview
+  // Preserve the backend's market-score ordering for the general preview.
   const topOpportunities = React.useMemo(() => {
     if (!Array.isArray(oppsData)) return [];
-    // Sort by personal score descending
-    const sorted = [...oppsData].sort((a, b) => b.decision.overall_personal_score - a.decision.overall_personal_score);
-    return sorted.slice(0, 3);
+    return oppsData.slice(0, 3);
   }, [oppsData]);
 
   return (
@@ -178,7 +163,7 @@ export default function Dashboard() {
           </div>
         ) : topOpportunities.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {topOpportunities.map((opp: any) => (
+            {topOpportunities.map((opp) => (
               <OpportunityPreviewCard key={opp.symbol} opp={opp} />
             ))}
           </div>

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 import withPWAInit from "@ducanh2912/next-pwa";
 
 const withPWA = withPWAInit({
@@ -15,6 +16,7 @@ const withPWA = withPWAInit({
 });
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: path.resolve(__dirname, ".."),
   output: process.env.NEXT_STANDALONE ? 'standalone' : undefined,
   async rewrites() {
     return [
