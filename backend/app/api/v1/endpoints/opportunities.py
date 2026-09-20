@@ -18,15 +18,30 @@ async def get_opportunities(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ):
+    from app.db.models import AssetClass
+
+    parsed_asset_class = None
+    if asset_class and asset_class != "ALL":
+        try:
+            parsed_asset_class = AssetClass(asset_class)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="Invalid asset_class")
+        if parsed_asset_class == AssetClass.FX_REFERENCE:
+            raise HTTPException(status_code=422, detail="Invalid asset_class")
+
     if portfolio_id:
         # IDOR protection
         p_res = await db.execute(select(Portfolio).where(Portfolio.id == portfolio_id, Portfolio.user_id == current_user.id))
         if not p_res.scalars().first():
             raise HTTPException(status_code=404, detail="Portfolio not found or unauthorized")
 
-    results = await scan_opportunities(db, user=current_user, portfolio_id=portfolio_id, limit=limit)
-    if asset_class and asset_class != "ALL":
-        results = [r for r in results if r.asset_class == asset_class]
+    results = await scan_opportunities(
+        db,
+        user=current_user,
+        portfolio_id=portfolio_id,
+        limit=limit,
+        asset_class=parsed_asset_class
+    )
     return results
 
 @router.get('/{symbol}', response_model=OpportunityResult)

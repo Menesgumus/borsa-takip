@@ -63,7 +63,7 @@ class BasketBuilderService:
 
         if deploy_amount == 0:
             deploy_amount = cash_balance
-            
+
         # Enforce validation: deploy_amount <= available_cash
         if deploy_amount > cash_balance:
             raise ValueError("Requested deploy amount exceeds available cash")

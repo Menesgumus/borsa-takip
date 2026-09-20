@@ -28,7 +28,7 @@ from app.services.scanner_technical import get_batched_technical_inputs
 
 logger = logging.getLogger(__name__)
 
-async def scan_opportunities(db: AsyncSession, user: User, portfolio_id: int | None = None, limit: int = 10, symbols: list[str] | None = None) -> list[OpportunityResult]:
+async def scan_opportunities(db: AsyncSession, user: User, portfolio_id: int | None = None, limit: int = 10, symbols: list[str] | None = None, asset_class: AssetClass | None = None) -> list[OpportunityResult]:
     t0 = time.perf_counter()
     # 1. Fetch user profile
     p_res = await db.execute(select(UserProfile).where(UserProfile.user_id == user.id))
@@ -166,6 +166,11 @@ async def scan_opportunities(db: AsyncSession, user: User, portfolio_id: int | N
 
         inst = inst_dict.get(inst_id)
         if not inst:
+            continue
+        if asset_class and str(inst.asset_class) != str(asset_class):
+            continue
+
+        if str(inst.asset_class) == str(AssetClass.FX_REFERENCE):
             continue
 
         quote_price_val = Decimal(mr["quote_price"]) if mr["quote_price"] else None
