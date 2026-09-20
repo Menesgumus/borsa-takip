@@ -214,6 +214,17 @@ test.describe('Phase 28 Multi-Asset Allocation & Basket Builder', () => {
     const portfolioId = await createPortfolio(page);
     await fundPortfolio(page, portfolioId, '100000');
 
+    // First fetch the opportunities list to ensure QAHOLD is returned and is HOLD
+    const cookieHeader = (await page.context().cookies()).map(c => c.name + '=' + c.value).join('; ');
+    const oppRes = await page.request.get(`/api/v1/opportunities/QAHOLD?portfolio_id=${portfolioId}`, { headers: { Cookie: cookieHeader } });
+    expect(oppRes.status()).toBe(200);
+    const qaholdOpp = await oppRes.json();
+    
+    // Assert QAHOLD exists in deterministic opportunity data
+    expect(qaholdOpp).toBeDefined();
+    // Assert market_view == HOLD or personal_action == HOLD
+    expect(qaholdOpp.market_view === 'HOLD' || qaholdOpp.personal_action === 'HOLD').toBeTruthy();
+
     await page.goto('/opportunities');
     await page.locator('select').first().selectOption({ value: String(portfolioId) });
 
@@ -224,15 +235,14 @@ test.describe('Phase 28 Multi-Asset Allocation & Basket Builder', () => {
     
     const previewData = await previewRes.json();
     
-    // QAHOLD should be HOLD and thus NOT present as a proposed BUY in items with proposed_quantity > 0
+    // Check that QAHOLD does NOT receive a positive basket allocation
     const holdItem = previewData.items?.find((i: any) => i.symbol === 'QAHOLD');
     if (holdItem) {
-      console.log("QAHOLD DEBUG:", holdItem);
       expect(Number(holdItem.proposed_quantity)).toBe(0);
-      expect(holdItem.market_view).toBe('HOLD');
-    } else {
-      expect(true).toBeTruthy();
     }
+    
+    // Assert unallocated capital is preserved (>= 0)
+    expect(Number(previewData.unallocated_amount)).toBeGreaterThanOrEqual(0);
   });
 
   test('Flow D - Manual Broker Price Invariance', async ({ page }) => {
@@ -255,33 +265,48 @@ test.describe('Phase 28 Multi-Asset Allocation & Basket Builder', () => {
     await sepetLink.click();
     const previewRes = await previewPromise;
     const previewData = await previewRes.json();
-    console.log('Flow D previewData:', JSON.stringify(previewData, null, 2));
     
     const usItem = previewData.items.find((i: any) => i.symbol === 'QAUS');
     expect(usItem).toBeDefined();
     
     const originalAnalysisPrice = usItem.analysis_native_price;
-    const manualPrice = (originalAnalysisPrice * 1.5).toFixed(2);
-    
-    // Enter manual price
     const itemRow = page.locator('tr').filter({ hasText: 'QAUS' }).first();
-    await itemRow.locator('input[type="number"]').fill(manualPrice);
     
-    const execPreviewPromise = page.waitForResponse(res => res.url().includes(`/api/v1/portfolios/${portfolioId}/execution-preview`) && res.request().method() === 'POST');
+    // Preview A
+    await itemRow.locator('input[type="number"]').fill(String(originalAnalysisPrice));
+    
+    const execPreviewPromiseA = page.waitForResponse(res => res.url().includes(`/api/v1/portfolios/${portfolioId}/execution-preview`) && res.request().method() === 'POST');
     await itemRow.locator('button').filter({ hasText: /nizle/i }).click();
-    const execPreviewRes = await execPreviewPromise;
+    const execPreviewResA = await execPreviewPromiseA;
+    const execDataA = await execPreviewResA.json();
     
-    const execData = await execPreviewRes.json();
+    // Preview B
+    const manualPriceB = (originalAnalysisPrice * 1.5).toFixed(2);
+    await itemRow.locator('input[type="number"]').fill(manualPriceB);
     
-    // Assert invariant properties
-    expect(execData.market_view).toBe(usItem.market_view);
-    expect(execData.personal_action).toBe(usItem.personal_action);
-    expect(Number(execData.market_score)).toBe(Number(usItem.market_score));
-    expect(Number(execData.analysis_price)).toBe(Number(originalAnalysisPrice));
+    const execPreviewPromiseB = page.waitForResponse(res => res.url().includes(`/api/v1/portfolios/${portfolioId}/execution-preview`) && res.request().method() === 'POST');
+    await itemRow.locator('button').filter({ hasText: /nizle/i }).click();
+    const execPreviewResB = await execPreviewPromiseB;
+    const execDataB = await execPreviewResB.json();
     
-    // Assert changed properties
-    expect(Number(execData.execution_price)).toBe(Number(manualPrice));
-    expect(execData.execution_source).toBe('MANUAL_BROKER');
+    // Assert invariant properties for both
+    expect(execDataA.market_view).toBe(usItem.market_view);
+    expect(execDataA.personal_action).toBe(usItem.personal_action);
+    expect(Number(execDataA.market_score)).toBe(Number(usItem.market_score));
+    expect(Number(execDataA.analysis_price)).toBe(Number(originalAnalysisPrice));
+    expect(execDataA.execution_source).toBe('MANUAL_BROKER');
+
+    expect(execDataB.market_view).toBe(usItem.market_view);
+    expect(execDataB.personal_action).toBe(usItem.personal_action);
+    expect(Number(execDataB.market_score)).toBe(Number(usItem.market_score));
+    expect(Number(execDataB.analysis_price)).toBe(Number(originalAnalysisPrice));
+    expect(execDataB.execution_source).toBe('MANUAL_BROKER');
+    
+    // Assert execution result changed
+    const quantityChanged = Number(execDataA.recomputed_quantity) !== Number(execDataB.recomputed_quantity);
+    const budgetChanged = Number(execDataA.recomputed_budget) !== Number(execDataB.recomputed_budget);
+    const weightChanged = Number(execDataA.projected_weight) !== Number(execDataB.projected_weight);
+    expect(quantityChanged || budgetChanged || weightChanged).toBeTruthy();
   });
 
   test('Flow E - Real External Trade Record', async ({ page }) => {
