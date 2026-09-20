@@ -87,53 +87,99 @@ test.describe('Phase 28 Multi-Asset Allocation & Basket Builder', () => {
 
     await page.goto('/opportunities');
     await page.waitForURL('**/opportunities');
+    // BIST Tab is active by default. Selecting the portfolio triggers the BIST fetch.
+    const bistPromise = page.waitForResponse(res => {
+        try {
+            const url = new URL(res.url());
+            return url.pathname === '/api/v1/opportunities' &&
+                   url.searchParams.get('portfolio_id') === String(portfolioId) &&
+                   url.searchParams.get('asset_class') === 'BIST_EQUITY' &&
+                   res.request().method() === 'GET' &&
+                   ['fetch', 'xhr'].includes(res.request().resourceType());
+        } catch { return false; }
+    });
+    
     await page.locator('select').first().selectOption({ value: String(portfolioId) });
-
-    // BIST Tab
-    const bistTab = page.locator('button', { hasText: 'BIST' });
-    await expect(bistTab).toBeVisible();
-    const bistPromise = page.waitForResponse(res => res.url().includes('asset_class=BIST_EQUITY') && res.request().method() === 'GET');
-    await bistTab.click();
+    
     const bistRes = await bistPromise;
     expect(bistRes.ok()).toBeTruthy();
     const bistData = await bistRes.json();
-    for (const item of bistData.items || []) {
+    expect(Array.isArray(bistData)).toBe(true);
+    expect(bistData.length).toBeGreaterThan(0);
+    for (const item of bistData) {
       expect(item.asset_class).toBe('BIST_EQUITY');
     }
+    // Require specific QA fixture
+    expect(bistData.some((item: any) => item.symbol === 'QABUY' || item.symbol === 'QAHOLD')).toBe(true);
 
     // US Tab
     const usTab = page.locator('button', { hasText: 'US Equities' });
-    const usPromise = page.waitForResponse(res => res.url().includes('asset_class=US_EQUITY') && res.request().method() === 'GET');
+    const usPromise = page.waitForResponse(res => {
+        try {
+            const url = new URL(res.url());
+            return url.pathname === '/api/v1/opportunities' &&
+                   url.searchParams.get('portfolio_id') === String(portfolioId) &&
+                   url.searchParams.get('asset_class') === 'US_EQUITY' &&
+                   res.request().method() === 'GET' &&
+                   ['fetch', 'xhr'].includes(res.request().resourceType());
+        } catch { return false; }
+    });
     await usTab.click();
     const usRes = await usPromise;
     expect(usRes.ok()).toBeTruthy();
     const usData = await usRes.json();
-    for (const item of usData.items || []) {
+    expect(Array.isArray(usData)).toBe(true);
+    expect(usData.length).toBeGreaterThan(0);
+    for (const item of usData) {
       expect(item.asset_class).toBe('US_EQUITY');
     }
+    expect(usData.some((item: any) => item.symbol === 'QAUS')).toBe(true);
 
     // Gold Tab
     const gldTab = page.locator('button').filter({ hasText: /Alt.n/i });
-    const gldPromise = page.waitForResponse(res => res.url().includes('asset_class=GOLD') && res.request().method() === 'GET');
+    const gldPromise = page.waitForResponse(res => {
+        try {
+            const url = new URL(res.url());
+            return url.pathname === '/api/v1/opportunities' &&
+                   url.searchParams.get('portfolio_id') === String(portfolioId) &&
+                   url.searchParams.get('asset_class') === 'GOLD' &&
+                   res.request().method() === 'GET' &&
+                   ['fetch', 'xhr'].includes(res.request().resourceType());
+        } catch { return false; }
+    });
     await gldTab.click();
     const gldRes = await gldPromise;
     expect(gldRes.ok()).toBeTruthy();
     const gldData = await gldRes.json();
-    for (const item of gldData.items || []) {
+    expect(Array.isArray(gldData)).toBe(true);
+    expect(gldData.length).toBeGreaterThan(0);
+    for (const item of gldData) {
       expect(item.asset_class).toBe('GOLD');
     }
+    expect(gldData.some((item: any) => item.symbol === 'QAGOLD')).toBe(true);
 
     // Tümü Tab (All)
     const allTab = page.locator('button').filter({ hasText: /T.m./i });
-    // Wait for the response that doesn't restrict asset_class
-    const allPromise = page.waitForResponse(res => res.url().includes('/opportunities') && !res.url().includes('asset_class=') && res.request().method() === 'GET');
+    const allPromise = page.waitForResponse(res => {
+        try {
+            const url = new URL(res.url());
+            return url.pathname === '/api/v1/opportunities' &&
+                   url.searchParams.get('portfolio_id') === String(portfolioId) &&
+                   !url.searchParams.has('asset_class') &&
+                   res.request().method() === 'GET' &&
+                   ['fetch', 'xhr'].includes(res.request().resourceType());
+        } catch { return false; }
+    });
     await allTab.click();
     const allRes = await allPromise;
     expect(allRes.ok()).toBeTruthy();
     const allData = await allRes.json();
-    for (const item of allData.items || []) {
+    expect(Array.isArray(allData)).toBe(true);
+    expect(allData.length).toBeGreaterThan(0);
+    for (const item of allData) {
       expect(item.asset_class).not.toBe('FX_REFERENCE');
     }
+    expect(allData.some((item: any) => item.symbol === 'QAUSDTRY')).toBe(false);
   });
 
   test('Flow B - Basket Conservation', async ({ page }) => {
@@ -167,7 +213,7 @@ test.describe('Phase 28 Multi-Asset Allocation & Basket Builder', () => {
     const diff = Math.abs(Number(previewData.allocated_amount) + Number(previewData.unallocated_amount) - Number(previewData.requested_deploy_amount));
     expect(diff).toBeLessThan(0.01);
     
-    for (const item of previewData.items || []) {
+    for (const item of previewData.items) {
       expect(Number.isInteger(Number(item.proposed_quantity))).toBe(true);
       expect(Number(item.proposed_quantity)).toBeGreaterThanOrEqual(0);
     }
@@ -237,9 +283,7 @@ test.describe('Phase 28 Multi-Asset Allocation & Basket Builder', () => {
     
     // Check that QAHOLD does NOT receive a positive basket allocation
     const holdItem = previewData.items?.find((i: any) => i.symbol === 'QAHOLD');
-    if (holdItem) {
-      expect(Number(holdItem.proposed_quantity)).toBe(0);
-    }
+    expect(holdItem ? Number(holdItem.proposed_quantity) : 0).toBe(0);
     
     // Assert unallocated capital is preserved (>= 0)
     expect(Number(previewData.unallocated_amount)).toBeGreaterThanOrEqual(0);
