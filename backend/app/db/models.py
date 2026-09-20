@@ -637,3 +637,78 @@ class TradeInsight(Base):
     description = Column(String, nullable=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+class LifecycleHealthState(str, enum.Enum):
+    STABLE = "STABLE"
+    WATCH = "WATCH"
+    CONFIRMED_DETERIORATION = "CONFIRMED_DETERIORATION"
+    RECOVERING = "RECOVERING"
+    CLOSED = "CLOSED"
+
+class LifecycleAction(str, enum.Enum):
+    HOLD = "HOLD"
+    CONSIDER_ADD = "CONSIDER_ADD"
+    CONSIDER_REDUCE = "CONSIDER_REDUCE"
+    CONSIDER_EXIT = "CONSIDER_EXIT"
+    NO_ACTION_DATA = "NO_ACTION_DATA"
+
+class PositionLifecycle(Base):
+    __tablename__ = "position_lifecycles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    portfolio_id = Column(Integer, ForeignKey("portfolios.id", ondelete="CASCADE"), nullable=False, index=True)
+    instrument_id = Column(Integer, ForeignKey("instruments.id", ondelete="CASCADE"), nullable=False, index=True)
+    episode_number = Column(Integer, nullable=False, default=1)
+
+    health_state = Column(Enum(LifecycleHealthState), nullable=False)
+    recommended_action = Column(Enum(LifecycleAction), nullable=False)
+    policy_version = Column(String, nullable=False)
+
+    negative_confirmation_count = Column(Integer, nullable=False, default=0)
+    strong_sell_confirmation_count = Column(Integer, nullable=False, default=0)
+    recovery_confirmation_count = Column(Integer, nullable=False, default=0)
+    add_confirmation_count = Column(Integer, nullable=False, default=0)
+
+    last_counted_market_observation_key = Column(String, nullable=True)
+    last_evaluated_at = Column(DateTime(timezone=True), nullable=True)
+    last_transition_at = Column(DateTime(timezone=True), nullable=True)
+
+    episode_started_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    closed_at = Column(DateTime(timezone=True), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    portfolio = relationship("Portfolio")
+    instrument = relationship("Instrument")
+
+    __table_args__ = (
+        UniqueConstraint('portfolio_id', 'instrument_id', name='uq_position_lifecycle_port_inst'),
+    )
+
+class PositionLifecycleSnapshot(Base):
+    __tablename__ = "position_lifecycle_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    lifecycle_id = Column(Integer, ForeignKey("position_lifecycles.id", ondelete="CASCADE"), nullable=False, index=True)
+    episode_number = Column(Integer, nullable=False)
+
+    market_observation_key = Column(String, nullable=False)
+    portfolio_context_key = Column(String, nullable=False)
+
+    health_state_before = Column(Enum(LifecycleHealthState), nullable=True)
+    health_state_after = Column(Enum(LifecycleHealthState), nullable=False)
+    recommended_action = Column(Enum(LifecycleAction), nullable=False)
+
+    market_view = Column(String, nullable=True)
+    reason_codes = Column(String, nullable=True) # JSON Array as string
+    evidence_data = Column(String, nullable=True) # JSON payload as string
+    context_data = Column(String, nullable=True) # JSON payload as string
+
+    evaluated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    lifecycle = relationship("PositionLifecycle", backref="snapshots")
+
+    __table_args__ = (
+        UniqueConstraint('lifecycle_id', 'episode_number', 'market_observation_key', 'portfolio_context_key', name='uq_lifecycle_snapshot_key'),
+    )
+
