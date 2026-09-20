@@ -202,7 +202,7 @@ async def evaluate_portfolios(db: AsyncSession, portfolios: Sequence[Portfolio])
         fx_service = FxRateService(registry)
         rate = await fx_service.get_usd_try_rate(db)
         if rate:
-            usd_try_rate = rate
+            usd_try_rate = rate.rate
         else:
             usd_try_rate = None
 

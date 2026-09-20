@@ -668,8 +668,8 @@ async def preview_execution(
         recomputed_budget=sizing.recommended_budget or Decimal("0"),
         projected_weight=sizing.estimated_post_trade_weight or Decimal("0"),
         market_view=opp.market_view,
-        personal_action=opp.personal_action,
-        market_score=opp.market_score or 50
+        personal_action=opp.personal_action or opp.market_view or "HOLD",
+        market_score=int(opp.market_score or 50)
     )
 
 @router.post("/{portfolio_id}/manual-trade", response_model=TransactionRead)

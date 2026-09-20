@@ -51,6 +51,7 @@ QA_INSTRUMENTS = [
     {"symbol": "ASELS", "name": "Aselsan Elektronik", "exchange": "BIST", "asset_class": AssetClass.BIST_EQUITY, "currency": "TRY"},
     {"symbol": "SISE",  "name": "Şişecam Şirketleri", "exchange": "BIST", "asset_class": AssetClass.BIST_EQUITY, "currency": "TRY"},
     {"symbol": "QABUY", "name": "QA Deterministic Buy Fixture", "exchange": "QA", "asset_class": AssetClass.BIST_EQUITY, "currency": "TRY"},
+    {"symbol": "QAHOLD", "name": "QA Deterministic Hold Fixture", "exchange": "QA", "asset_class": AssetClass.BIST_EQUITY, "currency": "TRY"},
     {"symbol": "QAUS", "name": "QA US Deterministic Fixture", "exchange": "QA", "asset_class": AssetClass.US_EQUITY, "currency": "USD"},
     {"symbol": "QAGOLD", "name": "QA Gold Deterministic Fixture", "exchange": "QA", "asset_class": AssetClass.GOLD, "currency": "TRY"},
     {"symbol": "QAUSDTRY", "name": "QA USD/TRY Deterministic Fixture", "exchange": "QA", "asset_class": AssetClass.FX_REFERENCE, "currency": "TRY", "type": InstrumentType.CURRENCY},
@@ -95,6 +96,34 @@ async def seed_qabuy_technical_data(session: AsyncSession, instrument_id: int):
 
     session.add_all(candles)
 
+async def seed_qahold_technical_data(session: AsyncSession, instrument_id: int):
+    provider = MockMarketDataProvider()
+    quote = await provider.get_quote("QAHOLD")
+    fixture_price = quote.price
+    volume = quote.volume
+
+    now = datetime.now(UTC)
+    start_date = (now - timedelta(days=250)).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    await session.execute(delete(OHLCVDaily).where(OHLCVDaily.instrument_id == instrument_id))
+
+    candles = []
+    # Create a flat trend to guarantee neutral HOLD signals
+    for i in range(250):
+        day_price = fixture_price
+        candles.append(OHLCVDaily(
+            instrument_id=instrument_id,
+            timestamp=start_date + timedelta(days=i),
+            open=day_price * Decimal("0.99"),
+            high=day_price * Decimal("1.01"),
+            low=day_price * Decimal("0.98"),
+            close=day_price,
+            volume=volume,
+            provider_name="mock"
+        ))
+
+    session.add_all(candles)
+
 async def seed_qabuy_fundamental_data(session: AsyncSession, instrument_id: int):
     await session.execute(delete(FundamentalData).where(FundamentalData.instrument_id == instrument_id))
 
@@ -107,6 +136,23 @@ async def seed_qabuy_fundamental_data(session: AsyncSession, instrument_id: int)
         market_cap=Decimal("10000000000.0"),
         net_income=Decimal("1000000000.0"),
         revenue=Decimal("5000000000.0"),
+        source="mock",
+        published_at=datetime.now(UTC)
+    )
+    session.add(fund)
+
+async def seed_qahold_fundamental_data(session: AsyncSession, instrument_id: int):
+    await session.execute(delete(FundamentalData).where(FundamentalData.instrument_id == instrument_id))
+
+    # Mediocre fundamentals: PE around 20, PB around 3.0
+    fund = FundamentalData(
+        instrument_id=instrument_id,
+        period="2026Q1",
+        pe_ratio=Decimal("20.0"),
+        pb_ratio=Decimal("3.0"),
+        market_cap=Decimal("10000000000.0"),
+        net_income=Decimal("500000000.0"),
+        revenue=Decimal("2000000000.0"),
         source="mock",
         published_at=datetime.now(UTC)
     )
@@ -165,10 +211,14 @@ async def seed() -> None:
                     session.add(mock_mapping)
                 print(f"    - Existing mock mapping for {symbol} verified as primary")
 
-            if symbol in ("QABUY", "QAUS", "QAGOLD"):
-                await seed_qabuy_technical_data(session, instrument.id)
-                if symbol != "QAGOLD":
-                    await seed_qabuy_fundamental_data(session, instrument.id)
+            if symbol in ("QABUY", "QAHOLD", "QAUS", "QAGOLD"):
+                if symbol == "QAHOLD":
+                    await seed_qahold_technical_data(session, instrument.id)
+                    await seed_qahold_fundamental_data(session, instrument.id)
+                else:
+                    await seed_qabuy_technical_data(session, instrument.id)
+                    if symbol != "QAGOLD":
+                        await seed_qabuy_fundamental_data(session, instrument.id)
                 print(f"    + Seeded deterministic technical data for {symbol}")
 
         await session.commit()

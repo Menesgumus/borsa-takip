@@ -38,12 +38,15 @@ class MockMarketDataProvider(MarketDataProvider):
         return int.from_bytes(digest[:8], "big")
 
     def _generate_quote(self, symbol: str) -> QuoteDTO:
-        # Deterministic generation using stable standard-library hash
-        base_val = float(self._stable_int(f"{symbol}:price") % 1000) + 10.0
-        now = datetime.now(UTC)
+        if symbol == "QAUSDTRY":
+            base_val = 35.0
+            change_pct = Decimal("0.0")
+        else:
+            base_val = float(self._stable_int(f"{symbol}:price") % 1000) + 10.0
+            change_pct = Decimal(f"{(self._stable_int(f'{symbol}:change') % 1000) / 100.0 - 5.0:.2f}")
 
         price = Decimal(f"{base_val:.2f}")
-        change_pct = Decimal(f"{(self._stable_int(f'{symbol}:change') % 1000) / 100.0 - 5.0:.2f}")
+        now = datetime.now(UTC)
 
         return QuoteDTO(
             symbol=symbol,

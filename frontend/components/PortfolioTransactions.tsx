@@ -55,7 +55,7 @@ export function PortfolioTransactions({ portfolioId }: { portfolioId: string }) 
                    t.transaction_type === "DEPOSIT" ? "YATIRMA" : "ÇEKİM"}
                 </span>
               </td>
-              <td className="px-5 py-4 font-semibold text-navy-900">{t.symbol || "-"}</td>
+              <td className="px-5 py-4 font-semibold text-navy-900">{t.instrument_symbol || t.symbol || "-"}</td>
               <td className="px-5 py-4 text-right font-medium">
                 {t.price != null ? formatTry(t.price) : "-"}
               </td>
