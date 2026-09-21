@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from app.db.session import get_db_session
-from app.db.models import PositionLifecycle
+from app.db.models import PositionLifecycle, PositionLifecycleSnapshot
 from app.core.config import settings
 
 router = APIRouter()
@@ -67,7 +67,26 @@ async def override_lifecycle(
     if req.estimated_released_cash_base is not None:
         lc.estimated_released_cash_base = Decimal(req.estimated_released_cash_base)
         
-    lc.evidence = {"reason_codes": req.reason_codes, "market_view": "MOCK"}
+    lc.evidence_data = json.dumps({
+        "reason_codes": req.reason_codes,
+        "market_view": "MOCK"
+    })
     
+    await db.flush() # ensure lc.id is available
+    
+    import uuid
+    mock_key = f"mock_key_{uuid.uuid4().hex}"
+    
+    snap = PositionLifecycleSnapshot(
+        lifecycle_id=lc.id,
+        episode_number=lc.episode_number,
+        health_state_after=req.health_state,
+        recommended_action=req.recommended_action,
+        reason_codes=json.dumps(req.reason_codes),
+        market_view="MOCK",
+        market_observation_key=mock_key,
+        portfolio_context_key=mock_key
+    )
+    db.add(snap)
     await db.commit()
     return {"status": "ok"}

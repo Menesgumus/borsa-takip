@@ -4,10 +4,19 @@ import { formatTry, formatQuantity, getProfitLossColorClass } from '@/lib/financ
 import { LifecycleHealthState, LifecycleAction, PositionLifecycleDTO } from '@/types/lifecycle';
 import { ChevronDown, ChevronUp, AlertCircle, Info, Activity, AlertTriangle } from 'lucide-react';
 
+export interface PortfolioPosition {
+  instrument_id: number;
+  symbol: string;
+  quantity: number | string;
+  market_value?: number | string;
+  unrealized_pnl?: number | string;
+  [key: string]: any;
+}
+
 interface PositionLifecycleRowProps {
-  pos: any;
+  pos: PortfolioPosition;
   lc?: PositionLifecycleDTO;
-  onOpenActionModal?: (actionType: "DEPOSIT"|"WITHDRAWAL"|"BUY"|"SELL", instrument: any, suggestedQuantity?: number) => void;
+  onOpenActionModal?: (actionType: "DEPOSIT"|"WITHDRAWAL"|"BUY"|"SELL", instrument: { symbol: string; [key: string]: any }, suggestedQuantity?: number) => void;
   isPaper?: boolean;
 }
 
@@ -77,10 +86,10 @@ export default function PositionLifecycleRow({ pos, lc, onOpenActionModal, isPap
           </Link>
         </td>
         <td className="px-5 py-4 text-right font-medium">{formatQuantity(pos.quantity)}</td>
-        <td className="px-5 py-4 text-right font-medium">
+        <td className="px-5 py-4 text-right font-medium hidden md:table-cell">
           {pos.market_value != null ? formatTry(pos.market_value) : 'Yetersiz Veri'}
         </td>
-        <td className="px-5 py-4 text-right">
+        <td className="px-5 py-4 text-right hidden md:table-cell">
           {pos.unrealized_pnl != null ? (
             <span className={`font-semibold ${getProfitLossColorClass(pos.unrealized_pnl)}`}>
               {Number(pos.unrealized_pnl) > 0 ? '+' : ''}{formatTry(pos.unrealized_pnl)}
@@ -99,7 +108,7 @@ export default function PositionLifecycleRow({ pos, lc, onOpenActionModal, isPap
             {actionInfo.label}
           </span>
         </td>
-        <td className="px-5 py-4 text-right text-xs text-slate-500 font-medium">
+        <td className="px-5 py-4 text-right text-xs text-slate-500 font-medium hidden md:table-cell">
           {lc?.last_evaluated_at ? new Intl.DateTimeFormat("tr-TR", { hour: "2-digit", minute: "2-digit" }).format(new Date(lc.last_evaluated_at)) : "-"}
         </td>
         <td className="px-5 py-4 text-center text-slate-400">
@@ -198,7 +207,7 @@ export default function PositionLifecycleRow({ pos, lc, onOpenActionModal, isPap
                 )}
 
                 {/* Sizing/Transaction Preview Section */}
-                {lc && [LifecycleAction.CONSIDER_REDUCE, LifecycleAction.CONSIDER_EXIT].includes(lc.recommended_action) && !isDataInsufficient && (
+                {lc && [LifecycleAction.CONSIDER_REDUCE, LifecycleAction.CONSIDER_EXIT].includes(lc.recommended_action) && !isDataInsufficient && Number(lc.suggested_reduce_quantity) > 0 && (
                   <div className="space-y-3">
                     <h4 className="text-sm font-bold text-navy-900 flex items-center gap-2">
                       <AlertCircle className="w-4 h-4 text-slate-500" />
@@ -253,6 +262,7 @@ export default function PositionLifecycleRow({ pos, lc, onOpenActionModal, isPap
 
                     <button 
                       onClick={(e) => { e.stopPropagation(); handleActionClick(); }}
+                      data-testid={`lifecycle-buy-${pos.symbol}`}
                       className="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 py-2 rounded text-sm font-bold transition-colors"
                     >
                       {isPaper ? "Alımı Simüle Et" : "Alımı Kaydet"}

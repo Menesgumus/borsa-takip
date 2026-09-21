@@ -239,7 +239,7 @@ export default function PortfolioDetailPage() {
                         key={pos.instrument_id} 
                         pos={pos} 
                         lc={lifecycle?.find((l: any) => l.instrument_id === pos.instrument_id)} 
-                        isPaper={summary.portfolio_type === "PAPER"}
+                        isPaper={portfolio?.portfolio_type === "PAPER"}
                         onOpenActionModal={(action, p, qty) => openActionModal(action, p.symbol, qty)}
                       />
                     ))}
@@ -281,6 +281,7 @@ export default function PortfolioDetailPage() {
           initialSymbol={actionModalSymbol}
           initialQuantity={actionModalQuantity}
           initialAction={actionModalAction}
+          isPaper={portfolio?.portfolio_type === "PAPER"}
         />
       )}
     </div>

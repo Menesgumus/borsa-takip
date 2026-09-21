@@ -8,7 +8,7 @@ from app.db.models import LifecycleAction, LifecycleHealthState
 
 class LifecycleEvidence(BaseModel):
     market_view: str | None = None
-    reason_codes: list[str] = []
+    reason_codes: list[str] | None = None
 
 class PositionLifecycleDTO(BaseModel):
     model_config = ConfigDict(from_attributes=True)

@@ -20,9 +20,11 @@ interface PortfolioActionModalProps {
   initialSymbol?: string;
   initialQuantity?: number;
   initialAction?: ActionType;
+  isPaper?: boolean;
 }
 
-export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary, initialSymbol, initialQuantity, initialAction }: PortfolioActionModalProps) {
+export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary, initialSymbol, initialQuantity, initialAction, isPaper = true }: PortfolioActionModalProps) {
+
   const queryClient = useQueryClient();
   const router = useRouter();
   const [successState, setSuccessState] = useState<{show: boolean, type: ActionType, message?: string}>({show: false, type: "BUY"});
@@ -39,6 +41,7 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary, in
   const [selectedInstrument, setSelectedInstrument] = useState<any>(null);
   const [quantity, setQuantity] = useState(initialQuantity ? initialQuantity.toString() : "");
   const [budgetAmount, setBudgetAmount] = useState("");
+  const [sellPrice, setSellPrice] = useState("");
 
   const { data: searchResults, isLoading: isSearchLoading, isError: isSearchError } = useQuery({
     queryKey: ["instrument-search", debouncedSymbolQuery],
@@ -62,10 +65,19 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary, in
 
   const transactionMutation = useMutation({
     mutationFn: async (payload: any) => {
-      // Use different endpoint for TRADE vs DEPOSIT/WITHDRAW
-      const endpoint = (payload.transaction_type === "DEPOSIT" || payload.transaction_type === "WITHDRAWAL")
-        ? `/api/v1/portfolios/${portfolioId}/transactions`
-        : `/api/v1/portfolios/${portfolioId}/trade`;
+      // Use different endpoint for TRADE vs DEPOSIT/WITHDRAW vs REAL SELL
+      let endpoint: string;
+      if (payload.transaction_type === "DEPOSIT" || payload.transaction_type === "WITHDRAWAL") {
+        endpoint = `/api/v1/portfolios/${portfolioId}/transactions`;
+      } else if (payload._useManualTrade) {
+        // Real portfolio SELL: use manual-trade endpoint (records price explicitly)
+        const { _useManualTrade, ...cleanPayload } = payload;
+        endpoint = `/api/v1/portfolios/${portfolioId}/manual-trade`;
+        const method = "POST";
+        return await fetchApi(endpoint, { method, body: JSON.stringify(cleanPayload) });
+      } else {
+        endpoint = `/api/v1/portfolios/${portfolioId}/trade`;
+      }
         
       const method = "POST";
       return await fetchApi(endpoint, { method, body: JSON.stringify(payload) });
@@ -91,6 +103,7 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary, in
     setSelectedInstrument(null);
     setQuantity("");
     setBudgetAmount("");
+    setSellPrice("");
   };
 
   if (!isOpen) return null;
@@ -115,11 +128,23 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary, in
         budget_amount: buyMode === "BUDGET" ? parseFloat(budgetAmount) : null,
       });
     } else {
-      transactionMutation.mutate({
-        side: "SELL",
-        instrument_id: selectedInstrument.id,
-        quantity: parseFloat(quantity)
-      });
+      if (!isPaper && sellPrice) {
+        // Real portfolio SELL: requires explicit execution price (manual-trade endpoint)
+        transactionMutation.mutate({
+          _useManualTrade: true,
+          side: "SELL",
+          instrument_id: selectedInstrument.id,
+          quantity: parseFloat(quantity),
+          native_execution_price: parseFloat(sellPrice),
+          fee: 0,
+        });
+      } else {
+        transactionMutation.mutate({
+          side: "SELL",
+          instrument_id: selectedInstrument.id,
+          quantity: parseFloat(quantity)
+        });
+      }
     }
   };
 const cashBalance = Number(summary?.cash_balance || 0);
@@ -184,7 +209,7 @@ const cashBalance = Number(summary?.cash_balance || 0);
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl sm:max-w-2xl flex flex-col max-h-[95vh] lg:max-h-[min(90vh,760px)] animate-in zoom-in-95 duration-200">
         <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50 rounded-t-2xl">
           <h2 className="font-bold text-navy-900">Yeni İşlem</h2>
-          <button onClick={fullClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+          <button aria-label="Kapat" onClick={fullClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
         </div>
 
         <div className="p-5 overflow-y-auto">
@@ -406,14 +431,29 @@ const cashBalance = Number(summary?.cash_balance || 0);
                           </button>
                         </div>
                       </div>
+                      {!isPaper && (
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Gerçekleşen Fiyat (TL/adet)</label>
+                          <input
+                            type="number"
+                            value={sellPrice}
+                            onChange={(e) => setSellPrice(e.target.value)}
+                            className="w-full border border-slate-200 rounded-lg p-2.5 focus:ring-primary-500 focus:border-primary-500"
+                            min="0.01"
+                            step="0.01"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      )}
                       <div className="text-sm text-slate-600 space-y-1">
                         <div className="flex justify-between">
                           <span>Tahmini işlem tutarı:</span>
-                          <span className="font-medium">{formatTry(currentPrice * parseFloat(quantity || "0"))}</span>
+                          <span className="font-medium">{formatTry((!isPaper && sellPrice ? parseFloat(sellPrice) : currentPrice) * parseFloat(quantity || "0"))}</span>
                         </div>
                       </div>
                     </div>
                   )}
+
 
                   <div className="mt-4">
                     {isQuantityBuyInsufficient && (
@@ -428,19 +468,45 @@ const cashBalance = Number(summary?.cash_balance || 0);
                     )}
                     <button
                       onClick={handleTradeAction}
-                      disabled={
-                        isQuoteUnavailable || 
-                        transactionMutation.isPending || 
-                        isQuantityBuyInsufficient ||
-                        isBudgetBuyInsufficient ||
-                        (actionType === "BUY" && buyMode === "QUANTITY" && (!quantity || parseFloat(quantity) <= 0)) ||
-                        (actionType === "BUY" && buyMode === "BUDGET" && (!budgetAmount || budgetQuantity < 1)) ||
-                        (actionType === "SELL" && (!quantity || parseFloat(quantity) <= 0))
-                      }
+                      disabled={(function() {
+                        if (transactionMutation.isPending) return true;
+                        
+                        // BUY logic
+                        if (actionType === "BUY") {
+                          if (isQuoteUnavailable) return true;
+                          if (isQuantityBuyInsufficient) return true;
+                          if (isBudgetBuyInsufficient) return true;
+                          if (buyMode === "QUANTITY" && (!quantity || parseFloat(quantity) <= 0)) return true;
+                          if (buyMode === "BUDGET" && (!budgetAmount || budgetQuantity < 1)) return true;
+                          return false;
+                        }
+                        
+                        // SELL logic
+                        if (actionType === "SELL") {
+                          if (!quantity || parseFloat(quantity) <= 0) return true;
+                          
+                          if (isPaper) {
+                            // Paper portfolio sell requires a valid quote to execute at market price
+                            if (isQuoteUnavailable) return true;
+                          } else {
+                            // Real portfolio sell requires explicit user price, no quote needed
+                            if (!sellPrice || parseFloat(sellPrice) <= 0) return true;
+                          }
+                          return false;
+                        }
+
+                        // DEPOSIT / WITHDRAW logic (already validated implicitly by earlier blocks if needed)
+                        return false;
+                      })()}
                       className="w-full py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
                     >
                       {transactionMutation.isPending ? "İşleniyor..." : "İşlemi Onayla"}
                     </button>
+                    <div className="text-xs text-red-500 mt-2 debug-info">
+                      DEBUG: actionType={actionType}, isPaper={String(isPaper)}, 
+                      isQuoteUnavailable={String(isQuoteUnavailable)}, 
+                      qty={quantity}, sellPrice={sellPrice}
+                    </div>
                   </div>
                 </div>
               )}

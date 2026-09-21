@@ -112,10 +112,8 @@ test.describe('Critical Flows: Portfolio & Trade', () => {
 
     await createModal.locator('input[type="text"]').fill('QA Portfolio');
     
-    const hasPaperSelect = await createModal.locator('select').count() > 0;
-    if (hasPaperSelect) {
-      await createModal.locator('select').selectOption('PAPER').catch(() => null);
-    }
+    // Always select PAPER portfolio; selectOption will auto-wait for the select element
+    await createModal.locator('select').selectOption('PAPER');
     
     const responsePromise = page.waitForResponse(
       response => response.url().includes('/api/v1/portfolios') && response.request().method() === 'POST'
@@ -241,17 +239,16 @@ test.describe('Critical Flows: Portfolio & Trade', () => {
     await aefesResult2.click();
     await page.waitForTimeout(1000);
 
-    // Click "Tümünü Sat" (sell all) if available
-    const sellAllBtn = modal.getByRole('button', { name: /Tümünü Sat/ });
-    if (await sellAllBtn.isVisible()) {
-      await sellAllBtn.click();
-    } else {
-      const sellQtyInput = modal.locator('input[min="1"]').first();
-      await sellQtyInput.fill('1');
-    }
+    const sellQtyInput = modal.locator('input[min="1"]').first();
+    await sellQtyInput.fill('1');
 
     const confirmBtnSell = modal.getByRole('button', { name: /İşlemi Onayla|Onayla/ });
-    await expect(confirmBtnSell).toBeEnabled({ timeout: 5000 });
+    try {
+      await expect(confirmBtnSell).toBeEnabled({ timeout: 5000 });
+    } catch (e) {
+      console.error("DEBUG TEXT: ", await modal.locator('.debug-info').textContent());
+      throw e;
+    }
     await confirmBtnSell.click();
     await waitForModalClose(page);
 
