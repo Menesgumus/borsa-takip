@@ -502,11 +502,6 @@ const cashBalance = Number(summary?.cash_balance || 0);
                     >
                       {transactionMutation.isPending ? "İşleniyor..." : "İşlemi Onayla"}
                     </button>
-                    <div className="text-xs text-red-500 mt-2 debug-info">
-                      DEBUG: actionType={actionType}, isPaper={String(isPaper)}, 
-                      isQuoteUnavailable={String(isQuoteUnavailable)}, 
-                      qty={quantity}, sellPrice={sellPrice}
-                    </div>
                   </div>
                 </div>
               )}

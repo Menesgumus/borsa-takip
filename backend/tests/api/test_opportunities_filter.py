@@ -171,7 +171,7 @@ async def test_opportunity_asset_class_filter_before_limit(setup_test_user_and_p
         data = resp.json()
         assert len(data) >= 1
 
-        resp2 = await async_client.get("/api/v1/opportunities?limit=5&asset_class=BIST_EQUITY")
+        resp2 = await ac.get("/api/v1/opportunities?limit=5&asset_class=BIST_EQUITY")
         assert resp2.status_code == 200
         data2 = resp2.json()
         assert len(data2) == 5
@@ -234,35 +234,22 @@ async def cold_cache_setup(setup_test_user_and_portfolio):
 
 @pytest.mark.asyncio
 
-async def test_opportunities_cold_cache_handles_gracefully(cold_cache_setup, async_client):
-
+async def test_opportunities_cold_cache_handles_gracefully(cold_cache_setup):
     user, port = cold_cache_setup
 
-    
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        # First request: Cache is empty
+        resp1 = await ac.get(f"/api/v1/opportunities?portfolio_id={port.id}&asset_class=BIST_EQUITY&limit=20")
+        assert resp1.status_code == 200, f"Cold cache failed: {resp1.text}"
 
-    # First request: Cache is empty
+        data1 = resp1.json()
+        assert isinstance(data1, list)
 
-    resp1 = await async_client.get(f"/api/v1/opportunities?portfolio_id={port.id}&asset_class=BIST_EQUITY&limit=20")
+        # Second request: Cache is warm
+        resp2 = await ac.get(f"/api/v1/opportunities?portfolio_id={port.id}&asset_class=BIST_EQUITY&limit=20")
+        assert resp2.status_code == 200, f"Warm cache failed: {resp2.text}"
 
-    assert resp1.status_code == 200, f"Cold cache failed: {resp1.text}"
-
-    
-
-    data1 = resp1.json()
-
-    assert isinstance(data1, list)
-
-    
-
-    # Second request: Cache is warm
-
-    resp2 = await async_client.get(f"/api/v1/opportunities?portfolio_id={port.id}&asset_class=BIST_EQUITY&limit=20")
-
-    assert resp2.status_code == 200, f"Warm cache failed: {resp2.text}"
-
-    
-
-    data2 = resp2.json()
+        data2 = resp2.json()
 
     assert len(data1) == len(data2)
 

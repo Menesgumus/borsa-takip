@@ -243,12 +243,7 @@ test.describe('Critical Flows: Portfolio & Trade', () => {
     await sellQtyInput.fill('1');
 
     const confirmBtnSell = modal.getByRole('button', { name: /İşlemi Onayla|Onayla/ });
-    try {
-      await expect(confirmBtnSell).toBeEnabled({ timeout: 5000 });
-    } catch (e) {
-      console.error("DEBUG TEXT: ", await modal.locator('.debug-info').textContent());
-      throw e;
-    }
+    await expect(confirmBtnSell).toBeEnabled({ timeout: 5000 });
     await confirmBtnSell.click();
     await waitForModalClose(page);
 

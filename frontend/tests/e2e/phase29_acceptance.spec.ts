@@ -27,7 +27,7 @@ async function registerAndOnboard(page: any) {
 async function setupPortfolio(page: any, isPaper: boolean = true) {
   await page.goto('/');
   const uniqueId = Date.now();
-  const portfolioId = await page.evaluate(async ({ isPaper, uniqueId }) => {
+  const portfolioId = await page.evaluate(async ({ isPaper, uniqueId }: { isPaper: boolean, uniqueId: number }) => {
     // We already have auth cookie from setup project, but since we're using page.evaluate fetch, it will include credentials.
     const type = isPaper ? 'PAPER' : 'REAL';
     const pRes = await fetch('/api/v1/portfolios', {
@@ -71,7 +71,7 @@ async function setupPortfolio(page: any, isPaper: boolean = true) {
 
 // Utility to buy an instrument
 async function buyInstrument(page: any, portfolioId: number, symbol: string, quantity: number, price: number, isPaper: boolean = true) {
-  await page.evaluate(async ({ portfolioId, symbol, quantity, price, isPaper }) => {
+  await page.evaluate(async ({ portfolioId, symbol, quantity, price, isPaper }: { portfolioId: number, symbol: string, quantity: number, price: number, isPaper: boolean }) => {
     const iRes = await fetch(`/api/v1/instruments?search=${symbol}`);
     const iData = await iRes.json();
     const instrumentId = iData.items[0].id;
@@ -105,7 +105,7 @@ async function buyInstrument(page: any, portfolioId: number, symbol: string, qua
 
 // Utility to override lifecycle state
 async function overrideLifecycle(page: any, portfolioId: number, symbol: string, overrideData: any) {
-  await page.evaluate(async ({ portfolioId, symbol, overrideData }) => {
+  await page.evaluate(async ({ portfolioId, symbol, overrideData }: { portfolioId: number, symbol: string, overrideData: any }) => {
     const iRes = await fetch(`/api/v1/instruments?search=${symbol}`);
     const iData = await iRes.json();
     const instrumentId = iData.items[0].id;
