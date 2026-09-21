@@ -78,7 +78,8 @@ async def test_no_forced_buy_preserves_cash():
     profile = UserProfile(id=1, risk_tolerance="HIGH")
     # HIGH target has 45% US Equity, 45% BIST, 10% Gold.
     # We are providing 10,000 deploy_amount
-    response = await service.build_basket(db, 1, Decimal("10000"), profile)
+    from app.db.models import User
+    response = await service.build_basket(db, User(id=1), 1, Decimal("10000"), profile)
 
     assert response.allocated_amount == Decimal("0")
     assert response.unallocated_amount == Decimal("10000")

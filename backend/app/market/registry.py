@@ -72,7 +72,9 @@ class MarketDataRegistry:
     async def _execute_with_retry(
         self, provider_name: str, coro_func: typing.Any, *args: typing.Any, **kwargs: typing.Any
     ) -> typing.Any:
-        self._providers[provider_name]
+        provider = self._providers.get(provider_name)
+        if not provider:
+            raise ProviderUnavailableError(provider_name, f"Provider {provider_name!r} is not registered")
         circuit = self._circuits[provider_name]
 
         if not circuit.can_attempt():
@@ -99,11 +101,15 @@ class MarketDataRegistry:
         raise ProviderUnavailableError(provider_name, "Max retries exceeded")
 
     async def get_quote(self, provider_name: str, symbol: str) -> QuoteDTO:
-        provider = self._providers[provider_name]
+        provider = self._providers.get(provider_name)
+        if not provider:
+            raise ProviderUnavailableError(provider_name, f"Provider {provider_name!r} is not registered")
         return await self._execute_with_retry(provider_name, provider.get_quote, symbol)  # type: ignore
 
     async def get_quotes(self, provider_name: str, symbols: list[str]) -> list[QuoteDTO]:
-        provider = self._providers[provider_name]
+        provider = self._providers.get(provider_name)
+        if not provider:
+            raise ProviderUnavailableError(provider_name, f"Provider {provider_name!r} is not registered")
         return await self._execute_with_retry(provider_name, provider.get_quotes, symbols)  # type: ignore
 
 

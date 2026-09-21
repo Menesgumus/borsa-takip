@@ -574,7 +574,7 @@ async def preview_basket(
     user_profile = await db.scalar(select(UserProfile).where(UserProfile.user_id == current_user.id))
 
     service = BasketBuilderService(registry)
-    return await service.build_basket(db, portfolio_id, request.deploy_amount, user_profile)
+    return await service.build_basket(db, current_user, portfolio_id, request.deploy_amount, user_profile)
 
 @router.post("/{portfolio_id}/execution-preview", response_model=ExecutionPreviewResponse)
 async def preview_execution(

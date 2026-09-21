@@ -11,6 +11,7 @@ from app.db.session import async_session_maker
 from app.main import app
 from app.services.scanner import scan_opportunities
 
+
 @pytest.fixture
 async def setup_test_user_and_portfolio():
     async with async_session_maker() as db:
@@ -40,7 +41,7 @@ async def setup_test_user_and_portfolio():
 @pytest.mark.asyncio
 async def test_opportunity_asset_class_filter_before_limit(setup_test_user_and_portfolio):
     user, port = setup_test_user_and_portfolio
-    
+
     app.dependency_overrides[get_current_user] = lambda: user
 
     async with async_session_maker() as db:
@@ -185,5 +186,86 @@ async def test_opportunity_asset_class_filter_before_limit(setup_test_user_and_p
 
         resp5 = await ac.get("/api/v1/opportunities?limit=10&asset_class=FX_REFERENCE")
         assert resp5.status_code == 422
-    
+
     app.dependency_overrides.pop(get_current_user, None)
+import pytest
+
+from httpx import AsyncClient
+
+from sqlalchemy import select
+
+
+
+from app.db.models import Instrument, Portfolio
+
+from app.db.session import async_session_maker
+
+from app.api.v1.endpoints.auth import get_current_user
+
+from app.main import app
+
+from app.core.redis import redis_client
+
+
+
+@pytest.fixture
+
+async def cold_cache_setup(setup_test_user_and_portfolio):
+
+    user, port = setup_test_user_and_portfolio
+
+    app.dependency_overrides[get_current_user] = lambda: user
+
+    
+
+    # Ensure Redis is flushed
+
+    await redis_client.flushdb()
+
+    
+
+    yield user, port
+
+    
+
+    app.dependency_overrides.pop(get_current_user, None)
+
+
+
+@pytest.mark.asyncio
+
+async def test_opportunities_cold_cache_handles_gracefully(cold_cache_setup, ac: AsyncClient):
+
+    user, port = cold_cache_setup
+
+    
+
+    # First request: Cache is empty
+
+    resp1 = await ac.get(f"/api/v1/opportunities?portfolio_id={port.id}&asset_class=BIST_EQUITY&limit=20")
+
+    assert resp1.status_code == 200, f"Cold cache failed: {resp1.text}"
+
+    
+
+    data1 = resp1.json()
+
+    assert isinstance(data1, list)
+
+    
+
+    # Second request: Cache is warm
+
+    resp2 = await ac.get(f"/api/v1/opportunities?portfolio_id={port.id}&asset_class=BIST_EQUITY&limit=20")
+
+    assert resp2.status_code == 200, f"Warm cache failed: {resp2.text}"
+
+    
+
+    data2 = resp2.json()
+
+    assert len(data1) == len(data2)
+
+
+
+

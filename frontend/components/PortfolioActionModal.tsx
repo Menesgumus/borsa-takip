@@ -3,7 +3,7 @@ import { formatTry, formatQuantity } from "@/lib/financialUi";
 import { DataStateBadge } from "@/components/DataStateBadge";
 
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { X, Search } from "lucide-react";
 import { fetchApi } from "@/lib/api";
@@ -224,11 +224,12 @@ const cashBalance = Number(summary?.cash_balance || 0);
                       ) : (
                         <div className="flex flex-col">
                           {searchResults && searchResults.map((inst: any) => (
-                            <button
-                              key={inst.id}
-                              onClick={() => { setSelectedInstrument(inst); setSymbolQuery(""); setDebouncedSymbolQuery(""); }}
-                              className="w-full text-left px-4 py-3 min-h-[64px] hover:bg-slate-50 focus:bg-slate-100 flex flex-col justify-center border-b border-slate-100 last:border-0 cursor-pointer group"
-                            >
+                              <button
+                                key={inst.id}
+                                data-testid={`search-result-${inst.symbol}`}
+                                onClick={() => { setSelectedInstrument(inst); setSymbolQuery(""); setDebouncedSymbolQuery(""); }}
+                                className="w-full text-left px-4 py-3 min-h-[64px] hover:bg-slate-50 focus:bg-slate-100 flex flex-col justify-center border-b border-slate-100 last:border-0 cursor-pointer group"
+                              >
                               <span className="font-bold text-navy-900">{inst.symbol}</span>
                               <span className="text-sm text-slate-600 truncate">{inst.name}</span>
                             </button>

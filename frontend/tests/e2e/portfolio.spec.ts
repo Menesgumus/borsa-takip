@@ -153,7 +153,7 @@ test.describe('Critical Flows: Portfolio & Trade', () => {
     await page.waitForTimeout(600); // debounce
 
     // Click the search result
-    const aefesResult = modal.locator('button, li, div[role="option"]').filter({ hasText: 'AEFES' }).first();
+    const aefesResult = modal.getByTestId('search-result-AEFES');
     await expect(aefesResult).toBeVisible({ timeout: 8000 });
     await aefesResult.click();
 
@@ -187,7 +187,7 @@ test.describe('Critical Flows: Portfolio & Trade', () => {
     await symbolInput2.fill('THYAO');
     await page.waitForTimeout(600);
 
-    const thyaoResult = modal.locator('button, li, div[role="option"]').filter({ hasText: 'THYAO' }).first();
+    const thyaoResult = modal.getByTestId('search-result-THYAO');
     await expect(thyaoResult).toBeVisible({ timeout: 8000 });
     await thyaoResult.click();
     await page.waitForTimeout(1000);
@@ -225,7 +225,7 @@ test.describe('Critical Flows: Portfolio & Trade', () => {
     await symbolInput3.fill('AEFES');
     await page.waitForTimeout(600);
 
-    const aefesResult2 = modal.locator('button, li, div[role="option"]').filter({ hasText: 'AEFES' }).first();
+    const aefesResult2 = modal.getByTestId('search-result-AEFES');
     await expect(aefesResult2).toBeVisible({ timeout: 8000 });
     await aefesResult2.click();
     await page.waitForTimeout(1000);

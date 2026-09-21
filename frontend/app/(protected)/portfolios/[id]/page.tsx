@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { PositionLifecycleDTO } from "@/types/lifecycle";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { fetchApi } from "@/lib/api";
@@ -22,11 +23,35 @@ export default function PortfolioDetailPage() {
   const currentTab = searchParams.get("tab") || "genel";
   
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
+  const [modalInitialSymbol, setModalInitialSymbol] = useState("");
+  const [modalInitialQuantity, setModalInitialQuantity] = useState<number | undefined>();
+  const [modalInitialAction, setModalInitialAction] = useState<"BUY" | "SELL" | undefined>();
+
+  const handleActionClick = (symbol: string, quantity: number, actionType: "BUY" | "SELL") => {
+    setModalInitialSymbol(symbol);
+    setModalInitialQuantity(quantity);
+    setModalInitialAction(actionType);
+    setIsActionModalOpen(true);
+  };
 
   const { data: summary, isLoading, isError, error } = useQuery<any>({
     queryKey: ["portfolio", id, "summary"],
     queryFn: () => fetchApi(`/api/v1/portfolios/${id}/summary`),
     retry: 1,
+  });
+
+  const queryClient = useQueryClient();
+  const { data: lifecycle, isFetching: isLifecycleFetching } = useQuery<PositionLifecycleDTO[]>({
+    queryKey: ["portfolio", id, "lifecycle"],
+    queryFn: () => fetchApi(`/api/v1/portfolios/${id}/lifecycle`),
+    retry: 1,
+  });
+
+  const evaluateMutation = useMutation({
+    mutationFn: () => fetchApi(`/api/v1/portfolios/${id}/lifecycle/evaluate`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["portfolio", id, "lifecycle"] });
+    },
   });
 
   const { data: portfolios } = useQuery<any[]>({
@@ -161,9 +186,18 @@ export default function PortfolioDetailPage() {
           <div className="bg-surface rounded-xl border border-navy-800/10 shadow-sm overflow-hidden">
             <div className="p-5 border-b border-navy-800/10 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
               <h2 className="text-lg font-bold text-navy-900">Açık Pozisyonlar</h2>
-              <div className="flex items-center gap-2 text-xs font-medium">
-                <span className="text-slate-500">Veri Durumu:</span>
-                <DataStateBadge state={summary.market_data_freshness} />
+              <div className="flex items-center gap-4 text-xs font-medium">
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-500">Veri Durumu:</span>
+                  <DataStateBadge state={summary.market_data_freshness} />
+                </div>
+                <button 
+                  onClick={() => evaluateMutation.mutate()}
+                  disabled={evaluateMutation.isPending || isLifecycleFetching}
+                  className="bg-primary-50 text-primary-700 hover:bg-primary-100 px-3 py-1.5 rounded-md transition-colors border border-primary-200 disabled:opacity-50 font-semibold"
+                >
+                  {evaluateMutation.isPending || isLifecycleFetching ? "Güncelleniyor..." : "Yaşam Döngüsünü Güncelle"}
+                </button>
               </div>
             </div>
             
@@ -181,15 +215,39 @@ export default function PortfolioDetailPage() {
                       <th className="px-5 py-3">Sembol</th>
                         <th className="px-5 py-3 text-right">Varlık Sınıfı</th>
                         <th className="px-5 py-3 text-right">Adet</th>
-                        <th className="px-5 py-3 text-right">Ort. Maliyet (TRY)</th>
-                        <th className="px-5 py-3 text-right">Anlık Fiyat (Native)</th>
-                        <th className="px-5 py-3 text-right">Anlık Fiyat (TRY)</th>
                         <th className="px-5 py-3 text-right">Piyasa Değeri (TRY)</th>
-                        <th className="px-5 py-3 text-right">Durum (K/Z)</th>
+                        <th className="px-5 py-3 text-right">K/Z</th>
+                        <th className="px-5 py-3 text-center">Durum</th>
+                        <th className="px-5 py-3 text-center">Öneri</th>
+                        <th className="px-5 py-3 text-right">Son Değerlendirme</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {summary.positions.map((pos: any) => (
+                    {summary.positions.map((pos: any) => {
+                      const lc = lifecycle?.find(l => l.instrument_id === pos.instrument_id);
+                      
+                      const formatState = (state: string) => {
+                        if (state === "STABLE") return { label: "Stabil", color: "bg-emerald-100 text-emerald-800 border-emerald-200" };
+                        if (state === "WATCH") return { label: "İzleme", color: "bg-amber-100 text-amber-800 border-amber-200" };
+                        if (state === "CONFIRMED_DETERIORATION") return { label: "Bozulma", color: "bg-rose-100 text-rose-800 border-rose-200" };
+                        if (state === "RECOVERING") return { label: "Toparlanıyor", color: "bg-blue-100 text-blue-800 border-blue-200" };
+                        if (state === "CLOSED") return { label: "Kapalı", color: "bg-slate-100 text-slate-800 border-slate-200" };
+                        return { label: "-", color: "bg-slate-100 text-slate-800 border-slate-200" };
+                      };
+
+                      const formatAction = (action: string) => {
+                        if (action === "HOLD") return { label: "Bekle", color: "text-slate-600 font-medium" };
+                        if (action === "CONSIDER_ADD") return { label: "Ekleme", color: "text-emerald-600 font-bold" };
+                        if (action === "CONSIDER_REDUCE") return { label: "Azalt", color: "text-amber-600 font-bold" };
+                        if (action === "CONSIDER_EXIT") return { label: "Çık", color: "text-rose-600 font-bold" };
+                        if (action === "NO_ACTION_DATA") return { label: "Veri Yetersiz", color: "text-slate-400 font-medium" };
+                        return { label: "-", color: "text-slate-400" };
+                      };
+
+                      const stateInfo = lc ? formatState(lc.health_state) : { label: "-", color: "bg-slate-100 text-slate-800 border-slate-200" };
+                      const actionInfo = lc ? formatAction(lc.recommended_action) : { label: "-", color: "text-slate-400" };
+
+                      return (
                       <tr key={pos.instrument_id} className="hover:bg-slate-50/50">
                           <td className="px-5 py-4 font-semibold text-navy-900">
                             <Link href={`/instruments/${pos.symbol}`} className="hover:text-primary-600 hover:underline">
@@ -200,13 +258,6 @@ export default function PortfolioDetailPage() {
                             {pos.asset_class?.replace('_', ' ') || '-'}
                           </td>
                           <td className="px-5 py-4 text-right font-medium">{formatQuantity(pos.quantity)}</td>
-                          <td className="px-5 py-4 text-right text-slate-600">{formatTry(pos.average_cost)}</td>
-                          <td className="px-5 py-4 text-right text-slate-600">
-                            {pos.current_native_price != null ? formatMoney(pos.current_native_price, pos.native_currency || "TRY") : '-'}
-                          </td>
-                          <td className="px-5 py-4 text-right font-medium">
-                            {pos.current_price != null ? formatTry(pos.current_price) : 'Yetersiz Veri'}
-                          </td>
                           <td className="px-5 py-4 text-right font-medium">
                             {pos.market_value != null ? formatTry(pos.market_value) : 'Yetersiz Veri'}
                           </td>
@@ -219,8 +270,21 @@ export default function PortfolioDetailPage() {
                             <span className="text-slate-500 font-medium">Yetersiz Veri</span>
                           )}
                         </td>
+                        <td className="px-5 py-4 text-center">
+                          <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${stateInfo.color}`}>
+                            {stateInfo.label}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 text-center">
+                          <span className={`text-sm ${actionInfo.color}`}>
+                            {actionInfo.label}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 text-right text-xs text-slate-500 font-medium">
+                          {lc?.last_evaluated_at ? new Intl.DateTimeFormat("tr-TR", { hour: "2-digit", minute: "2-digit" }).format(new Date(lc.last_evaluated_at)) : "-"}
+                        </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               </div>
@@ -247,12 +311,22 @@ export default function PortfolioDetailPage() {
         )}
       </div>
 
-      <PortfolioActionModal 
-        portfolioId={id} 
-        isOpen={isActionModalOpen} 
-        onClose={() => setIsActionModalOpen(false)} 
-        summary={summary} 
-      />
+      {isActionModalOpen && (
+        <PortfolioActionModal 
+          portfolioId={id} 
+          isOpen={isActionModalOpen} 
+          onClose={() => {
+            setIsActionModalOpen(false);
+            setModalInitialSymbol("");
+            setModalInitialQuantity(undefined);
+            setModalInitialAction(undefined);
+          }} 
+          summary={summary}
+          initialSymbol={modalInitialSymbol}
+          initialQuantity={modalInitialQuantity}
+          initialAction={modalInitialAction}
+        />
+      )}
     </div>
   );
 }

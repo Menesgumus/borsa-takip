@@ -1,13 +1,13 @@
-﻿import os
+import os
 
 os.environ["ENVIRONMENT"] = "test"
 os.environ["POSTGRES_DB"] = "borsa_takip_test"
 os.environ.setdefault("POSTGRES_HOST", "127.0.0.1")
-os.environ.setdefault("POSTGRES_PORT", "5434")
-os.environ.setdefault("POSTGRES_USER", "qa_user")
-os.environ.setdefault("POSTGRES_PASSWORD", "qa_password")
-os.environ.setdefault("REDIS_URL", "redis://127.0.0.1:6381/0")
-os.environ.setdefault("ENABLE_MOCK_MARKET_DATA", "true")
+os.environ["POSTGRES_PORT"] = "5432"
+os.environ["POSTGRES_USER"] = "postgres"
+os.environ["POSTGRES_PASSWORD"] = "postgres"
+os.environ["REDIS_URL"] = "redis://127.0.0.1:6379/1"
+os.environ["ENABLE_MOCK_MARKET_DATA"] = "true"
 
 import pytest
 

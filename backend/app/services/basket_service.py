@@ -23,7 +23,7 @@ class BasketBuilderService:
         self.registry = registry
         self.fx = FxRateService(registry)
 
-    async def build_basket(self, db: AsyncSession, portfolio_id: int, deploy_amount: Decimal, user_profile: UserProfile) -> BasketPreviewResponse:
+    async def build_basket(self, db: AsyncSession, user: User, portfolio_id: int, deploy_amount: Decimal, user_profile: UserProfile | None) -> BasketPreviewResponse:
         # Load portfolio and evaluate
         portfolio = await db.scalar(select(Portfolio).where(Portfolio.id == portfolio_id))
         if not portfolio:
@@ -111,7 +111,6 @@ class BasketBuilderService:
                 "deficit": deficit_v
             })
 
-        user = await db.scalar(select(User).where(User.id == user_profile.user_id))
         opportunities = await scan_opportunities(db, user, portfolio_id)
 
         # Candidate Eligibility

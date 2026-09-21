@@ -54,12 +54,15 @@ async def scan_opportunities(db: AsyncSession, user: User, portfolio_id: int | N
     market_results: dict[str, dict] = {}
 
     if redis:
-        cached = await redis.get(cache_key)
-        if cached:
-            try:
-                market_results = json.loads(cached)
-            except Exception:
-                market_results = {}
+        try:
+            cached = await redis.get(cache_key)
+            if cached:
+                try:
+                    market_results = json.loads(cached)
+                except Exception:
+                    market_results = {}
+        except Exception:
+            market_results = {}
 
     if not market_results:
         stmt = select(Instrument).options(selectinload(Instrument.provider_mappings)).where(
@@ -152,7 +155,10 @@ async def scan_opportunities(db: AsyncSession, user: User, portfolio_id: int | N
             }
 
         if symbols is None and redis:
-            await redis.set(cache_key, json.dumps(market_results), ex=60)
+            try:
+                await redis.set(cache_key, json.dumps(market_results), ex=60)
+            except Exception:
+                pass
 
     final_results = []
 

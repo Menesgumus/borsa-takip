@@ -149,21 +149,26 @@ test.describe('Phase 26.1 Opportunities E2E', () => {
     const portfolioId = await createPortfolioViaUi(page, 'Funded Portfolio');
     await depositCashViaUi(page, portfolioId, '1000000');
 
-    // We go directly to the page with portfolio_id to ensure a clean request
-    const portfolioSelect = page.locator('select');
+    // Navigate to the base opportunities page
+    await page.goto(`/opportunities`);
+
+    const portfolioSelect = page.locator('select').first();
     
+    // Set up the response promise BEFORE selecting the option
     const responsePromise = page.waitForResponse(response => {
         const url = new URL(response.url());
         return (
             url.pathname.includes('/api/v1/opportunities') &&
             !url.pathname.includes('/portfolios') &&
             url.searchParams.get('portfolio_id') === String(portfolioId) &&
+            url.searchParams.get('asset_class') === 'BIST_EQUITY' &&
             response.request().method() === 'GET' &&
             (response.request().resourceType() === 'fetch' || response.request().resourceType() === 'xhr')
         );
     }, { timeout: 15000 });
 
-    await page.goto(`/opportunities?portfolio_id=${portfolioId}`);
+    // Select the portfolio using the UI dropdown
+    await portfolioSelect.selectOption(String(portfolioId));
     
     const opportunitiesResponse = await responsePromise;
     expect(opportunitiesResponse.ok(), `Portfolio opportunities request failed: ${opportunitiesResponse.status()}`).toBeTruthy();

@@ -44,8 +44,8 @@ export default defineConfig({
   webServer: {
     command: 'pnpm build && pnpm run start',
     url: 'http://127.0.0.1:3000',
-    reuseExistingServer: true,
-    timeout: 120000,
+    reuseExistingServer: false,
+    timeout: 300000,
     env: {
       INTERNAL_API_URL: 'http://127.0.0.1:8002',
       NEXT_PUBLIC_API_URL: 'http://127.0.0.1:8002',
