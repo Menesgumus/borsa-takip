@@ -8,6 +8,7 @@ import { fetchApi } from "@/lib/api";
 import { ArrowLeft, AlertCircle, DollarSign, Plus, LayoutDashboard, Briefcase, ShieldAlert, History } from "lucide-react";
 import { useState } from "react";
 import { PortfolioActionModal } from "@/components/PortfolioActionModal";
+import PositionLifecycleRow from "@/components/PositionLifecycleRow";
 import { PortfolioCharts } from "@/components/PortfolioCharts";
 import { PortfolioRiskPanel } from "@/components/PortfolioRiskPanel";
 import { PortfolioTransactions } from "@/components/PortfolioTransactions";
@@ -23,6 +24,16 @@ export default function PortfolioDetailPage() {
   const currentTab = searchParams.get("tab") || "genel";
   
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
+  const [actionModalSymbol, setActionModalSymbol] = useState<string | undefined>(undefined);
+  const [actionModalQuantity, setActionModalQuantity] = useState<number | undefined>(undefined);
+  const [actionModalAction, setActionModalAction] = useState<any>(undefined);
+
+  const openActionModal = (action?: any, symbol?: string, qty?: number) => {
+    setActionModalQuantity(qty);
+    setActionModalAction(action);
+    setActionModalSymbol(symbol);
+    setIsActionModalOpen(true);
+  };
   const [modalInitialSymbol, setModalInitialSymbol] = useState("");
   const [modalInitialQuantity, setModalInitialQuantity] = useState<number | undefined>();
   const [modalInitialAction, setModalInitialAction] = useState<"BUY" | "SELL" | undefined>();
@@ -109,7 +120,7 @@ export default function PortfolioDetailPage() {
           </div>
         </div>
         <div className="md:ml-auto flex items-center gap-3 mt-4 md:mt-0 w-full md:w-auto">
-          <button onClick={() => setIsActionModalOpen(true)} className="flex-1 md:flex-none bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center justify-center gap-2">
+          <button onClick={() => openActionModal()} className="flex-1 md:flex-none bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center justify-center gap-2">
             <Plus size={16} /> Yeni İşlem
           </button>
         </div>
@@ -223,68 +234,15 @@ export default function PortfolioDetailPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {summary.positions.map((pos: any) => {
-                      const lc = lifecycle?.find(l => l.instrument_id === pos.instrument_id);
-                      
-                      const formatState = (state: string) => {
-                        if (state === "STABLE") return { label: "Stabil", color: "bg-emerald-100 text-emerald-800 border-emerald-200" };
-                        if (state === "WATCH") return { label: "İzleme", color: "bg-amber-100 text-amber-800 border-amber-200" };
-                        if (state === "CONFIRMED_DETERIORATION") return { label: "Bozulma", color: "bg-rose-100 text-rose-800 border-rose-200" };
-                        if (state === "RECOVERING") return { label: "Toparlanıyor", color: "bg-blue-100 text-blue-800 border-blue-200" };
-                        if (state === "CLOSED") return { label: "Kapalı", color: "bg-slate-100 text-slate-800 border-slate-200" };
-                        return { label: "-", color: "bg-slate-100 text-slate-800 border-slate-200" };
-                      };
-
-                      const formatAction = (action: string) => {
-                        if (action === "HOLD") return { label: "Bekle", color: "text-slate-600 font-medium" };
-                        if (action === "CONSIDER_ADD") return { label: "Ekleme", color: "text-emerald-600 font-bold" };
-                        if (action === "CONSIDER_REDUCE") return { label: "Azalt", color: "text-amber-600 font-bold" };
-                        if (action === "CONSIDER_EXIT") return { label: "Çık", color: "text-rose-600 font-bold" };
-                        if (action === "NO_ACTION_DATA") return { label: "Veri Yetersiz", color: "text-slate-400 font-medium" };
-                        return { label: "-", color: "text-slate-400" };
-                      };
-
-                      const stateInfo = lc ? formatState(lc.health_state) : { label: "-", color: "bg-slate-100 text-slate-800 border-slate-200" };
-                      const actionInfo = lc ? formatAction(lc.recommended_action) : { label: "-", color: "text-slate-400" };
-
-                      return (
-                      <tr key={pos.instrument_id} className="hover:bg-slate-50/50">
-                          <td className="px-5 py-4 font-semibold text-navy-900">
-                            <Link href={`/instruments/${pos.symbol}`} className="hover:text-primary-600 hover:underline">
-                              {pos.symbol}
-                            </Link>
-                          </td>
-                          <td className="px-5 py-4 text-right text-slate-600 font-medium text-xs">
-                            {pos.asset_class?.replace('_', ' ') || '-'}
-                          </td>
-                          <td className="px-5 py-4 text-right font-medium">{formatQuantity(pos.quantity)}</td>
-                          <td className="px-5 py-4 text-right font-medium">
-                            {pos.market_value != null ? formatTry(pos.market_value) : 'Yetersiz Veri'}
-                          </td>
-                          <td className="px-5 py-4 text-right">
-                          {pos.unrealized_pnl != null ? (
-                            <span className={`font-semibold ${getProfitLossColorClass(pos.unrealized_pnl)}`}>
-                              {Number(pos.unrealized_pnl) > 0 ? '+' : ''}{formatTry(pos.unrealized_pnl)}
-                            </span>
-                          ) : (
-                            <span className="text-slate-500 font-medium">Yetersiz Veri</span>
-                          )}
-                        </td>
-                        <td className="px-5 py-4 text-center">
-                          <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${stateInfo.color}`}>
-                            {stateInfo.label}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 text-center">
-                          <span className={`text-sm ${actionInfo.color}`}>
-                            {actionInfo.label}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 text-right text-xs text-slate-500 font-medium">
-                          {lc?.last_evaluated_at ? new Intl.DateTimeFormat("tr-TR", { hour: "2-digit", minute: "2-digit" }).format(new Date(lc.last_evaluated_at)) : "-"}
-                        </td>
-                      </tr>
-                    )})}
+                    {summary.positions.map((pos: any) => (
+                      <PositionLifecycleRow 
+                        key={pos.instrument_id} 
+                        pos={pos} 
+                        lc={lifecycle?.find((l: any) => l.instrument_id === pos.instrument_id)} 
+                        isPaper={summary.portfolio_type === "PAPER"}
+                        onOpenActionModal={(action, p, qty) => openActionModal(action, p.symbol, qty)}
+                      />
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -317,14 +275,12 @@ export default function PortfolioDetailPage() {
           isOpen={isActionModalOpen} 
           onClose={() => {
             setIsActionModalOpen(false);
-            setModalInitialSymbol("");
-            setModalInitialQuantity(undefined);
-            setModalInitialAction(undefined);
+            queryClient.invalidateQueries({ queryKey: ["portfolio", id] });
           }} 
           summary={summary}
-          initialSymbol={modalInitialSymbol}
-          initialQuantity={modalInitialQuantity}
-          initialAction={modalInitialAction}
+          initialSymbol={actionModalSymbol}
+          initialQuantity={actionModalQuantity}
+          initialAction={actionModalAction}
         />
       )}
     </div>

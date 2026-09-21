@@ -87,6 +87,11 @@ async function depositCashViaUi(page: Page, portfolioId: string | number, amount
   const confirmBtnDeposit = modal.getByRole('button', { name: 'Onayla', exact: true });
   await expect(confirmBtnDeposit).toBeEnabled({ timeout: 5000 });
   await confirmBtnDeposit.click();
+  try {
+    const closeBtn = page.getByRole('button', { name: 'Kapat' });
+    await expect(closeBtn).toBeVisible({ timeout: 5000 });
+    await closeBtn.click();
+  } catch(e) {}
   await expect(modal).not.toBeVisible({ timeout: 15000 });
 }
 

@@ -71,6 +71,11 @@ async function fundPortfolio(page: Page, portfolioId: number, amount: string) {
     confirmBtnDeposit.click(),
   ]);
   
+  try {
+    const closeBtn = page.getByRole('button', { name: 'Kapat' });
+    await expect(closeBtn).toBeVisible({ timeout: 5000 });
+    await closeBtn.click();
+  } catch(e) {}
   await expect(actionModal).not.toBeVisible({ timeout: 15000 });
   return depositResponse.json();
 }

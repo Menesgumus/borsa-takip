@@ -70,6 +70,17 @@ async function selectAction(page: Page, label: string) {
 /** Wait for the modal overlay to disappear after a successful transaction. */
 async function waitForModalClose(page: Page) {
   const modalOverlay = page.locator('.fixed.inset-0.z-50');
+  
+  // Phase 29 introduced a success state that doesn't auto-close.
+  // We need to click "Kapat" if it appears.
+  try {
+    const closeBtn = page.getByRole('button', { name: 'Kapat' });
+    await expect(closeBtn).toBeVisible({ timeout: 5000 });
+    await closeBtn.click();
+  } catch (e) {
+    // If it didn't appear, maybe it closed for some other reason or failed.
+  }
+  
   await expect(modalOverlay).not.toBeVisible({ timeout: 30000 });
 }
 

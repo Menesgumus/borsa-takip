@@ -4,6 +4,7 @@ import { DataStateBadge } from "@/components/DataStateBadge";
 
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { X, Search } from "lucide-react";
 import { fetchApi } from "@/lib/api";
@@ -23,6 +24,8 @@ interface PortfolioActionModalProps {
 
 export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary, initialSymbol, initialQuantity, initialAction }: PortfolioActionModalProps) {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const [successState, setSuccessState] = useState<{show: boolean, type: ActionType, message?: string}>({show: false, type: "BUY"});
   const [actionType, setActionType] = useState<ActionType>(initialAction || "DEPOSIT");
   const [buyMode, setBuyMode] = useState<BuyMode>("QUANTITY");
   
@@ -34,8 +37,7 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary, in
     return () => clearTimeout(timer);
   }, [symbolQuery]);
   const [selectedInstrument, setSelectedInstrument] = useState<any>(null);
-  
-  const [quantity, setQuantity] = useState("");
+  const [quantity, setQuantity] = useState(initialQuantity ? initialQuantity.toString() : "");
   const [budgetAmount, setBudgetAmount] = useState("");
 
   const { data: searchResults, isLoading: isSearchLoading, isError: isSearchError } = useQuery({
@@ -68,14 +70,20 @@ export function PortfolioActionModal({ portfolioId, isOpen, onClose, summary, in
       const method = "POST";
       return await fetchApi(endpoint, { method, body: JSON.stringify(payload) });
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["portfolio", portfolioId, "summary"] });
       queryClient.invalidateQueries({ queryKey: ["portfolio", portfolioId, "transactions"] });
       queryClient.invalidateQueries({ queryKey: ["portfolios"] });
-      onClose();
-      resetForm();
+        setSuccessState({ show: true, type: variables.side || variables.transaction_type });
     }
   });
+
+  const fullClose = () => {
+    onClose();
+    resetForm();
+    setSuccessState({show: false, type: "BUY"});
+  };
+
 
   const resetForm = () => {
     setAmount("");
@@ -139,12 +147,44 @@ const cashBalance = Number(summary?.cash_balance || 0);
   const isQuantityBuyInsufficient = actionType === "BUY" && buyMode === "QUANTITY" && quantity && (parseFloat(quantity) * currentPrice > cashBalance);
   const isBudgetBuyInsufficient = actionType === "BUY" && buyMode === "BUDGET" && budgetAmount && (parseFloat(budgetAmount) > cashBalance);
 
+
+  if (successState.show) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-900/50 backdrop-blur-sm">
+        <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl p-6 text-center">
+          <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+          </div>
+          <h2 className="text-xl font-bold text-navy-900 mb-2">İşlem Başarılı</h2>
+          <p className="text-slate-600 mb-6">İşleminiz başarıyla kaydedildi.</p>
+          <div className="space-y-3">
+            {successState.type === "SELL" && (
+              <button 
+                data-testid="lifecycle-rotation"
+                onClick={() => { fullClose(); router.push(`/portfolios/${portfolioId}?tab=sepet`); }}
+                className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+              >
+                Yeni fırsatlara yönlendir
+              </button>
+            )}
+            <button 
+              onClick={fullClose}
+              className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-lg transition-colors"
+            >
+              Kapat
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-900/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl sm:max-w-2xl flex flex-col max-h-[95vh] lg:max-h-[min(90vh,760px)] animate-in zoom-in-95 duration-200">
         <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50 rounded-t-2xl">
           <h2 className="font-bold text-navy-900">Yeni İşlem</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+          <button onClick={fullClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
         </div>
 
         <div className="p-5 overflow-y-auto">
