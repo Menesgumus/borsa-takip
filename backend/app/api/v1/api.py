@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
+    test_fixtures,
     alerts,
     auth,
     backtests,
@@ -28,3 +29,5 @@ api_router.include_router(backtests.router, prefix="/backtests", tags=["backtest
 api_router.include_router(outcomes.router, prefix="/outcomes", tags=["outcomes"])
 api_router.include_router(behavior.router, prefix="/behavior", tags=["behavior"])
 api_router.include_router(lifecycle.router, prefix="/portfolios/{portfolio_id}/lifecycle", tags=["lifecycle"])
+
+api_router.include_router(test_fixtures.router, prefix="/test-fixtures", tags=["test_fixtures"])

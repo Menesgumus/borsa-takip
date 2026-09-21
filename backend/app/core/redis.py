@@ -23,7 +23,7 @@ class MockRedis:
     async def ping(self): return True
     async def aclose(self): pass
 
-if os.environ.get("USE_MOCK_REDIS") == "true" or (os.environ.get("ENVIRONMENT") == "test" and not os.environ.get("REDIS_URL")):
+if os.environ.get("USE_MOCK_REDIS", "").lower() == "true" or (settings.ENVIRONMENT == "test" and not settings.REDIS_URL):
     redis_client = MockRedis()
 else:
     redis_client = Redis.from_url(
