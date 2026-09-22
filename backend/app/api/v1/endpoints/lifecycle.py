@@ -131,11 +131,8 @@ async def evaluate_lifecycle(
         dto.data_quality_score = decision.data_quality_score
 
         if lifecycle.recommended_action == LifecycleAction.CONSIDER_REDUCE:
-            if qty >= Decimal("2"):
-                import math
-                dto.suggested_reduce_quantity = Decimal(math.floor(float(qty) * 0.5))
-            else:
-                dto.suggested_reduce_quantity = Decimal("0")
+            from app.services.reduce_helper import calculate_reduce_quantity
+            dto.suggested_reduce_quantity = calculate_reduce_quantity(qty, Decimal("0.5"))
         elif lifecycle.recommended_action == LifecycleAction.CONSIDER_EXIT:
             dto.suggested_reduce_quantity = qty
 
@@ -241,11 +238,8 @@ async def get_lifecycle(
         dto.current_weight = Decimal(str(p_dict.get("current_weight", "0") or "0"))
 
         if lc.recommended_action == LifecycleAction.CONSIDER_REDUCE:
-            if qty >= Decimal("2"):
-                import math
-                dto.suggested_reduce_quantity = Decimal(math.floor(float(qty) * 0.5))
-            else:
-                dto.suggested_reduce_quantity = Decimal("0")
+            from app.services.reduce_helper import calculate_reduce_quantity
+            dto.suggested_reduce_quantity = calculate_reduce_quantity(qty, Decimal("0.5"))
         elif lc.recommended_action == LifecycleAction.CONSIDER_EXIT:
             dto.suggested_reduce_quantity = qty
 
