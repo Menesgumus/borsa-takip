@@ -72,3 +72,20 @@ async def test_idempotency_concurrency():
             tx_res = await db_verify.execute(select(PortfolioTransaction).where(PortfolioTransaction.portfolio_id == p_id))
             tx_records = tx_res.scalars().all()
             assert len(tx_records) == 2
+
+        # 1. Same user, same key, same family, different portfolio -> allowed
+        res_p2 = await client.post("/api/v1/portfolios", json={"name": "Idemp Test 2", "portfolio_type": "REAL"})
+        p_id2 = res_p2.json()["id"]
+        await client.post(f"/api/v1/portfolios/{p_id2}/transactions", json={"transaction_type": "DEPOSIT", "quantity": "10000"})
+        
+        # Fire request with same idempotency key but on p_id2
+        res_diff_port = await client.post(f"/api/v1/portfolios/{p_id2}/manual-trade", json=payload, headers=headers)
+        assert res_diff_port.status_code == 200
+        # Should be a DIFFERENT transaction
+        assert res_diff_port.json()["id"] != res1.json()["id"]
+
+        # 2. Same user, same portfolio, same family, same key, DIFFERENT canonical payload -> 409 Conflict
+        payload_different = dict(payload)
+        payload_different["quantity"] = "20"
+        res_conflict = await client.post(f"/api/v1/portfolios/{p_id}/manual-trade", json=payload_different, headers=headers)
+        assert res_conflict.status_code == 409

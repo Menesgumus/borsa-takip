@@ -13,9 +13,9 @@ def canonicalize(obj: Any) -> Any:
         # Format as string explicitly without scientific notation
         return format(obj, 'f')
     elif isinstance(obj, datetime):
-        # Must be UTC. If naive, assume UTC.
-        if obj.tzinfo:
-            obj = obj.astimezone(timezone.utc)
+        if obj.tzinfo is None:
+            raise ValueError("Naive datetimes are not permitted in canonical serialization.")
+        obj = obj.astimezone(timezone.utc)
         return obj.isoformat(timespec='microseconds').replace('+00:00', 'Z')
     elif isinstance(obj, Enum):
         return obj.value
@@ -24,9 +24,7 @@ def canonicalize(obj: Any) -> Any:
     elif isinstance(obj, (int, float, str, bool)):
         return obj
     else:
-        # Fallback for unexpected objects, try to convert to string representation
-        # but warn or just stringify
-        return str(obj)
+        raise TypeError(f"Unsupported type for canonical serialization: {type(obj)}")
 
 def get_canonical_json(obj: Any) -> str:
     """Returns a deterministic JSON string."""

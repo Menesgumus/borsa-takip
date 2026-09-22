@@ -2,7 +2,6 @@ import hashlib
 import json
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.orm import joinedload
 from app.db.models import OHLCVDaily, FundamentalData, Instrument
 from app.services.canonical import canonicalize
 
@@ -19,8 +18,14 @@ async def get_dataset_fingerprint(db: AsyncSession, instrument_ids: list[int] = 
     # Versioning structure
     components.append(("SCHEMA_VERSION", "1.0.0"))
     
+    # Add explicit limitations for unavailable data classes
+    components.append(("HISTORICAL_FX_SERIES", "LIMITED_BY_DATA"))
+    components.append(("CORPORATE_ACTIONS", "LIMITED_BY_DATA"))
+    components.append(("HISTORICAL_UNIVERSE_MEMBERSHIP", "LIMITED_BY_DATA"))
+    components.append(("BENCHMARK_SERIES", "LIMITED_BY_DATA"))
+    
     for inst in instruments:
-        inst_canon = f"{inst.exchange}|{inst.symbol}|{canonicalize(inst.asset_class)}|{inst.currency}"
+        inst_canon = f"{inst.exchange}|{inst.symbol}|{canonicalize(inst.instrument_type)}|{inst.currency}"
         
         # OHLCV
         res_ohlcv = await db.execute(select(OHLCVDaily).where(OHLCVDaily.instrument_id == inst.id))
@@ -29,12 +34,11 @@ async def get_dataset_fingerprint(db: AsyncSession, instrument_ids: list[int] = 
                 "OHLCV",
                 inst_canon,
                 canonicalize(ohlcv.timestamp),
-                canonicalize(ohlcv.open_price),
-                canonicalize(ohlcv.high_price),
-                canonicalize(ohlcv.low_price),
-                canonicalize(ohlcv.close_price),
-                canonicalize(ohlcv.volume),
-                canonicalize(ohlcv.data_state)
+                canonicalize(ohlcv.open),
+                canonicalize(ohlcv.high),
+                canonicalize(ohlcv.low),
+                canonicalize(ohlcv.close),
+                canonicalize(ohlcv.volume)
             )
             components.append(comp)
             
@@ -44,13 +48,16 @@ async def get_dataset_fingerprint(db: AsyncSession, instrument_ids: list[int] = 
             comp = (
                 "FUNDAMENTAL",
                 inst_canon,
-                canonicalize(fund.timestamp),
-                canonicalize(fund.publication_timestamp),
+                canonicalize(fund.period),
+                canonicalize(fund.period_end),
+                canonicalize(fund.published_at),
+                canonicalize(fund.available_at),
+                canonicalize(fund.source),
                 canonicalize(fund.pe_ratio),
                 canonicalize(fund.pb_ratio),
-                canonicalize(fund.roe),
-                canonicalize(fund.debt_to_equity),
-                canonicalize(fund.data_state)
+                canonicalize(fund.market_cap),
+                canonicalize(fund.net_income),
+                canonicalize(fund.revenue)
             )
             components.append(comp)
             

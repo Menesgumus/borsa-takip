@@ -39,6 +39,29 @@ async def test_outcome_tracking_api():
             status="OBSERVED_VALIDATED"
         )
         db_session.add(outcome)
+
+        snap_untrusted = DecisionSnapshot(instrument_id=inst.id, action="SELL", score=0.9, engine_version="v1.0", reason_codes="TEST")
+        db_session.add(snap_untrusted)
+        await db_session.commit()
+        await db_session.refresh(snap_untrusted)
+        outcome_untrusted = DecisionOutcome(
+            decision_id=snap_untrusted.id,
+            return_t1=0.01,
+            status="UNTRUSTED_LEGACY_OUTCOME"
+        )
+        db_session.add(outcome_untrusted)
+
+        snap_unknown = DecisionSnapshot(instrument_id=inst.id, action="HOLD", score=0.5, engine_version="v1.0", reason_codes="TEST")
+        db_session.add(snap_unknown)
+        await db_session.commit()
+        await db_session.refresh(snap_unknown)
+        outcome_unknown = DecisionOutcome(
+            decision_id=snap_unknown.id,
+            return_t1=0.01,
+            status="UNKNOWN_FUTURE_STATUS"
+        )
+        db_session.add(outcome_unknown)
+
         await db_session.commit()
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -50,7 +73,13 @@ async def test_outcome_tracking_api():
 
         r_recent = await client.get("/api/v1/outcomes/recent")
         assert r_recent.status_code == 200
-        assert len(r_recent.json()) > 0
+        
+        # Should only contain OBSERVED_VALIDATED
+        json_data = r_recent.json()
+        assert len(json_data) > 0
+        for item in json_data:
+            assert item["decision_id"] != snap_untrusted.id
+            assert item["decision_id"] != snap_unknown.id
 
         # Cleanup
         app.dependency_overrides.clear()

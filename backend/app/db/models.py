@@ -1,6 +1,13 @@
 import enum
 import typing
 
+import enum
+class OutcomeTrustState(enum.StrEnum):
+    OBSERVED_VALIDATED = 'OBSERVED_VALIDATED'
+    RECONSTRUCTED_TECHNICAL = 'RECONSTRUCTED_TECHNICAL'
+    FULL_POINT_IN_TIME = 'FULL_POINT_IN_TIME'
+    UNTRUSTED_LEGACY_OUTCOME = 'UNTRUSTED_LEGACY_OUTCOME'
+
 from sqlalchemy import (
     JSON,
     BigInteger,
@@ -672,6 +679,7 @@ class CalibrationCycle(Base):
     
     locked_at = Column(DateTime(timezone=True), nullable=True)
     manifest_json = Column(JSON, nullable=True)
+    manifest_hash = Column(String(64), nullable=True)
     validation_completed_at = Column(DateTime(timezone=True), nullable=True)
     holdout_opened_at = Column(DateTime(timezone=True), nullable=True)
     holdout_consumed_at = Column(DateTime(timezone=True), nullable=True)
