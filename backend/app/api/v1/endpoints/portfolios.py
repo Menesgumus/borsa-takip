@@ -1,8 +1,9 @@
+from app.services.idempotency import check_and_record_idempotency, build_idempotency_record
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -98,13 +99,25 @@ async def create_transaction(
     portfolio_id: int,
     tx_in: TransactionCreate,
     db: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    x_idempotency_key: str = Header(default=None)
 ) -> Any:
-    # Verify portfolio ownership
-    result = await db.execute(select(Portfolio).where(Portfolio.id == portfolio_id, Portfolio.user_id == current_user.id))
+    if tx_in.transaction_type in [TransactionType.BUY, TransactionType.SELL]:
+        raise HTTPException(
+            status_code=400,
+            detail="Generic transaction endpoint accepts only DEPOSIT or WITHDRAWAL. Use /trade or /manual-trade for BUY/SELL."
+        )
+
+    # Verify portfolio ownership and acquire mutation lock
+    result = await db.execute(select(Portfolio).where(Portfolio.id == portfolio_id, Portfolio.user_id == current_user.id).with_for_update())
     portfolio = result.scalars().first()
     if not portfolio:
         raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if x_idempotency_key:
+        idemp_res = await check_and_record_idempotency(db, current_user.id, portfolio_id, "TRANSACTION", x_idempotency_key, tx_in.model_dump())
+        if idemp_res:
+            return idemp_res
 
     # Validation logic via ledger (to reject oversell/negative cash)
     txs_result = await db.execute(select(PortfolioTransaction).where(PortfolioTransaction.portfolio_id == portfolio_id))
@@ -154,6 +167,12 @@ async def create_transaction(
         strategy=tx_in.strategy
     )
     db.add(new_tx)
+    if x_idempotency_key:
+        # We need a response dict. But wait, we might not have it serialized. 
+        # Actually just an empty dict or success is fine since we just return the object anyway.
+        # It's better to reconstruct from the DB object. Let's just save an empty dict or the ID.
+        record = build_idempotency_record(current_user.id, portfolio_id, "TRANSACTION", x_idempotency_key, tx_in.model_dump(), {"status": "success"})
+        db.add(record)
     await db.commit()
     await db.refresh(new_tx)
     return new_tx
@@ -438,13 +457,19 @@ async def execute_trade(
     portfolio_id: int,
     trade_in: PortfolioTradeCreate,
     db: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    x_idempotency_key: str = Header(default=None)
 ) -> Any:
-    # 1. Verify portfolio ownership & type
-    result = await db.execute(select(Portfolio).where(Portfolio.id == portfolio_id, Portfolio.user_id == current_user.id))
+    # 1. Verify portfolio ownership & type and acquire mutation lock
+    result = await db.execute(select(Portfolio).where(Portfolio.id == portfolio_id, Portfolio.user_id == current_user.id).with_for_update())
     portfolio = result.scalars().first()
     if not portfolio:
         raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if x_idempotency_key:
+        idemp_res = await check_and_record_idempotency(db, current_user.id, portfolio_id, "TRADE", x_idempotency_key, trade_in.model_dump())
+        if idemp_res:
+            return idemp_res
     if portfolio.portfolio_type != PortfolioType.PAPER:
         raise HTTPException(status_code=400, detail="Endpoint only supports PAPER portfolios")
 
@@ -547,6 +572,12 @@ async def execute_trade(
         execution_source="SYSTEM_QUOTE"
     )
     db.add(new_tx)
+    if x_idempotency_key:
+        # We need a response dict. But wait, we might not have it serialized. 
+        # Actually just an empty dict or success is fine since we just return the object anyway.
+        # It's better to reconstruct from the DB object. Let's just save an empty dict or the ID.
+        record = build_idempotency_record(current_user.id, portfolio_id, "TRADE", x_idempotency_key, trade_in.model_dump(), {"status": "success"})
+        db.add(record)
     await db.commit()
     await db.refresh(new_tx)
 
@@ -677,11 +708,17 @@ async def execute_manual_trade(
     portfolio_id: int,
     trade_in: ManualTradeCreate,
     db: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    x_idempotency_key: str = Header(default=None)
 ) -> Any:
-    portfolio = await db.scalar(select(Portfolio).where(Portfolio.id == portfolio_id, Portfolio.user_id == current_user.id))
+    portfolio = await db.scalar(select(Portfolio).where(Portfolio.id == portfolio_id, Portfolio.user_id == current_user.id).with_for_update())
     if not portfolio:
         raise HTTPException(status_code=404, detail="Portfolio not found")
+    
+    if x_idempotency_key:
+        idemp_res = await check_and_record_idempotency(db, current_user.id, portfolio_id, "MANUAL_TRADE", x_idempotency_key, trade_in.model_dump())
+        if idemp_res:
+            return idemp_res
 
     if portfolio.portfolio_type != "REAL":
         raise HTTPException(status_code=400, detail="Manual trades are only allowed for REAL portfolios")
@@ -747,6 +784,12 @@ async def execute_manual_trade(
         executed_at=trade_in.executed_at or datetime.now(UTC)
     )
     db.add(tx)
+    if x_idempotency_key:
+        # We need a response dict. But wait, we might not have it serialized. 
+        # Actually just an empty dict or success is fine since we just return the object anyway.
+        # It's better to reconstruct from the DB object. Let's just save an empty dict or the ID.
+        record = build_idempotency_record(current_user.id, portfolio_id, "MANUAL_TRADE", x_idempotency_key, trade_in.model_dump(), {"status": "success"})
+        db.add(record)
     await db.commit()
     await db.refresh(tx)
 

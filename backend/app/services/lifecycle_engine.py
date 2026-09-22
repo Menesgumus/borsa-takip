@@ -80,14 +80,14 @@ def compute_portfolio_context_key(
     current_weight: Decimal,
     cash_balance: Decimal,
     valuation_complete: bool,
-    fx_rate: Decimal,
-    transaction_state_version: int
+    fx_rate: Decimal | None,
+    transaction_state_version: str
 ) -> str:
     # Normalize decimals
     qty_norm = current_quantity.normalize()
     wt_norm = current_weight.normalize()
     cash_norm = cash_balance.normalize()
-    fx_norm = fx_rate.normalize()
+    fx_norm = fx_rate.normalize() if fx_rate is not None else "NONE"
 
     raw = f"{portfolio_id}|{instrument_id}|{episode_number}|{qty_norm}|{wt_norm}|{cash_norm}|{valuation_complete}|{fx_norm}|{transaction_state_version}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
@@ -102,7 +102,8 @@ async def evaluate_lifecycle_for_instrument(
     portfolio_cash: Decimal,
     max_concentration_limit: Decimal,
     is_valuation_complete: bool,
-    fx_rate: Decimal = Decimal("1.0")
+    fx_rate: Decimal | None,
+    transaction_state_version: str
 ):
     # 1. Fetch persistent market data (COMPLETED OHLCV)
     tech_response = await get_technical_analysis(db, instrument.symbol)
@@ -153,7 +154,7 @@ async def evaluate_lifecycle_for_instrument(
 
     market_key = compute_market_observation_key(instrument.id, ohlcv_date, fund_ver, instrument.asset_class)
     context_key = compute_portfolio_context_key(
-        portfolio.id, instrument.id, 0, current_quantity, current_weight, portfolio_cash, is_valuation_complete, fx_rate, 0
+        portfolio.id, instrument.id, 0, current_quantity, current_weight, portfolio_cash, is_valuation_complete, fx_rate, transaction_state_version
     ) # Episode and transaction state will be injected when we have the lifecycle record
 
     return decision, market_key, context_key, is_evaluable
@@ -278,8 +279,11 @@ async def process_position_lifecycle(
 
         # Add Rules
         if lifecycle.health_state == LifecycleHealthState.STABLE and view in ("BUY", "STRONG_BUY"):
-            # We defer sizing/FX check to later, but assume basic eligibility here
-            lifecycle.add_confirmation_count += 1
+            # Enforce all Phase 29 prerequisites here natively (eligibility, valuation, FX, concentration)
+            if is_evaluable and current_weight <= max_concentration_limit:
+                lifecycle.add_confirmation_count += 1
+            else:
+                lifecycle.add_confirmation_count = 0
         else:
             lifecycle.add_confirmation_count = 0
 

@@ -30,4 +30,7 @@ api_router.include_router(outcomes.router, prefix="/outcomes", tags=["outcomes"]
 api_router.include_router(behavior.router, prefix="/behavior", tags=["behavior"])
 api_router.include_router(lifecycle.router, prefix="/portfolios/{portfolio_id}/lifecycle", tags=["lifecycle"])
 
-api_router.include_router(test_fixtures.router, prefix="/test-fixtures", tags=["test_fixtures"])
+from app.core.config import settings
+
+if settings.ENVIRONMENT == "test":
+    api_router.include_router(test_fixtures.router, prefix="/test-fixtures", tags=["test_fixtures"])

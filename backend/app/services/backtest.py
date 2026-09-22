@@ -1,4 +1,4 @@
-﻿import json
+import json
 import logging
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -88,7 +88,7 @@ async def run_backtest_job(db: AsyncSession, job_id: int):
                 "COSTS": "PASS"
             }),
             limitations=json.dumps(["HISTORICAL_UNIVERSE_UNAVAILABLE", "CORPORATE_ACTION_DATA_INCOMPLETE"]),
-            validation_state="LIMITED"
+            validation_state="UNTRUSTED_LEGACY_STUB"
         )
         db.add(res)
 

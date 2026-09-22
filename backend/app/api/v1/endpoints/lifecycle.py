@@ -59,6 +59,10 @@ async def evaluate_lifecycle(
     # max concentration is typically 0.3 for equities, let's use a safe fallback or fetch from portfolio risk
 
 
+    # Get transaction state version
+    from app.services.fingerprint import get_transaction_state_fingerprint
+    transaction_state_version = await get_transaction_state_fingerprint(db, portfolio_id)
+
     # 3. Process Each Position
     lifecycles = []
 
@@ -79,16 +83,18 @@ async def evaluate_lifecycle(
 
         # Extract canonical FX rate from valuation dictionary
         fx_rate = p_dict.get("current_fx_rate_to_base")
-        if inst.currency == "USD" and fx_rate is None:
-            # Missing required USDTRY -> incomplete trustworthy context
-            is_evaluable_context = False
-            fx_rate_val = Decimal("1.0")  # Dummy value, will not result in actions
-        else:
+        if inst.currency == "TRY":
+            fx_rate_val = Decimal("1.0")
             is_evaluable_context = is_valuation_complete
-            fx_rate_val = Decimal(str(fx_rate)) if fx_rate is not None else Decimal("1.0")
+        elif fx_rate is not None:
+            fx_rate_val = Decimal(str(fx_rate))
+            is_evaluable_context = is_valuation_complete
+        else:
+            is_evaluable_context = False
+            fx_rate_val = None
 
         decision, market_key, context_key_partial, is_evaluable = await evaluate_lifecycle_for_instrument(
-            db, current_user, portfolio, inst, qty, weight, cash_balance, limit_pct, is_evaluable_context, fx_rate_val
+            db, current_user, portfolio, inst, qty, weight, cash_balance, limit_pct, is_evaluable_context, fx_rate_val, transaction_state_version
         )
 
         # Lock and Process State Machine

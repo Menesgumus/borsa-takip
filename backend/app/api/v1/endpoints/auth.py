@@ -243,8 +243,10 @@ async def login(
         max_age=_SESSION_TTL_DAYS * 86400,
         path="/",
     )
-    # Also expose via header so tests can read it without parsing Set-Cookie
-    response.headers["X-Session-Token"] = raw_token
+    from app.core.config import settings
+    if settings.ENVIRONMENT == "test":
+        # Also expose via header so tests can read it without parsing Set-Cookie
+        response.headers["X-Session-Token"] = raw_token
     return response
 
 
