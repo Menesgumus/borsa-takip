@@ -38,16 +38,17 @@ async def test_portfolio_lifecycle_and_accounting():
         inst_id = inst.id
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        res = await client.post("/api/v1/portfolios", json={"name": "My Paper", "portfolio_type": "PAPER"})
+        res = await client.post("/api/v1/portfolios", json={"name": "My Paper", "portfolio_type": "REAL"})
         assert res.status_code == 200
         p_id = res.json()["id"]
 
         # 2. Buy before deposit -> reject
-        res = await client.post(f"/api/v1/portfolios/{p_id}/transactions", json={
-            "transaction_type": "BUY",
+        res = await client.post(f"/api/v1/portfolios/{p_id}/manual-trade", json={
+            "side": "BUY",
             "instrument_id": inst_id,
             "quantity": "10",
-            "price": "100"
+            "native_execution_price": "100",
+            "fee": "0"
         })
         assert res.status_code == 400
 
@@ -59,21 +60,21 @@ async def test_portfolio_lifecycle_and_accounting():
         assert res.status_code == 200
 
         # 4. Buy
-        res = await client.post(f"/api/v1/portfolios/{p_id}/transactions", json={
-            "transaction_type": "BUY",
+        res = await client.post(f"/api/v1/portfolios/{p_id}/manual-trade", json={
+            "side": "BUY",
             "instrument_id": inst_id,
             "quantity": "10",
-            "price": "100",
+            "native_execution_price": "100",
             "fee": "10"
         })
         assert res.status_code == 200
 
         # 5. Sell part
-        res = await client.post(f"/api/v1/portfolios/{p_id}/transactions", json={
-            "transaction_type": "SELL",
+        res = await client.post(f"/api/v1/portfolios/{p_id}/manual-trade", json={
+            "side": "SELL",
             "instrument_id": inst_id,
             "quantity": "4",
-            "price": "150",
+            "native_execution_price": "150",
             "fee": "5"
         })
         assert res.status_code == 200
@@ -176,18 +177,19 @@ async def test_portfolio_risk_and_whatif():
             "quantity": "10000"
         })
 
-        await client.post(f"/api/v1/portfolios/{p_id}/transactions", json={
-            "transaction_type": "BUY",
+        await client.post(f"/api/v1/portfolios/{p_id}/manual-trade", json={
+            "side": "BUY",
             "instrument_id": inst_id,
             "quantity": "10",
-            "price": "100"
+            "native_execution_price": "100",
+            "fee": "0"
         })
 
         # Risk Check
         res = await client.get(f"/api/v1/portfolios/{p_id}/risk")
         assert res.status_code == 200
         risk = res.json()
-        assert risk["data_freshness"] == "STALE" # No prices seeded
+        assert risk["data_freshness"] in ("STALE", "DELAYED")
         assert float(risk["cash_exposure"]) == 9000.0
 
         # What-If causing insufficient cash

@@ -171,7 +171,8 @@ async def create_transaction(
         # We need a response dict. But wait, we might not have it serialized. 
         # Actually just an empty dict or success is fine since we just return the object anyway.
         # It's better to reconstruct from the DB object. Let's just save an empty dict or the ID.
-        record = build_idempotency_record(current_user.id, portfolio_id, "TRANSACTION", x_idempotency_key, tx_in.model_dump(), {"status": "success"})
+        await db.flush()
+        record = build_idempotency_record(current_user.id, portfolio_id, "TRANSACTION", x_idempotency_key, tx_in.model_dump(), {"transaction_id": new_tx.id})
         db.add(record)
     await db.commit()
     await db.refresh(new_tx)
@@ -576,7 +577,8 @@ async def execute_trade(
         # We need a response dict. But wait, we might not have it serialized. 
         # Actually just an empty dict or success is fine since we just return the object anyway.
         # It's better to reconstruct from the DB object. Let's just save an empty dict or the ID.
-        record = build_idempotency_record(current_user.id, portfolio_id, "TRADE", x_idempotency_key, trade_in.model_dump(), {"status": "success"})
+        await db.flush()
+        record = build_idempotency_record(current_user.id, portfolio_id, "TRADE", x_idempotency_key, trade_in.model_dump(), {"transaction_id": new_tx.id})
         db.add(record)
     await db.commit()
     await db.refresh(new_tx)
@@ -788,7 +790,8 @@ async def execute_manual_trade(
         # We need a response dict. But wait, we might not have it serialized. 
         # Actually just an empty dict or success is fine since we just return the object anyway.
         # It's better to reconstruct from the DB object. Let's just save an empty dict or the ID.
-        record = build_idempotency_record(current_user.id, portfolio_id, "MANUAL_TRADE", x_idempotency_key, trade_in.model_dump(), {"status": "success"})
+        await db.flush()
+        record = build_idempotency_record(current_user.id, portfolio_id, "MANUAL_TRADE", x_idempotency_key, trade_in.model_dump(), {"transaction_id": tx.id})
         db.add(record)
     await db.commit()
     await db.refresh(tx)

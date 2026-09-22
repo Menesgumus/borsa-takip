@@ -1,11 +1,10 @@
-import json
 import hashlib
 from typing import Any
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from app.db.models import IdempotencyRecord
-import datetime
+from app.db.models import IdempotencyRecord, PortfolioTransaction
+from app.services.canonical import get_canonical_json
 
 async def check_and_record_idempotency(
     db: AsyncSession,
@@ -16,7 +15,7 @@ async def check_and_record_idempotency(
     request_payload: dict,
 ) -> Any:
     # Hash the payload
-    payload_str = json.dumps(request_payload, sort_keys=True)
+    payload_str = get_canonical_json(request_payload)
     request_hash = hashlib.sha256(payload_str.encode('utf-8')).hexdigest()
 
     # Query existing
@@ -24,6 +23,7 @@ async def check_and_record_idempotency(
         select(IdempotencyRecord)
         .where(
             IdempotencyRecord.user_id == user_id,
+            IdempotencyRecord.portfolio_id == portfolio_id,
             IdempotencyRecord.mutation_family == mutation_family,
             IdempotencyRecord.idempotency_key == idempotency_key
         )
@@ -33,12 +33,16 @@ async def check_and_record_idempotency(
     if existing:
         if existing.request_hash == request_hash:
             # Same request, return the previous result payload
+            if existing.response_payload and "transaction_id" in existing.response_payload:
+                tx_id = existing.response_payload["transaction_id"]
+                tx_res = await db.execute(select(PortfolioTransaction).where(PortfolioTransaction.id == tx_id))
+                tx = tx_res.scalars().first()
+                if tx:
+                    return tx
             return existing.response_payload
         else:
             raise HTTPException(status_code=409, detail="Idempotency conflict: same key with different payload")
 
-    # If not existing, create a PENDING record. 
-    # Actually we will just let the caller create the transaction and then we'll save the record before commit.
     return None
 
 def build_idempotency_record(
@@ -49,7 +53,7 @@ def build_idempotency_record(
     request_payload: dict,
     response_payload: dict
 ) -> IdempotencyRecord:
-    payload_str = json.dumps(request_payload, sort_keys=True)
+    payload_str = get_canonical_json(request_payload)
     request_hash = hashlib.sha256(payload_str.encode('utf-8')).hexdigest()
     
     return IdempotencyRecord(

@@ -5,7 +5,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.api.v1.endpoints.auth import get_current_user
-from app.db.models import DecisionSnapshot, Instrument, InstrumentType, StrategyVersion, User
+from app.db.models import DecisionSnapshot, DecisionOutcome, Instrument, InstrumentType, StrategyVersion, User
 from app.db.session import async_session_maker
 from app.main import app
 from app.services.outcome_tracker import evaluate_strategy_versions
@@ -30,13 +30,23 @@ async def test_outcome_tracking_api():
         snap = DecisionSnapshot(instrument_id=inst.id, action="BUY", score=0.8, engine_version="v1.0", reason_codes="TEST")
         db_session.add(snap)
         await db_session.commit()
+        await db_session.refresh(snap)
+
+        # Add outcome
+        outcome = DecisionOutcome(
+            decision_id=snap.id,
+            return_t1=0.01,
+            status="OBSERVED_VALIDATED"
+        )
+        db_session.add(outcome)
+        await db_session.commit()
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         app.dependency_overrides[get_current_user] = override_get_current_user
         user_mock_data["user_id"] = user.id
 
         r_trigger = await client.post("/api/v1/outcomes/trigger-tracker")
-        assert r_trigger.status_code == 200
+        assert r_trigger.status_code == 404
 
         r_recent = await client.get("/api/v1/outcomes/recent")
         assert r_recent.status_code == 200

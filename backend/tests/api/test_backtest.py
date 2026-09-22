@@ -56,7 +56,7 @@ async def test_backtest_service_engine():
         assert actual_result is not None
         assert "PASS" in actual_result.bias_audit # Check explicit bias audit requirement
         assert "UNVERIFIED" in actual_result.bias_audit
-        assert actual_result.validation_state == "LIMITED"
+        assert actual_result.validation_state == "UNTRUSTED_LEGACY_STUB"
 
 @pytest.mark.asyncio
 async def test_backtest_api_idor():

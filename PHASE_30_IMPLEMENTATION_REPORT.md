@@ -3,7 +3,7 @@
 ## 1. Stage 0A: Security Blockers (COMPLETED)
 - **Raw Session Token Leakage**: Patched `auth.py`. `/auth/login` and `/auth/register` only return `X-Session-Token` headers conditionally if `settings.ENVIRONMENT == "test"`.
 - **Test Fixtures Routing**: Removed global registration in `api.py`. It is now conditionally registered only under test.
-- **Outcomes API Attack Surface**: Stripped the naked `POST /outcomes/trigger-tracker` route. Read routes now require strict JWT user auth via `Depends(get_current_user)`.
+- **Outcomes API Attack Surface**: Stripped the naked `POST /outcomes/trigger-tracker` route. Read routes now require user auth via `Depends(get_current_user)`.
 - **Generic Transaction API Abuse**: `POST /portfolios/{id}/transactions` safely rejects `BUY/SELL` requests with HTTP 400.
 - **Race Condition Prevention**: Enforced DB-level locks `SELECT ... FOR UPDATE` on all `Portfolio` lookups inside `/transactions`, `/trade`, and `/manual-trade` before applying core ledger mathematical validation.
 

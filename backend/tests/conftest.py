@@ -7,6 +7,7 @@ os.environ["POSTGRES_PORT"] = "5432"
 os.environ["POSTGRES_USER"] = "postgres"
 os.environ["POSTGRES_PASSWORD"] = "postgres"
 os.environ["REDIS_URL"] = "redis://127.0.0.1:6379/1"
+os.environ["USE_MOCK_REDIS"] = "true"
 os.environ["ENABLE_MOCK_MARKET_DATA"] = "true"
 
 import pytest

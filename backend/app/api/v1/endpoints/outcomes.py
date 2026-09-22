@@ -38,6 +38,7 @@ async def get_recent_outcomes(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ):
-    res = await db.execute(select(DecisionOutcome).where(DecisionOutcome.status != "UNTRUSTED_LEGACY_OUTCOME").order_by(DecisionOutcome.evaluated_at.desc()).limit(50))
+    trusted_states = ["OBSERVED_VALIDATED", "RECONSTRUCTED_TECHNICAL", "FULL_POINT_IN_TIME"]
+    res = await db.execute(select(DecisionOutcome).where(DecisionOutcome.status.in_(trusted_states)).order_by(DecisionOutcome.evaluated_at.desc()).limit(50))
     return res.scalars().all()
 

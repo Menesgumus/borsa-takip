@@ -28,7 +28,7 @@ async def test_manual_trade_paper_reject():
     )
 
     with pytest.raises(HTTPException) as excinfo:
-        await execute_manual_trade(portfolio_id=1, trade_in=trade_in, db=db, current_user=user)
+        await execute_manual_trade(portfolio_id=1, trade_in=trade_in, db=db, current_user=user, x_idempotency_key=None)
 
     assert excinfo.value.status_code == 400
     assert "REAL portfolios" in excinfo.value.detail

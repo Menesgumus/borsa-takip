@@ -653,7 +653,7 @@ class IdempotencyRecord(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     __table_args__ = (
-        UniqueConstraint("user_id", "mutation_family", "idempotency_key", name="uix_idempotency_key"),
+        UniqueConstraint("user_id", "portfolio_id", "mutation_family", "idempotency_key", name="uix_idempotency_key_portfolio"),
     )
 
 class CalibrationCycle(Base):
@@ -671,6 +671,7 @@ class CalibrationCycle(Base):
     holdout_interval_end = Column(DateTime, nullable=True)
     
     locked_at = Column(DateTime(timezone=True), nullable=True)
+    manifest_json = Column(JSON, nullable=True)
     validation_completed_at = Column(DateTime(timezone=True), nullable=True)
     holdout_opened_at = Column(DateTime(timezone=True), nullable=True)
     holdout_consumed_at = Column(DateTime(timezone=True), nullable=True)
