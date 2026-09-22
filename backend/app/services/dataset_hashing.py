@@ -5,7 +5,9 @@ from sqlalchemy.future import select
 from app.db.models import OHLCVDaily, FundamentalData, Instrument
 from app.services.canonical import canonicalize
 
-async def get_dataset_fingerprint(db: AsyncSession, instrument_ids: list[int] = None) -> str:
+DATASET_SCHEMA_VERSION = "1.0.0"
+
+async def get_dataset_fingerprint(db: AsyncSession, instrument_ids: list[int] = None, schema_version_override: str = None) -> str:
     # 1. Fetch Instruments (Universe)
     query = select(Instrument)
     if instrument_ids:
@@ -16,7 +18,8 @@ async def get_dataset_fingerprint(db: AsyncSession, instrument_ids: list[int] = 
     components = []
     
     # Versioning structure
-    components.append(("SCHEMA_VERSION", "1.0.0"))
+    version_to_use = schema_version_override if schema_version_override else DATASET_SCHEMA_VERSION
+    components.append(("SCHEMA_VERSION", version_to_use))
     
     # Add explicit limitations for unavailable data classes
     components.append(("HISTORICAL_FX_SERIES", "LIMITED_BY_DATA"))

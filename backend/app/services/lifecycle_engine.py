@@ -34,16 +34,16 @@ logger = logging.getLogger(__name__)
 
 LIFECYCLE_POLICY_VERSION = "v1"
 
-class LifecycleConstants:
-    WATCH_THRESHOLD = 1
-    CONFIRMED_THRESHOLD = 3
-    EXIT_THRESHOLD = 5
-    STRONG_EXIT_THRESHOLD = 3
-    RECOVERY_THRESHOLD = 2
-    ADD_THRESHOLD = 2
+from app.services.stage8_manifest import CHAMPION_CONFIG
 
-    # 50% reduce
-    REDUCE_FRACTION = Decimal("0.5")
+class LifecycleConstants:
+    @classmethod
+    def get(cls, key: str, overrides: dict | None = None):
+        cfg = overrides if overrides is not None else CHAMPION_CONFIG
+        val = cfg.get(key, CHAMPION_CONFIG[key])
+        if key in ("REDUCE_FRACTION", "MAX_CONCENTRATION_LIMIT"):
+            return Decimal(str(val))
+        return val
 
 async def _get_latest_completed_ohlcv_date(db: AsyncSession, instrument_id: int) -> str | None:
     stmt = select(OHLCVDaily.timestamp).where(OHLCVDaily.instrument_id == instrument_id).order_by(OHLCVDaily.timestamp.desc()).limit(1)
@@ -169,7 +169,8 @@ async def process_position_lifecycle(
     decision: DecisionResult,
     market_key: str,
     context_key_partial: str,
-    is_evaluable: bool
+    is_evaluable: bool,
+    policy_overrides: dict | None = None
 ) -> PositionLifecycle:
     # 1. Lock the existing lifecycle row
     stmt = select(PositionLifecycle).where(
@@ -289,11 +290,11 @@ async def process_position_lifecycle(
 
         # State Machine Transitions
         if lifecycle.health_state == LifecycleHealthState.STABLE:
-            if lifecycle.negative_confirmation_count >= LifecycleConstants.WATCH_THRESHOLD:
+            if lifecycle.negative_confirmation_count >= LifecycleConstants.get("WATCH_THRESHOLD", policy_overrides):
                 lifecycle.health_state = LifecycleHealthState.WATCH
 
         elif lifecycle.health_state == LifecycleHealthState.WATCH:
-            if lifecycle.negative_confirmation_count >= LifecycleConstants.CONFIRMED_THRESHOLD:
+            if lifecycle.negative_confirmation_count >= LifecycleConstants.get("CONFIRMED_THRESHOLD", policy_overrides):
                 lifecycle.health_state = LifecycleHealthState.CONFIRMED_DETERIORATION
             elif view in ("HOLD", "BUY", "STRONG_BUY"):
                 lifecycle.health_state = LifecycleHealthState.STABLE
@@ -312,7 +313,7 @@ async def process_position_lifecycle(
                 # Negative count was just incremented above
             else:
                 lifecycle.recovery_confirmation_count += 1
-                if lifecycle.recovery_confirmation_count >= LifecycleConstants.RECOVERY_THRESHOLD:
+                if lifecycle.recovery_confirmation_count >= LifecycleConstants.get("RECOVERY_THRESHOLD", policy_overrides):
                     lifecycle.health_state = LifecycleHealthState.STABLE
                     lifecycle.recovery_confirmation_count = 0
                     lifecycle.negative_confirmation_count = 0
@@ -326,7 +327,7 @@ async def process_position_lifecycle(
     reason_codes = []
 
     if lifecycle.health_state == LifecycleHealthState.STABLE:
-        if lifecycle.add_confirmation_count >= LifecycleConstants.ADD_THRESHOLD and current_weight <= max_concentration_limit:
+        if lifecycle.add_confirmation_count >= LifecycleConstants.get("ADD_THRESHOLD", policy_overrides) and current_weight <= max_concentration_limit:
             action = LifecycleAction.CONSIDER_ADD
             reason_codes.append("CONSIDER_ADD_MOMENTUM")
 
@@ -341,8 +342,8 @@ async def process_position_lifecycle(
         reason_codes.append("PORTFOLIO_CONCENTRATION_BREACH")
 
     # Exit overrides reduce
-    if lifecycle.negative_confirmation_count >= LifecycleConstants.EXIT_THRESHOLD or \
-       lifecycle.strong_sell_confirmation_count >= LifecycleConstants.STRONG_EXIT_THRESHOLD:
+    if lifecycle.negative_confirmation_count >= LifecycleConstants.get("EXIT_THRESHOLD", policy_overrides) or \
+       lifecycle.strong_sell_confirmation_count >= LifecycleConstants.get("STRONG_EXIT_THRESHOLD", policy_overrides):
         action = LifecycleAction.CONSIDER_EXIT
         reason_codes.append("PERSISTENT_SEVERE_DETERIORATION")
 

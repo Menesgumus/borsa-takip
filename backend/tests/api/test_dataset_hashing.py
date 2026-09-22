@@ -88,3 +88,26 @@ async def test_dataset_hashing_properties():
         await db.commit()
         hash_pe_changed = await get_dataset_fingerprint(db, [inst2.id])
         assert hash_pe_changed != hash_base, "Changed fundamental value must yield different hash"
+        
+        # 8. Schema version changes -> different hash
+        fund_copy.pe_ratio = 10.5
+        await db.commit()
+        hash_schema_changed = await get_dataset_fingerprint(db, [inst2.id], schema_version_override="2.0.0")
+        assert hash_schema_changed != hash_base, "Schema version change must yield different hash"
+        
+        # 9. Insertion order changes -> identical hash
+        await db.delete(b0_copy)
+        await db.delete(fund_copy)
+        await db.commit()
+        
+        # Insert them in reverse order
+        fund_new = FundamentalData(instrument_id=inst2.id, period="2025Q4", published_at=t0, pe_ratio=10.5)
+        db.add(fund_new)
+        await db.commit()
+        
+        b0_new = OHLCVDaily(instrument_id=inst2.id, timestamp=t0, open=100, high=105, low=95, close=102, volume=1000)
+        db.add(b0_new)
+        await db.commit()
+        
+        hash_reordered = await get_dataset_fingerprint(db, [inst2.id])
+        assert hash_reordered == hash_base, "Different insertion order must yield identical hash"
