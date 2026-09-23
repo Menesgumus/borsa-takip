@@ -44,6 +44,24 @@ class MarketDataProvider(ABC):
     ) -> list[QuoteDTO]:
         """Fetch historical daily quotes for the given date range."""
 
+    async def get_historical_fx(
+        self, pair: str, start_date: datetime, end_date: datetime
+    ) -> list[dict]:
+        """Fetch historical daily FX rates. Default implementation raises NotImplementedError."""
+        raise NotImplementedError(f"{self.name} does not support get_historical_fx")
+
+    async def get_historical_benchmark(
+        self, symbol: str, start_date: datetime, end_date: datetime
+    ) -> list[dict]:
+        """Fetch historical benchmark series. Default implementation raises NotImplementedError."""
+        raise NotImplementedError(f"{self.name} does not support get_historical_benchmark")
+
+    async def get_corporate_actions(
+        self, symbol: str, start_date: datetime, end_date: datetime
+    ) -> list[dict]:
+        """Fetch corporate actions (splits, dividends). Default implementation raises NotImplementedError."""
+        raise NotImplementedError(f"{self.name} does not support get_corporate_actions")
+
     @abstractmethod
     async def health_check(self) -> bool:
         """Return True if the provider is reachable and operational."""

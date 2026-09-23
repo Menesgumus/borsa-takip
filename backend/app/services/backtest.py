@@ -44,10 +44,15 @@ async def run_backtest_job(db: AsyncSession, job_id: int):
 
         current_date = job.start_date
 
-        # Stub loop (in reality, loop through actual trading days in DB)
-        # We'll just run 5 mock days to satisfy architectural golden tests
-        for day_offset in range(5):
-            t_date = current_date + timedelta(days=day_offset)
+        # 3. Loop through trading days using the calendar
+        from app.market.trading_calendar import get_trading_days
+        
+        # We need an end date, let's assume current_date + 10 days to get 5 trading days
+        end_date = current_date.date() + timedelta(days=15)
+        trading_days = get_trading_days(current_date.date(), end_date)[:5]
+        
+        for t_date_obj in trading_days:
+            t_date = datetime(t_date_obj.year, t_date_obj.month, t_date_obj.day, tzinfo=UTC)
 
             # --- POINT IN TIME (T) ---
             # 1. Fetch data strictly <= t_date

@@ -13,6 +13,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     Column,
+    Date,
     DateTime,
     Enum,
     ForeignKey,
@@ -197,6 +198,103 @@ class ProviderHealth(Base):
 # ---------------------------------------------------------------------------
 
 
+class IngestionRun(Base):
+    __tablename__ = "ingestion_runs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    provider_name = Column(String, nullable=False)
+    dataset_type = Column(String, nullable=False)
+    started_at = Column(DateTime(timezone=True), nullable=False)
+    finished_at = Column(DateTime(timezone=True), nullable=True)
+    status = Column(String(20), nullable=False)
+    requested_start = Column(DateTime(timezone=True), nullable=True)
+    requested_end = Column(DateTime(timezone=True), nullable=True)
+    instrument_universe_hash = Column(String(64), nullable=True)
+    rows_received = Column(Integer, default=0)
+    rows_inserted = Column(Integer, default=0)
+    rows_updated = Column(Integer, default=0)
+    rows_rejected = Column(Integer, default=0)
+    error_detail = Column(Text, nullable=True)
+    code_sha = Column(String(40), nullable=True)
+    config_hash = Column(String(64), nullable=True)
+
+
+class TradingSession(Base):
+    __tablename__ = "trading_sessions"
+    id = Column(Integer, primary_key=True, index=True)
+    calendar_name = Column(String(50), nullable=False, index=True)  # e.g., 'BIST'
+    session_date = Column(Date, nullable=False, index=True)
+    is_trading_day = Column(Boolean, nullable=False)
+    session_open = Column(DateTime(timezone=True), nullable=True)
+    session_close = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    
+    __table_args__ = (UniqueConstraint('calendar_name', 'session_date', name='uq_trading_session_date'),)
+
+
+class HistoricalFXRate(Base):
+    __tablename__ = "historical_fx_rates"
+    id = Column(Integer, primary_key=True, index=True)
+    currency_pair = Column(String(10), nullable=False, index=True)  # e.g., 'USDTRY'
+    date = Column(Date, nullable=False, index=True)
+    rate = Column(Numeric(precision=18, scale=6), nullable=False)
+    provider_name = Column(String, nullable=True)
+    ingestion_run_id = Column(Integer, ForeignKey("ingestion_runs.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    
+    __table_args__ = (UniqueConstraint('currency_pair', 'date', name='uq_historical_fx_pair_date'),)
+
+
+class BenchmarkSeries(Base):
+    __tablename__ = "benchmark_series"
+    id = Column(Integer, primary_key=True, index=True)
+    benchmark_name = Column(String(50), nullable=False, index=True)  # e.g., 'BIST100'
+    date = Column(Date, nullable=False, index=True)
+    value = Column(Numeric(precision=18, scale=6), nullable=False)
+    provider_name = Column(String, nullable=True)
+    ingestion_run_id = Column(Integer, ForeignKey("ingestion_runs.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    
+    __table_args__ = (UniqueConstraint('benchmark_name', 'date', name='uq_benchmark_name_date'),)
+
+
+class CorporateAction(Base):
+    __tablename__ = "corporate_actions"
+    id = Column(Integer, primary_key=True, index=True)
+    instrument_id = Column(Integer, ForeignKey("instruments.id", ondelete="CASCADE"), nullable=False, index=True)
+    ex_date = Column(Date, nullable=False, index=True)
+    action_type = Column(String(50), nullable=False)  # SPLIT, DIVIDEND
+    ratio = Column(Numeric(precision=18, scale=6), nullable=True)  # for split
+    amount = Column(Numeric(precision=18, scale=6), nullable=True) # for dividend
+    currency = Column(String(3), nullable=True)
+    is_applied = Column(Boolean, default=False, nullable=False)
+    provider_name = Column(String, nullable=True)
+    ingestion_run_id = Column(Integer, ForeignKey("ingestion_runs.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    
+    __table_args__ = (UniqueConstraint('instrument_id', 'ex_date', 'action_type', name='uq_corporate_action_exdate_type'),)
+
+
+class InstrumentUniverseHistory(Base):
+    __tablename__ = "instrument_universe_history"
+    id = Column(Integer, primary_key=True, index=True)
+    instrument_id = Column(Integer, ForeignKey("instruments.id", ondelete="CASCADE"), nullable=False, index=True)
+    universe_name = Column(String(50), nullable=False, index=True)  # e.g., 'BIST100', 'BIST_ALL'
+    start_date = Column(Date, nullable=False, index=True)
+    end_date = Column(Date, nullable=True, index=True)
+    provider_name = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class DatasetSnapshot(Base):
+    __tablename__ = "dataset_snapshots"
+    id = Column(Integer, primary_key=True, index=True)
+    snapshot_hash = Column(String(64), nullable=False, unique=True, index=True)
+    description = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    metadata_json = Column(JSON, nullable=True)
+
+
 class OHLCVDaily(Base):
     """Historical daily Open, High, Low, Close, Volume data."""
 
@@ -215,6 +313,11 @@ class OHLCVDaily(Base):
     volume = Column(BigInteger, nullable=True)
 
     provider_name = Column(String, nullable=True)  # Source of this data point
+    ingestion_run_id = Column(Integer, ForeignKey("ingestion_runs.id"), nullable=True)
+    provenance_type = Column(String(30), nullable=False, server_default="UNKNOWN")
+    is_adjusted = Column(Boolean, default=False, nullable=False, server_default="false")
+    session_type = Column(String(20), nullable=True)
+    source_record_id = Column(String(100), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(
@@ -267,8 +370,8 @@ class FundamentalData(Base):
     id = Column(Integer, primary_key=True, index=True)
     instrument_id = Column(Integer, ForeignKey("instruments.id"), nullable=False, index=True)
     period = Column(String, nullable=False) # e.g. "2024Q1", "2023FY"
+    revision = Column(Integer, nullable=False, default=0, server_default="0")
     period_end = Column(DateTime(timezone=True), nullable=True)
-    published_at = Column(DateTime(timezone=True), nullable=True)
     available_at = Column(DateTime(timezone=True), nullable=True)
     source = Column(String, nullable=True)
 
@@ -280,10 +383,12 @@ class FundamentalData(Base):
     revenue = Column(Numeric(precision=24, scale=6), nullable=True)
 
     published_at = Column(DateTime(timezone=True), nullable=False)
+    ingestion_run_id = Column(Integer, ForeignKey("ingestion_runs.id"), nullable=True)
+    provenance_type = Column(String(30), nullable=False, server_default="UNKNOWN")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     __table_args__ = (
-        UniqueConstraint("instrument_id", "period", name="uq_fundamental_instrument_period"),
+        UniqueConstraint("instrument_id", "period", "revision", name="uq_fundamental_instrument_period_rev"),
     )
 
 class PortfolioType(enum.StrEnum):
@@ -668,6 +773,7 @@ class CalibrationCycle(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     status = Column(String(50), nullable=False) # e.g. "OPEN", "FROZEN", "HOLDOUT_CONSUMED"
+    dataset_snapshot_id = Column(Integer, ForeignKey("dataset_snapshots.id"), nullable=True)
     champion_config_hash = Column(String(64), nullable=True)
     frozen_challenger_manifest_hash = Column(String(64), nullable=True)
     train_interval_start = Column(DateTime, nullable=True)

@@ -215,6 +215,7 @@ class YahooFinanceProvider(MarketDataProvider):
                         is_stale=False,
                         data_state="EOD",
                         is_mock=False,
+                        is_adjusted=True,
                     )
                 )
             return quotes
@@ -222,6 +223,24 @@ class YahooFinanceProvider(MarketDataProvider):
             raise ProviderUnavailableError(
                 self.name, f"Failed to parse history response: {e}"
             ) from e
+
+    async def get_historical_fx(
+        self, pair: str, start_date: datetime, end_date: datetime
+    ) -> list[dict]:
+        symbol = f"{pair}=X" if not pair.endswith("=X") else pair
+        quotes = await self.get_historical_quotes(symbol, start_date, end_date)
+        return [{"date": q.timestamp.date(), "rate": q.price} for q in quotes]
+
+    async def get_historical_benchmark(
+        self, symbol: str, start_date: datetime, end_date: datetime
+    ) -> list[dict]:
+        quotes = await self.get_historical_quotes(symbol, start_date, end_date)
+        return [{"date": q.timestamp.date(), "value": q.price} for q in quotes]
+
+    async def get_corporate_actions(
+        self, symbol: str, start_date: datetime, end_date: datetime
+    ) -> list[dict]:
+        return []
 
     async def health_check(self) -> bool:
         try:

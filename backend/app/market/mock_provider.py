@@ -88,5 +88,23 @@ class MockMarketDataProvider(MarketDataProvider):
             current = current + timedelta(days=1)
         return quotes
 
+    async def get_historical_fx(
+        self, pair: str, start_date: datetime, end_date: datetime
+    ) -> list[dict]:
+        await self._simulate_latency_and_failure()
+        return []
+
+    async def get_historical_benchmark(
+        self, symbol: str, start_date: datetime, end_date: datetime
+    ) -> list[dict]:
+        await self._simulate_latency_and_failure()
+        return []
+
+    async def get_corporate_actions(
+        self, symbol: str, start_date: datetime, end_date: datetime
+    ) -> list[dict]:
+        await self._simulate_latency_and_failure()
+        return []
+
     async def health_check(self) -> bool:
         return not self.always_fail

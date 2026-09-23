@@ -43,5 +43,9 @@ class QuoteDTO(BaseModel):
         False,
         description="True if this is a synthetic mock quote"
     )
+    is_adjusted: bool = Field(
+        False,
+        description="True if this historical price has been adjusted for corporate actions"
+    )
 
     model_config = {"frozen": True}
