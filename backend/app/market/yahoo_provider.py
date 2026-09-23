@@ -8,7 +8,7 @@ from typing import Any
 import httpx
 from pydantic import ValidationError
 
-from app.market.dto import QuoteDTO
+from app.market.dto import QuoteDTO, HistoricalBarDTO
 from app.market.exceptions import InstrumentNotFoundError, ProviderUnavailableError
 from app.market.provider_base import MarketDataProvider
 
@@ -137,7 +137,7 @@ class YahooFinanceProvider(MarketDataProvider):
 
     async def get_historical_quotes(
         self, symbol: str, start_date: datetime, end_date: datetime
-    ) -> list[QuoteDTO]:
+    ) -> list[HistoricalBarDTO]:
         period1 = int(start_date.timestamp())
         period2 = int(end_date.timestamp())
         url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
@@ -190,32 +190,19 @@ class YahooFinanceProvider(MarketDataProvider):
                 )
                 volume = int(indicators["volume"][i]) if indicators["volume"][i] is not None else 0
 
-                # Approximate previous_close for history
-                change_pct = (
-                    ((price - open_price) / open_price) * Decimal("100")
-                    if open_price
-                    else Decimal("0")
-                )
-
                 dt = datetime.fromtimestamp(ts, tz=UTC)
-
                 quotes.append(
-                    QuoteDTO(
+                    HistoricalBarDTO(
                         symbol=symbol,
-                        price=price,
-                        change_pct=round(change_pct, 4),
-                        volume=volume,
+                        timestamp=dt,
+                        open=open_price,
                         high=high,
                         low=low,
-                        open=open_price,
-                        previous_close=open_price,
-                        timestamp=dt,
+                        close=price,
+                        volume=volume,
                         source_name=self.name,
-                        freshness_seconds=0.0,
-                        is_stale=False,
-                        data_state="EOD",
-                        is_mock=False,
-                        is_adjusted=True,
+                        price_basis="RAW",
+                        is_adjusted=False
                     )
                 )
             return quotes

@@ -14,7 +14,8 @@ async def test_ohlcv_ingestion_idempotency():
         registry.register(MockMarketDataProvider(), is_primary=True)
 
         # Setup test instrument
-        test_symbol = f"TESTBIST_{int(datetime.now(UTC).timestamp())}"
+        import uuid
+        test_symbol = f"TESTBIST_{uuid.uuid4().hex[:8]}"
         inst = Instrument(symbol=test_symbol, name="Test", exchange="BIST", asset_class="BIST_EQUITY", is_active=True)
         db_session.add(inst)
         await db_session.commit()
@@ -48,6 +49,12 @@ async def test_ohlcv_ingestion_idempotency():
         assert len(rows) > 0
         assert rows[0].ingestion_run_id == run1_id
 
+        from app.db.models import OHLCVSourceObservation
+        result_src = await db_session.execute(select(OHLCVSourceObservation).where(OHLCVSourceObservation.instrument_id == inst.id))
+        src_rows = result_src.scalars().all()
+        assert len(src_rows) == len(rows)
+        assert src_rows[0].ingestion_run_id == run1_id
+
         # Second run (idempotent overwrite)
         run2_id = await ingest_ohlcv(
             db=db_session,
@@ -58,10 +65,17 @@ async def test_ohlcv_ingestion_idempotency():
             dataset_type="OHLCV"
         )
 
-        # Assert row count remains same but run ID is updated
+        # Assert canonical row count remains same but run ID is updated
         result2 = await db_session.execute(select(OHLCVDaily).where(OHLCVDaily.instrument_id == inst.id))
         rows2 = result2.scalars().all()
         assert len(rows2) == len(rows)
+        
+        # Verify source observations did NOT multiply because they were exact replays
+        result_src2 = await db_session.execute(select(OHLCVSourceObservation).where(OHLCVSourceObservation.instrument_id == inst.id))
+        src_rows2 = result_src2.scalars().all()
+        assert len(src_rows2) == len(src_rows)
+        # Source rows keep original ingestion_run_id because payload didn't change
+        assert src_rows2[0].ingestion_run_id == run1_id
         
         # Verify they were updated to the new run ID via a DB query to avoid async lazy load issues
         from sqlalchemy import func

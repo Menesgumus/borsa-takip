@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from app.db.session import async_session_maker
 from app.db.models import TradingSession
-from app.market.trading_calendar import is_trading_day
+from app.market.trading_calendar import is_trading_day, get_session_type
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -26,10 +26,12 @@ async def seed_calendar():
         while current <= end_date:
             from datetime import timedelta
             is_open = is_trading_day(current, calendar_name)
+            sess_type = get_session_type(current, calendar_name)
             values.append({
                 "calendar_name": calendar_name,
                 "session_date": current,
-                "is_trading_day": is_open
+                "is_trading_day": is_open,
+                "session_type": sess_type
             })
             current += timedelta(days=1)
             
@@ -37,7 +39,10 @@ async def seed_calendar():
         stmt = insert(TradingSession).values(values)
         stmt = stmt.on_conflict_do_update(
             index_elements=["calendar_name", "session_date"],
-            set_={"is_trading_day": stmt.excluded.is_trading_day}
+            set_={
+                "is_trading_day": stmt.excluded.is_trading_day,
+                "session_type": stmt.excluded.session_type
+            }
         )
         
         await db.execute(stmt)

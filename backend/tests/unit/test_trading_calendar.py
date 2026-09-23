@@ -1,8 +1,8 @@
 from datetime import date
 from app.market.trading_calendar import (
     is_weekend,
-    is_fixed_holiday,
     is_trading_day,
+    get_session_type,
     get_trading_days,
     get_previous_trading_day,
     get_next_trading_day,
@@ -16,11 +16,19 @@ def test_is_weekend():
     # Monday
     assert is_weekend(date(2023, 1, 9)) == False
 
-def test_is_fixed_holiday():
-    # New Year
-    assert is_fixed_holiday(date(2023, 1, 1)) == True
-    # Not a holiday
-    assert is_fixed_holiday(date(2023, 1, 2)) == False
+def test_get_session_type():
+    # Regular day
+    assert get_session_type(date(2023, 1, 2)) == "REGULAR"
+    # Weekend
+    assert get_session_type(date(2023, 1, 7)) == "CLOSED_WEEKEND"
+    # Fixed Holiday (May 1)
+    assert get_session_type(date(2023, 5, 1)) == "CLOSED_HOLIDAY"
+    # Fixed Half Day (Oct 28, 2024 is a Monday)
+    assert get_session_type(date(2024, 10, 28)) == "HALF_DAY"
+    # Ramazan Bayramı (Variable)
+    assert get_session_type(date(2023, 4, 21)) == "CLOSED_HOLIDAY"
+    # Ramazan Arife (Variable Half Day)
+    assert get_session_type(date(2023, 4, 20)) == "HALF_DAY"
 
 def test_is_trading_day():
     # Regular day (Monday, not holiday)
@@ -29,6 +37,10 @@ def test_is_trading_day():
     assert is_trading_day(date(2023, 1, 7)) == False
     # Holiday (May 1, Monday)
     assert is_trading_day(date(2023, 5, 1)) == False
+    # Arife (Half day is a trading day)
+    assert is_trading_day(date(2023, 4, 20)) == True
+    # Ramazan (Holiday is closed)
+    assert is_trading_day(date(2023, 4, 21)) == False
 
 def test_get_trading_days():
     # Dec 31 (Sat), Jan 1 (Sun, Holiday), Jan 2 (Mon, Trading), Jan 3 (Tue, Trading)

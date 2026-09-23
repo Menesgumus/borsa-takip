@@ -225,11 +225,42 @@ class TradingSession(Base):
     calendar_name = Column(String(50), nullable=False, index=True)  # e.g., 'BIST'
     session_date = Column(Date, nullable=False, index=True)
     is_trading_day = Column(Boolean, nullable=False)
+    session_type = Column(String(50), nullable=False, server_default="REGULAR") # REGULAR, HALF_DAY, CLOSED_HOLIDAY, CLOSED_WEEKEND, EXCEPTIONAL_CLOSURE
     session_open = Column(DateTime(timezone=True), nullable=True)
     session_close = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     
     __table_args__ = (UniqueConstraint('calendar_name', 'session_date', name='uq_trading_session_date'),)
+
+
+class OHLCVSourceObservation(Base):
+    """Append-only source observation layer for historical market data."""
+    __tablename__ = "ohlcv_source_observations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    instrument_id = Column(Integer, ForeignKey("instruments.id", ondelete="CASCADE"), nullable=False, index=True)
+    timestamp = Column(DateTime(timezone=True), nullable=False, index=True)
+    
+    provider_name = Column(String(100), nullable=False)
+    provider_symbol = Column(String(100), nullable=False)
+    
+    open = Column(Numeric(20, 8), nullable=False)
+    high = Column(Numeric(20, 8), nullable=False)
+    low = Column(Numeric(20, 8), nullable=False)
+    close = Column(Numeric(20, 8), nullable=False)
+    volume = Column(BigInteger, nullable=False)
+    
+    is_adjusted = Column(Boolean, nullable=False, default=False)
+    price_basis = Column(String(50), nullable=False, server_default="RAW")  # RAW or ADJUSTED
+    
+    ingestion_run_id = Column(Integer, ForeignKey("ingestion_runs.id"), nullable=True, index=True)
+    source_record_id = Column(String(255), nullable=True)
+    retrieved_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    
+    __table_args__ = (
+        # Allows distinguishing runs and providers. Not strictly unique on timestamp alone.
+        UniqueConstraint('instrument_id', 'timestamp', 'provider_name', 'is_adjusted', 'ingestion_run_id', name='uq_ohlcv_source_obs'),
+    )
 
 
 class HistoricalFXRate(Base):
@@ -242,7 +273,7 @@ class HistoricalFXRate(Base):
     ingestion_run_id = Column(Integer, ForeignKey("ingestion_runs.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     
-    __table_args__ = (UniqueConstraint('currency_pair', 'date', name='uq_historical_fx_pair_date'),)
+    __table_args__ = (UniqueConstraint('currency_pair', 'date', 'provider_name', name='uq_historical_fx_pair_date_prov'),)
 
 
 class BenchmarkSeries(Base):
@@ -255,7 +286,7 @@ class BenchmarkSeries(Base):
     ingestion_run_id = Column(Integer, ForeignKey("ingestion_runs.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     
-    __table_args__ = (UniqueConstraint('benchmark_name', 'date', name='uq_benchmark_name_date'),)
+    __table_args__ = (UniqueConstraint('benchmark_name', 'date', 'provider_name', name='uq_benchmark_name_date_prov'),)
 
 
 class CorporateAction(Base):

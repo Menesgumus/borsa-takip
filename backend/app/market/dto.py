@@ -11,6 +11,20 @@ from decimal import Decimal
 from pydantic import BaseModel, Field
 
 
+class HistoricalBarDTO(BaseModel):
+    """Historical bar data for a single trading session."""
+    symbol: str = Field(..., description="Canonical instrument symbol")
+    timestamp: datetime = Field(..., description="Session date/time (UTC)")
+    open: Decimal = Field(..., description="Session open price")
+    high: Decimal = Field(..., description="Session high price")
+    low: Decimal = Field(..., description="Session low price")
+    close: Decimal = Field(..., description="Session close price")
+    volume: int = Field(0, description="Session volume")
+    source_name: str = Field(..., description="Provider that produced this data")
+    price_basis: str = Field("RAW", description="RAW or ADJUSTED")
+    is_adjusted: bool = Field(False, description="True if prices are adjusted for corporate actions")
+    source_record_id: str | None = Field(None, description="Provider's internal ID if any")
+
 class QuoteDTO(BaseModel):
     """Snapshot quote from any market data provider.
 

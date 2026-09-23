@@ -6,7 +6,7 @@ import asyncio
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from app.market.dto import QuoteDTO
+from app.market.dto import QuoteDTO, HistoricalBarDTO
 from app.market.exceptions import ProviderUnavailableError
 from app.market.provider_base import MarketDataProvider
 
@@ -75,7 +75,7 @@ class MockMarketDataProvider(MarketDataProvider):
 
     async def get_historical_quotes(
         self, symbol: str, start_date: datetime, end_date: datetime
-    ) -> list[QuoteDTO]:
+    ) -> list[HistoricalBarDTO]:
         from datetime import timedelta
 
         await self._simulate_latency_and_failure()
@@ -83,8 +83,19 @@ class MockMarketDataProvider(MarketDataProvider):
         current = start_date
         while current <= end_date:
             quote = self._generate_quote(symbol)
-            quote = quote.model_copy(update={"timestamp": current})
-            quotes.append(quote)
+            bar = HistoricalBarDTO(
+                symbol=symbol,
+                timestamp=current,
+                open=quote.open,
+                high=quote.high,
+                low=quote.low,
+                close=quote.price,
+                volume=quote.volume or 0,
+                source_name=self.name,
+                price_basis="RAW",
+                is_adjusted=False
+            )
+            quotes.append(bar)
             current = current + timedelta(days=1)
         return quotes
 

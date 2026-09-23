@@ -5,7 +5,7 @@ from sqlalchemy import select, func
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import IngestionRun, OHLCVDaily, Instrument, ProviderMapping
+from app.db.models import IngestionRun, OHLCVDaily, Instrument, ProviderMapping, OHLCVSourceObservation
 from app.market.registry import MarketDataRegistry
 
 logger = logging.getLogger(__name__)
@@ -23,6 +23,12 @@ async def ingest_ohlcv(
     Ingest historical OHLCV data for given symbols with full provenance.
     Returns the IngestionRun ID.
     """
+    import subprocess
+    try:
+        code_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    except Exception:
+        code_sha = None
+
     # 1. Create IngestionRun
     run = IngestionRun(
         provider_name=provider_name,
@@ -31,6 +37,7 @@ async def ingest_ohlcv(
         status="RUNNING",
         requested_start=start_date,
         requested_end=end_date,
+        code_sha=code_sha
     )
     db.add(run)
     await db.commit()
@@ -48,14 +55,15 @@ async def ingest_ohlcv(
 
     rows_received = 0
     rows_inserted = 0
-    rows_updated = 0
+    rows_replayed = 0
+    rows_corrected = 0
+    rows_canonicalized = 0
     rows_rejected = 0
     
     async def process_symbol(symbol: str):
-        nonlocal rows_received, rows_inserted, rows_updated, rows_rejected
+        nonlocal rows_received, rows_inserted, rows_replayed, rows_corrected, rows_canonicalized, rows_rejected
         if symbol not in instrument_map:
             logger.warning(f"Symbol {symbol} not found in DB")
-            rows_rejected += 1
             return
             
         instrument_id = instrument_map[symbol]
@@ -69,66 +77,125 @@ async def ingest_ohlcv(
         mapping = result.scalars().first()
         if not mapping:
             logger.warning(f"No provider mapping found for {symbol} under {provider_name}")
-            rows_rejected += 1
             return
             
         provider_symbol = mapping.provider_symbol
         
         async with semaphore:
             try:
-                # get_historical_quotes returns QuoteDTO
                 provider = registry.get_provider(provider_name)
-                quotes = await provider.get_historical_quotes(
+                bars = await provider.get_historical_quotes(
                     symbol=provider_symbol,
                     start_date=start_date,
                     end_date=end_date
                 )
                 
-                if not quotes:
+                if not bars:
                     return
 
-                rows_received += len(quotes)
+                rows_received += len(bars)
                 
-                # Bulk upsert
-                values = []
-                for q in quotes:
-                    values.append({
-                        "instrument_id": instrument_id,
-                        "timestamp": q.timestamp,
-                        "open": q.open,
-                        "high": q.high,
-                        "low": q.low,
-                        "close": q.price,
-                        "volume": q.volume,
-                        "provider_name": q.source_name,
-                        "ingestion_run_id": run.id,
-                        "provenance_type": "PRIMARY_INGEST",
-                        "is_adjusted": q.is_adjusted,
-                        "session_type": "REGULAR"
-                    })
-                
-                stmt = insert(OHLCVDaily).values(values)
-                stmt = stmt.on_conflict_do_update(
-                    index_elements=["instrument_id", "timestamp"],
-                    set_={
-                        "open": stmt.excluded.open,
-                        "high": stmt.excluded.high,
-                        "low": stmt.excluded.low,
-                        "close": stmt.excluded.close,
-                        "volume": stmt.excluded.volume,
-                        "provider_name": stmt.excluded.provider_name,
-                        "ingestion_run_id": stmt.excluded.ingestion_run_id,
-                        "provenance_type": stmt.excluded.provenance_type,
-                        "is_adjusted": stmt.excluded.is_adjusted,
-                        "session_type": stmt.excluded.session_type,
-                        "updated_at": func.now()
-                    }
+                # Fetch existing latest source observations for this instrument and provider
+                from sqlalchemy import desc
+                stmt = (
+                    select(OHLCVSourceObservation)
+                    .where(OHLCVSourceObservation.instrument_id == instrument_id)
+                    .where(OHLCVSourceObservation.provider_name == provider_name)
+                    .order_by(OHLCVSourceObservation.timestamp, desc(OHLCVSourceObservation.retrieved_at))
                 )
+                existing_obs_result = await db.execute(stmt)
                 
-                await db.execute(stmt)
+                # Build dict of timestamp -> latest observation
+                existing_obs = {}
+                for obs in existing_obs_result.scalars():
+                    # We only care about the most recent observation for a timestamp
+                    if obs.timestamp not in existing_obs:
+                        existing_obs[obs.timestamp] = obs
+
+                source_values = []
+                canonical_values = []
+                
+                for b in bars:
+                    payload_changed = True
+                    is_new = True
+                    
+                    if b.timestamp in existing_obs:
+                        is_new = False
+                        old = existing_obs[b.timestamp]
+                        # Exact replay check
+                        if (old.open == b.open and old.high == b.high and 
+                            old.low == b.low and old.close == b.close and 
+                            old.volume == b.volume and old.is_adjusted == b.is_adjusted and
+                            old.price_basis == b.price_basis):
+                            payload_changed = False
+                    
+                    if payload_changed:
+                        if is_new:
+                            rows_inserted += 1
+                        else:
+                            rows_corrected += 1
+                            
+                        # Insert new source observation
+                        source_values.append({
+                            "instrument_id": instrument_id,
+                            "timestamp": b.timestamp,
+                            "provider_name": b.source_name,
+                            "provider_symbol": provider_symbol,
+                            "open": b.open,
+                            "high": b.high,
+                            "low": b.low,
+                            "close": b.close,
+                            "volume": b.volume,
+                            "is_adjusted": b.is_adjusted,
+                            "price_basis": b.price_basis,
+                            "ingestion_run_id": run.id,
+                            "source_record_id": b.source_record_id,
+                        })
+                    else:
+                        rows_replayed += 1
+                    
+                    # We ALWAYS canonicalize RAW prices for the canonical layer
+                    if b.price_basis == "RAW":
+                        canonical_values.append({
+                            "instrument_id": instrument_id,
+                            "timestamp": b.timestamp,
+                            "open": b.open,
+                            "high": b.high,
+                            "low": b.low,
+                            "close": b.close,
+                            "volume": b.volume,
+                            "provider_name": b.source_name,
+                            "ingestion_run_id": run.id,
+                            "provenance_type": "PRIMARY_INGEST",
+                            "is_adjusted": b.is_adjusted,
+                            "session_type": "REGULAR"
+                        })
+                
+                if source_values:
+                    await db.execute(insert(OHLCVSourceObservation).values(source_values))
+                
+                if canonical_values:
+                    stmt_can = insert(OHLCVDaily).values(canonical_values)
+                    stmt_can = stmt_can.on_conflict_do_update(
+                        index_elements=["instrument_id", "timestamp"],
+                        set_={
+                            "open": stmt_can.excluded.open,
+                            "high": stmt_can.excluded.high,
+                            "low": stmt_can.excluded.low,
+                            "close": stmt_can.excluded.close,
+                            "volume": stmt_can.excluded.volume,
+                            "provider_name": stmt_can.excluded.provider_name,
+                            "ingestion_run_id": stmt_can.excluded.ingestion_run_id,
+                            "provenance_type": stmt_can.excluded.provenance_type,
+                            "is_adjusted": stmt_can.excluded.is_adjusted,
+                            "session_type": stmt_can.excluded.session_type,
+                            "updated_at": func.now()
+                        }
+                    )
+                    await db.execute(stmt_can)
+                    rows_canonicalized += len(canonical_values)
+                
                 await db.commit()
-                # We count as upserted, accurate counting of insert vs update requires more complex logic
-                rows_updated += len(quotes)
 
             except Exception as e:
                 logger.error(f"Error ingesting {symbol}: {e}")
@@ -145,8 +212,9 @@ async def ingest_ohlcv(
         run.status = "NO_DATA"
         
     run.rows_received = rows_received
+    # Storing metrics in generic fields for schema compatibility
     run.rows_inserted = rows_inserted
-    run.rows_updated = rows_updated
+    run.rows_updated = rows_corrected
     run.rows_rejected = rows_rejected
     
     await db.commit()

@@ -5,7 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from datetime import datetime
 
-from app.market.dto import QuoteDTO
+from app.market.dto import QuoteDTO, HistoricalBarDTO
 
 
 class MarketDataProvider(ABC):
@@ -41,7 +41,7 @@ class MarketDataProvider(ABC):
     @abstractmethod
     async def get_historical_quotes(
         self, symbol: str, start_date: datetime, end_date: datetime
-    ) -> list[QuoteDTO]:
+    ) -> list[HistoricalBarDTO]:
         """Fetch historical daily quotes for the given date range."""
 
     async def get_historical_fx(
